@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Output harvest (terlalu besar untuk git)
+output/
+
+# Data processed (bisa di-rebuild)
+data/
+
+# Debug artifacts
+error_debug.xml
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary
+*.tmp
+reorganize.ps1

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="h - Temukan koleksi literatur akademik terlengkap dari berbagai perpustakaan dan arsip publik dengan mudah.">
+    <title>UMS Library OneSearch - Pencarian Terintegrasi</title>
+    <link rel="icon" href="/img/logo4.png" type="image/png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+        rel="stylesheet">
+    <link rel="manifest" href="/manifest.json">
+
+    <link rel="stylesheet" href="css/style.css?v=17">
+</head>
+
+<body>
+    <!-- Loading -->
+    <div id="ld-screen" class="ld-screen">
+        <div class="ld-inner">
+            <div class="ld-spinner"></div>
+            <h2>UMSLibrary OneSearch</h2>
+            <p id="ld-text" data-i18n="loading_books">Memuat koleksi perpustakaan...</p>
+            <div class="ld-bar">
+                <div class="ld-bar-fill" id="ld-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Bar -->
+    <header class="topbar">
+        <div class="wrap topbar-inner">
+            <a href="#" class="logo" onclick="app.showHome();return false">
+                <img src="/img/logo-2.png" alt="UMS Library OneSearch" width="200" class="logo-light">
+                <img src="/img/logo-1.png" alt="UMS Library OneSearch" width="200" class="logo-dark">
+            </a>
+            <nav class="nav-mid">
+                <a href="#" class="on" data-page="home" onclick="app.showHome();return false" id="nav-home"
+                    data-i18n="home">Beranda</a>
+                <a href="#" data-page="browse" onclick="app.showBrowse();return false" id="nav-browse"
+                    data-i18n="explore">Jelajahi</a>
+                <a href="#" data-page="bookmarks" onclick="app.showBookmarks();return false" id="nav-bookmarks"
+                    data-i18n="nav_bookmarks">Koleksi
+                    <span id="bm-badge"
+                        style="display:none;background:var(--brand);color:#fff;font-size:.65rem;font-weight:700;padding:1px 5px;border-radius:30px;margin-left:4px;min-width:18px;height:18px;align-items:center;justify-content:center;"></span>
+                </a>
+                <a href="#" data-page="stats" onclick="app.showStats();return false" id="nav-stats"
+                    data-i18n="stats">Statistik</a>
+            </nav>
+            <div style="display:flex;gap:0.5rem;align-items:center">
+                <button class="theme-btn"
+                    style="font-weight:700;font-size:0.75rem;padding:0 8px;width:auto;font-family:'Inter',sans-serif;letter-spacing:0.05em"
+                    onclick="app.toggleLang()" id="lang-toggle">ID</button>
+                <button class="theme-btn" id="theme-btn" onclick="app.toggleTheme()" title="Ganti tema">
+                    <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <circle cx="12" cy="12" r="5" />
+                        <line x1="12" y1="1" x2="12" y2="3" />
+                        <line x1="12" y1="21" x2="12" y2="23" />
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                        <line x1="1" y1="12" x2="3" y2="12" />
+                        <line x1="21" y1="12" x2="23" y2="12" />
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                    </svg>
+                    <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                    </svg>
+                </button>
+            </div>
+            <button class="mob-btn" onclick="app.toggleMobileMenu()">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+            </button>
+        </div>
+    </header>
+    <div class="mob-menu" id="mob-menu">
+        <a href="#" onclick="app.showHome();app.toggleMobileMenu();return false" data-i18n="home">Beranda</a>
+        <a href="#" onclick="app.showBrowse();app.toggleMobileMenu();return false" data-i18n="explore">Jelajahi</a>
+        <a href="#" onclick="app.showBookmarks();app.toggleMobileMenu();return false" data-i18n="nav_bookmarks">Koleksi
+            Saya <span id="bm-badge-mob"
+                style="display:none;background:var(--brand);color:#fff;font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:30px;margin-left:4px;"></span></a>
+        <a href="#" onclick="app.showStats();app.toggleMobileMenu();return false" data-i18n="stats">Statistik</a>
+    </div>
+
+    <main>
+        <!-- HOME -->
+        <section id="page-home" class="page on">
+            <div class="hero">
+                <div class="wrap hero-layout">
+                    <div class="hero-text">
+                        <div class="eyebrow" data-i18n="eyebrow_text">UPT Perpustakaan dan Layanan Digital UMS</div>
+                        <h1><span data-i18n="hero_title1">Gerbang Referensi</span><br><span data-i18n="hero_title2"><em
+                                    style='display:inline-block'>Lintas
+                                    Institusi</em></span></h1>
+                        <p data-i18n="hero_subtitle">Temukan koleksi literatur akademik terlengkap dari
+                            berbagai perpustakaan dan arsip publik dengan mudah.</p>
+                        <div class="search-wrap" id="search-wrap">
+                            <div class="search-row">
+                                <div class="search-box">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <circle cx="11" cy="11" r="8" />
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                    </svg>
+                                    <input type="text" id="search-input" data-i18n="search_placeholder"
+                                        placeholder="Cari judul, pengarang, subjek..." autocomplete="off">
+                                    <button class="clear-btn" id="search-clear" onclick="app.clearSearch()"
+                                        style="display:none">✕</button>
+                                </div>
+                                <select class="search-field-sel" id="search-field-sel">
+                                    <option value="all" data-i18n="sf_all">Semua</option>
+                                    <option value="title" data-i18n="sf_title">Judul</option>
+                                    <option value="author" data-i18n="sf_author">Pengarang</option>
+                                    <option value="subject" data-i18n="sf_subject">Subjek</option>
+                                    <option value="ddc" data-i18n="sf_ddc">No. Panggil</option>
+                                    <option value="isbn" data-i18n="sf_isbn">ISBN</option>
+                                </select>
+                                <button class="search-find-btn"
+                                    onclick="app.doSearch(document.getElementById('search-input').value.trim())"
+                                    data-i18n="btn_search">
+                                    🔍 Cari
+                                </button>
+                            </div>
+                            <div class="suggest" id="suggest-box"></div>
+                        </div>
+                        <!-- Institution Picker -->
+                        <div class="inst-picker" id="inst-picker"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- <div class="wrap">
+                <div class="shelves" id="ddc-shelves"></div>
+            </div> -->
+
+            <!-- Search Results -->
+            <div class="wrap" id="results-wrap" style="display:none">
+                <div class="results-layout">
+                    <aside class="results-sidebar" id="results-sidebar">
+                        <div class="facet-header">
+                            <h3 data-i18n="filter">Filter</h3>
+                            <button class="btn-clear-filters" onclick="app.clearFilters()" id="btn-clear-filters"
+                                style="display:none" data-i18n="clear">Hapus</button>
+                        </div>
+                        <div id="facet-container"></div>
+                    </aside>
+                    <div class="results-main">
+                        <div class="results-bar">
+                            <h2 id="results-title" data-i18n="search_history_title">Hasil Pencarian</h2>
+                            <select class="sort-sel" id="sort-sel" onchange="app.sortResults()">
+                                <option value="relevance" data-i18n="sort_relevance">Relevansi</option>
+                                <option value="title" data-i18n="sort_az">Judul A-Z</option>
+                                <option value="year-desc" data-i18n="sort_newest">Terbaru</option>
+                                <option value="year-asc" data-i18n="sort_oldest">Terlama</option>
+                                <option value="ddc" data-i18n="sort_ddc">DDC</option>
+                            </select>
+                        </div>
+                        <div id="results-grid" class="bk-grid"></div>
+                        <div id="more-wrap" class="load-more-wrap" style="display:none">
+                            <button class="btn btn-ghost" onclick="app.loadMore()" data-i18n="load_more">Muat Lebih
+                                Banyak</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Browse Links -->
+            <div class="wrap">
+                <div class="qb-grid">
+                    <div class="qb-col">
+                        <h3 data-i18n="popular_topics">Topik Populer</h3>
+                        <ul>
+                            <li><a href="#" onclick="app.searchSubject('Manajemen'); return false;"
+                                    data-i18n="pt_management">Manajemen</a></li>
+                            <li><a href="#" onclick="app.searchSubject('Pendidikan'); return false;"
+                                    data-i18n="pt_education">Pendidikan</a></li>
+                            <li><a href="#" onclick="app.searchSubject('Hukum'); return false;"
+                                    data-i18n="pt_law">Hukum</a></li>
+                            <li><a href="#" onclick="app.searchSubject('Psikologi'); return false;"
+                                    data-i18n="pt_psychology">Psikologi</a></li>
+                            <li><a href="#" onclick="app.searchSubject('Akuntansi'); return false;"
+                                    data-i18n="pt_accounting">Akuntansi</a></li>
+                            <li><a href="#" onclick="app.searchSubject('Matematika'); return false;"
+                                    data-i18n="pt_math">Matematika</a></li>
+                        </ul>
+                    </div>
+                    <div class="qb-col">
+                        <h3 data-i18n="collection_format">Format Koleksi</h3>
+                        <ul>
+                            <li><a href="#" onclick="app.browseFormat('BKS'); return false;"
+                                    data-i18n="printed_book">Buku Cetak</a></li>
+                            <li><a href="#" onclick="app.browseFormat('EB'); return false;" data-i18n="ebook">E-Book
+                                    (Digital)</a></li>
+                            <li><a href="#" onclick="app.browseFormat('JR'); return false;"
+                                    data-i18n="journal">Jurnal</a></li>
+                            <li><a href="#" onclick="app.browseFormat('CF'); return false;"
+                                    data-i18n="computer_file">File Komputer</a></li>
+                            <li><a href="#" onclick="app.browseFormat('THESIS'); return false;"
+                                    data-i18n="thesis_short">Skripsi / Tesis</a></li>
+                            <li><a href="#" onclick="app.browseFormat('PR'); return false;"
+                                    data-i18n="reference">Rujukan / Referensi</a></li>
+                        </ul>
+                    </div>
+                    <div class="qb-col">
+                        <h3 data-i18n="search_options">Opsi Pencarian</h3>
+                        <ul>
+                            <li><a href="#" onclick="app.showSearchHistory(); return false;"
+                                    data-i18n="search_history">Riwayat Pencarian</a></li>
+                            <li><a href="#" onclick="app.showBookmarks(); return false;"
+                                    data-i18n="nav_bookmarks">Koleksi Saya</a></li>
+                            <li><a href="#" onclick="app.showAdvancedSearch(); return false;"
+                                    data-i18n="adv_search">Pencarian Lanjut</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BROWSE (DDC + Per Prodi) -->
+        <section id="page-browse" class="page">
+            <div class="wrap">
+                <div class="page-top" style="padding-bottom:.75rem">
+                    <h1 data-i18n="browse_collection">Jelajahi Koleksi</h1>
+                </div>
+                <!-- Mode Switcher -->
+                <div class="browse-mode-tabs" id="browse-mode-tabs">
+                    <button class="browse-mode-tab active" id="bmt-ddc" onclick="app.switchBrowseMode('ddc')"
+                        data-i18n="browse_tab_ddc">Klasifikasi DDC</button>
+                    <button class="browse-mode-tab" id="bmt-prodi" onclick="app.switchBrowseMode('prodi')"
+                        data-i18n="browse_tab_prodi">Per Program Studi</button>
+                </div>
+
+                <!-- DDC Mode -->
+                <div id="browse-ddc-area">
+                    <div class="crumbs" id="crumbs"></div>
+                    <div id="browse-content" class="browse-grid"></div>
+                    <div id="browse-books" class="bk-grid" style="display:none"></div>
+                    <div id="browse-more" class="load-more-wrap" style="display:none">
+                        <button class="btn btn-ghost" onclick="app.loadMoreDDC()" data-i18n="load_more">Muat Lebih
+                            Banyak</button>
+                    </div>
+                </div>
+
+                <!-- Per Prodi Mode -->
+                <div id="browse-prodi-area" style="display:none">
+                    <div class="prodi-fak-filter" id="prodi-fak-filter"></div>
+                    <div class="prodi-grid" id="prodi-grid"></div>
+                    <div id="prodi-books-panel" style="display:none">
+                        <div class="prodi-books-header">
+                            <button class="btn btn-ghost" onclick="app.closeProdiBooks()">
+                                ← <span data-i18n="back">Kembali</span>
+                            </button>
+                            <h2 id="prodi-books-title"></h2>
+                        </div>
+                        <div id="prodi-books-grid" class="bk-grid"></div>
+                        <div id="prodi-books-more" class="load-more-wrap" style="display:none">
+                            <button class="btn btn-ghost" onclick="app.loadMoreProdiBooks()" data-i18n="load_more">Muat
+                                Lebih Banyak</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BOOKMARKS / KOLEKSI SAYA -->
+        <section id="page-bookmarks" class="page">
+            <div class="wrap" id="bookmarks-wrap">
+                <div class="page-top">
+                    <h1 data-i18n="nav_bookmarks">Koleksi Saya</h1>
+                    <p data-i18n="bookmarks_desc">Daftar literatur yang Anda simpan di perangkat ini</p>
+                </div>
+                <!-- Toolbar -->
+                <div id="bookmarks-toolbar"
+                    style="display:none;flex-wrap:wrap;align-items:center;gap:.5rem;margin-bottom:1.25rem;padding:.75rem 1rem;background:var(--bg-2);border-radius:var(--r-md);border:1px solid var(--border)">
+                    <span style="font-size:.8rem;color:var(--ink-2);margin-right:.25rem"
+                        data-i18n="bm_sort_label">Urutkan:</span>
+                    <button id="bm-sort-az" class="bm-sort-btn active" onclick="app.setBmSort('az')"
+                        data-i18n="bm_sort_az">A–Z</button>
+                    <button id="bm-sort-year" class="bm-sort-btn" onclick="app.setBmSort('year')"
+                        data-i18n="bm_sort_year">Terbaru</button>
+                    <button id="bm-sort-ddc" class="bm-sort-btn" onclick="app.setBmSort('ddc')"
+                        data-i18n="bm_sort_ddc">DDC</button>
+                    <div style="flex:1"></div>
+                    <button class="bm-act-btn" onclick="app.exportBookmarks('csv')" data-i18n="bm_export_csv">⬇
+                        CSV</button>
+                    <button class="bm-act-btn" onclick="app.exportBookmarks('bib')" data-i18n="bm_export_bib">⬇
+                        BibTeX</button>
+                    <button class="bm-act-btn danger" onclick="app.clearAllBookmarks()" data-i18n="bm_clear_all">🗑
+                        Hapus Semua</button>
+                </div>
+                <div id="bookmarks-grid" class="bk-grid"></div>
+            </div>
+        </section>
+
+        <!-- STATS -->
+        <section id="page-stats" class="page">
+            <div class="wrap">
+                <div class="page-top">
+                    <h1 data-i18n="stats_collection">Statistik Koleksi</h1>
+                    <p data-i18n="stats_subtitle">Ringkasan data perpustakaan</p>
+                </div>
+                <div class="stats-cards" id="stats-cards"></div>
+                <div class="charts-row" id="stats-charts"></div>
+            </div>
+        </section>
+
+        <!-- Modal -->
+        <div class="modal-bg" id="modal" style="display:none" onclick="app.closeModal(event)">
+            <div class="modal-box" onclick="event.stopPropagation()">
+                <button class="modal-x" onclick="app.closeBookDetail()">✕</button>
+                <div id="modal-body"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="wrap">
+            <p data-i18n="footer_tagline">UMS Library OneSearch — Pencarian Terintegrasi</p>
+            <p class="sub"><span data-i18n="footer_data">Data dari</span> <a href="" target="_blank"> Jurnal dan
+                    OPAC Mitra UMS Library </a> ·
+                <span data-i18n="footer_updated">Diperbarui</span>: <span id="last-update">-</span>
+            </p>
+        </div>
+    </footer>
+
+    <script src="js/search.js?v=16"></script>
+    <script src="js/recommender.js?v=16"></script>
+    <script src="js/app.js?v=19"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(reg => {
+                    console.log('[SW] Registered: ', reg.scope);
+                }).catch(err => {
+                    console.log('[SW] Registration failed: ', err);
+                });
+            });
+        }
+    </script>
+</body>
+
+</html>

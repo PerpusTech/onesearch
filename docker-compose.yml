@@ -1,0 +1,12 @@
+services:
+  web:
+    build: .
+    container_name: ums-onesearch
+    restart: unless-stopped
+    ports:
+      - "8088:80"
+    volumes:
+      # Mount data/ agar bisa rebuild tanpa rebuild image
+      - ./data:/usr/share/nginx/html/data:ro
+    environment:
+      - TZ=Asia/Jakarta

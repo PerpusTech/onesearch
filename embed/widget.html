@@ -1,0 +1,52 @@
+<!-- 
+  =============================================================
+  WIDGET PENCARIAN ONESEARCH UNTUK WORDPRESS UMS
+  =============================================================
+  Cara Penggunaan:
+  Copy semua text di bawah ini dan paste ke dalam Custom HTML 
+  di WordPress Anda, tepat di bawah form pencarian OPAC yang 
+  sudah ada.
+  ============================================================= 
+-->
+
+<label for="osw-field" class="labelStyle"><span style="color: white"><br><b>Search Cross-Institutional Catalog
+      (OneSearch)</b></span></label>
+
+<div class="form-container">
+  <form name="searchform_onesearch" onsubmit="return oswSearch(event)" id="searchform_onesearch" class="form-inline">
+    <div class="dropdown">
+      <select name="field" id="osw-field" class="defaultOption">
+        <option value="all">All Fields</option>
+        <option value="title">Title</option>
+        <option value="author">Author</option>
+        <option value="subject">Subject</option>
+        <option value="ddc">Call number</option>
+        <option value="isbn">ISBN</option>
+      </select>
+    </div>
+    <div class="searchField">
+      <input type="text" title="Type search term" class="transl1" id="osw-query" name="q"
+        placeholder="Search across all partner libraries...">
+    </div>
+    <button type="submit" id="searchsubmit_onesearch" class="btn btn-primary btn-onesearch"
+      style="background-color: #ff6b35; border-color: #ff6b35;">OneSearch</button>
+  </form>
+</div>
+
+<script>
+  // ============================================================
+  // KONFIGURASI: Ganti URL ini dengan lokasi web OneSearch
+  // (misalnya: 'https://search.lib.ums.ac.id')
+  // ============================================================
+  var ONESEARCH_URL = 'http://localhost:8088';
+
+  function oswSearch(e) {
+    e.preventDefault();
+    var q = document.getElementById('osw-query').value.trim();
+    if (!q) return false;
+    var field = document.getElementById('osw-field').value;
+    var url = ONESEARCH_URL + '?q=' + encodeURIComponent(q) + '&field=' + field;
+    window.open(url, '_blank');
+    return false;
+  }
+</script>

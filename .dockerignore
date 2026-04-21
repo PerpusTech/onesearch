@@ -1,0 +1,25 @@
+# Python scripts (tidak perlu di image production)
+scripts/
+docs/
+output/
+__pycache__/
+*.py
+*.pyc
+
+# Docker files (keep docker/ for nginx.conf)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Git & IDE
+.git/
+.gitignore
+.agents/
+.vscode/
+.idea/
+
+# Temp
+*.tmp
+*.log
+reorganize.ps1
+error_debug.xml
