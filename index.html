@@ -10,7 +10,7 @@
     <link rel="icon" href="/img/logo4.png" type="image/png">
 
     <script>
-        (function() {
+        (function () {
             var t = localStorage.getItem('bf_theme') || 'light';
             document.documentElement.setAttribute('data-theme', t);
         })();
@@ -23,7 +23,7 @@
         rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
 
-    <link rel="stylesheet" href="css/style.css?v=44">
+    <link rel="stylesheet" href="css/style.css?v=47">
 </head>
 
 <body>
@@ -103,7 +103,8 @@
                 <div class="wrap hero-layout">
                     <div class="hero-text">
                         <h1><span data-i18n="hero_title1">UMS Library OneSearch</span></h1>
-                        <p data-i18n="hero_subtitle">Pencarian satu pintu seluruh koleksi perpustakaan, repositori, dan literatur ilmiah.</p>
+                        <p data-i18n="hero_subtitle">Pencarian satu pintu seluruh koleksi perpustakaan, repositori, dan
+                            literatur ilmiah.</p>
                         <div class="search-wrap" id="search-wrap">
                             <div class="search-row">
                                 <div class="search-box">
@@ -114,7 +115,8 @@
                                     </svg>
                                     <input type="text" id="search-input" data-i18n="search_placeholder"
                                         placeholder="Cari judul, pengarang, subjek..." autocomplete="off">
-                                    <kbd class="search-kbd-hint" id="search-kbd-hint"><span class="kbd-mod">Ctrl</span> K</kbd>
+                                    <kbd class="search-kbd-hint" id="search-kbd-hint"><span class="kbd-mod">Ctrl</span>
+                                        K</kbd>
                                     <button class="clear-btn" id="search-clear" onclick="app.clearSearch()"
                                         style="display:none">✕</button>
                                 </div>
@@ -183,60 +185,12 @@
                             <button class="btn btn-ghost" onclick="app.loadMore()" data-i18n="load_more">Muat Lebih
                                 Banyak</button>
                         </div>
+
+                        <!-- Smart Federated Discovery Insights Panel -->
+                        <div id="fed-auto-insights" class="fed-auto-insights" style="display:none"></div>
                     </div>
                 </div>
             </div>
-
-            <!-- Quick Browse Links -->
-            <!-- <div class="wrap">
-                <div class="qb-grid">
-                    <div class="qb-col">
-                        <h3 data-i18n="popular_topics">Topik Populer</h3>
-                        <ul>
-                            <li><a href="#" onclick="app.searchSubject('Manajemen'); return false;"
-                                    data-i18n="pt_management">Manajemen</a></li>
-                            <li><a href="#" onclick="app.searchSubject('Pendidikan'); return false;"
-                                    data-i18n="pt_education">Pendidikan</a></li>
-                            <li><a href="#" onclick="app.searchSubject('Hukum'); return false;"
-                                    data-i18n="pt_law">Hukum</a></li>
-                            <li><a href="#" onclick="app.searchSubject('Psikologi'); return false;"
-                                    data-i18n="pt_psychology">Psikologi</a></li>
-                            <li><a href="#" onclick="app.searchSubject('Akuntansi'); return false;"
-                                    data-i18n="pt_accounting">Akuntansi</a></li>
-                            <li><a href="#" onclick="app.searchSubject('Matematika'); return false;"
-                                    data-i18n="pt_math">Matematika</a></li>
-                        </ul>
-                    </div>
-                    <div class="qb-col">
-                        <h3 data-i18n="collection_format">Format Koleksi</h3>
-                        <ul>
-                            <li><a href="#" onclick="app.browseFormat('BKS'); return false;"
-                                    data-i18n="printed_book">Buku Cetak</a></li>
-                            <li><a href="#" onclick="app.browseFormat('EB'); return false;" data-i18n="ebook">E-Book
-                                    (Digital)</a></li>
-                            <li><a href="#" onclick="app.browseFormat('JR'); return false;"
-                                    data-i18n="journal">Jurnal</a></li>
-                            <li><a href="#" onclick="app.browseFormat('CF'); return false;"
-                                    data-i18n="computer_file">File Komputer</a></li>
-                            <li><a href="#" onclick="app.browseFormat('THESIS'); return false;"
-                                    data-i18n="thesis_short">Skripsi / Tesis</a></li>
-                            <li><a href="#" onclick="app.browseFormat('PR'); return false;"
-                                    data-i18n="reference">Rujukan / Referensi</a></li>
-                        </ul>
-                    </div>
-                    <div class="qb-col">
-                        <h3 data-i18n="search_options">Opsi Pencarian</h3>
-                        <ul>
-                            <li><a href="#" onclick="app.showSearchHistory(); return false;"
-                                    data-i18n="search_history">Riwayat Pencarian</a></li>
-                            <li><a href="#" onclick="app.showBookmarks(); return false;"
-                                    data-i18n="nav_bookmarks">Koleksi Saya</a></li>
-                            <li><a href="#" onclick="app.showAdvancedSearch(); return false;"
-                                    data-i18n="adv_search">Pencarian Lanjut</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div> -->
         </section>
 
         <!-- BROWSE (DDC + Per Prodi) -->
@@ -362,7 +316,7 @@
     </div>
     <script src="js/search.js?v=16"></script>
     <script src="js/recommender.js?v=16"></script>
-    <script src="js/app.js?v=48"></script>
+    <script src="js/app.js?v=50"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

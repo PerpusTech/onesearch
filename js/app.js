@@ -1213,9 +1213,9 @@ const app = {
     showSuggest(q) {
         const sug = this.searchEngine.suggest(q);
         const box = document.getElementById('suggest-box');
-        if (!sug.length) { this.hideSuggest(); return; }
+        if (!sug.length && (!q || q.trim().length < 2)) { this.hideSuggest(); return; }
         const inp = document.getElementById('search-input').value;
-        box.innerHTML = sug.map(s => {
+        let html = sug.map(s => {
             const type = s.type === 'title' ? this.t('sug_title') : s.type === 'author' ? this.t('sug_author') : this.t('sug_subject');
             const cls = s.type === 'title' ? 'is-title' : s.type === 'author' ? 'is-author' : 'is-subject';
             const sub = s.subtext ? `<small> — ${this.esc(s.subtext)}</small>` : '';
@@ -1224,6 +1224,16 @@ const app = {
                 <span class="sug-text">${this.hl(s.text, inp)}${sub}</span>
             </div>`;
         }).join('');
+
+        if (q && q.trim().length >= 2) {
+            html += `
+            <div class="sug-item" style="background:var(--bg-2); border-top:1px solid var(--border); margin-top:3px;" onclick="app.selectFedSource('openalex'); app.fetchFederatedDiscovery(app._allFedSources.find(s=>s.id==='openalex'), '${this.esc(q).replace(/'/g, "\\'")}', 1); app.hideSuggest();">
+                <span class="sug-badge" style="background:rgba(37,99,235,0.12); color:var(--brand); font-weight:700">🌐 Global OA</span>
+                <span class="sug-text">Cari <strong>"${this.esc(q)}"</strong> di Scopus, Crossref & OpenAlex →</span>
+            </div>`;
+        }
+
+        box.innerHTML = html;
         box.classList.add('open');
     },
     hideSuggest() { document.getElementById('suggest-box').classList.remove('open'); },
@@ -1239,6 +1249,8 @@ const app = {
         if (kbdHint) kbdHint.style.display = 'inline-flex';
         if (document.getElementById('results-wrap')) document.getElementById('results-wrap').style.display = 'none';
         if (document.getElementById('fed-results-wrap')) document.getElementById('fed-results-wrap').style.display = 'none';
+        const autoInsights = document.getElementById('fed-auto-insights');
+        if (autoInsights) autoInsights.style.display = 'none';
         this.hideSuggest();
     },
     quickSearch(keyword) {
@@ -1315,35 +1327,138 @@ const app = {
         document.getElementById('results-wrap').style.display = 'block';
         document.getElementById('results-wrap').scrollIntoView({ behavior: 'smooth' });
 
-        // Live Fetch from Scopus for generic searches
-        if (field === 'all' || field === 'title' || field === 'author') {
-            document.getElementById('results-title').innerHTML += ' <span style="opacity:0.7; font-size:0.9em">(Mencari di Scopus...)</span>';
-            fetch('/api/scopus?q=' + encodeURIComponent(q))
-                .then(r => r.json())
-                .then(scopusBooks => {
-                    // Cek jika pencarian user sudah berubah
-                    if (document.getElementById('search-input').value.toLowerCase() !== q.toLowerCase()) return;
+        // Trigger Automated Smart Multi-Source Discovery in parallel
+        this.fetchAutoFederatedInsights(q, results.length);
+    },
 
-                    if (scopusBooks && scopusBooks.length > 0) {
-                        this.baseResults = this.baseResults.concat(scopusBooks);
-                        // Sort ulang jika ada
-                        if (field === 'all') {
-                            // Scopus results naturally sorted by relevance from API, but we just append them.
-                        } else {
-                            this.baseResults.sort((a, b) => (a.t || '').localeCompare(b.t || ''));
-                        }
-                        this.resultsPage = 0;
-                        document.getElementById('results-title').textContent = `"${q}"${fieldLabel} — ${this.baseResults.length} ${this.t('results_found').toLowerCase()}`;
-                        this.renderFacets();
-                        this.applyFiltersAndRender();
-                    } else {
-                        document.getElementById('results-title').textContent = `"${q}"${fieldLabel} — ${this.baseResults.length} ${this.t('results_found').toLowerCase()}`;
-                    }
-                }).catch(e => {
-                    console.error('Scopus fetch error:', e);
-                    document.getElementById('results-title').textContent = `"${q}"${fieldLabel} — ${this.baseResults.length} ${this.t('results_found').toLowerCase()}`;
-                });
-        }
+    fetchAutoFederatedInsights(q, localCount = 0) {
+        const container = document.getElementById('fed-auto-insights');
+        if (!container) return;
+
+        container.style.display = 'block';
+        container.innerHTML = `
+            <div class="fed-insights-header">
+                <div class="fed-insights-title-group">
+                    <h3><span style="font-size:1.3rem">🌐</span> Literatur Ilmiah Internasional Terkait "${this.esc(q)}"</h3>
+                    <p>Mencari live ke basis data Scopus, Crossref, OpenAlex Global OA, Springer & Emerald...</p>
+                </div>
+            </div>
+            <div class="fed-insights-pills">
+                <span class="fed-insight-pill">⏳ Memuat estimasi Scopus...</span>
+                <span class="fed-insight-pill">⏳ Memuat OpenAlex...</span>
+                <span class="fed-insight-pill">⏳ Memuat Crossref...</span>
+            </div>
+            <div class="fed-insights-grid" style="opacity:0.6">
+                <div class="fed-insight-card" style="min-height:140px; display:flex; align-items:center; justify-content:center; color:var(--ink-3)">
+                    <div class="ld-spinner" style="width:20px; height:20px; margin-right:8px"></div> Menghubungkan ke basis data internasional...
+                </div>
+            </div>
+        `;
+
+        const queryTerm = encodeURIComponent(q);
+        const reqScopus = fetch(`/api/federated?source=scopus&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
+        const reqOpenAlex = fetch(`/api/federated?source=openalex&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
+        const reqCrossref = fetch(`/api/federated?source=crossref&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
+        const reqSpringer = fetch(`/api/federated?source=springer&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
+
+        Promise.allSettled([reqScopus, reqOpenAlex, reqCrossref, reqSpringer]).then(results => {
+            // Check if current search input still matches query
+            const curInp = (document.getElementById('search-input') || {}).value || '';
+            if (curInp.trim().toLowerCase() !== q.toLowerCase()) return;
+
+            const scopusData = (results[0].status === 'fulfilled' && results[0].value) ? results[0].value : {};
+            const openalexData = (results[1].status === 'fulfilled' && results[1].value) ? results[1].value : {};
+            const crossrefData = (results[2].status === 'fulfilled' && results[2].value) ? results[2].value : {};
+            const springerData = (results[3].status === 'fulfilled' && results[3].value) ? results[3].value : {};
+
+            const scopusTotal = scopusData.total || 0;
+            const openalexTotal = openalexData.total || 0;
+            const crossrefTotal = crossrefData.total || 0;
+            const springerTotal = springerData.total || 0;
+
+            const totalGlobal = scopusTotal + openalexTotal + crossrefTotal + springerTotal;
+            if (totalGlobal === 0) {
+                if (localCount === 0) {
+                    container.innerHTML = `
+                        <div style="text-align:center; padding:1.5rem; color:var(--ink-3)">
+                            <p>Tidak ditemukan artikel eksternal untuk kata kunci "<strong>${this.esc(q)}</strong>". Coba gunakan istilah pencarian yang lebih umum.</p>
+                        </div>
+                    `;
+                } else {
+                    container.style.display = 'none';
+                }
+                return;
+            }
+
+            // Combine top items from each source
+            const featuredItems = [];
+            if (scopusData.items) featuredItems.push(...scopusData.items.slice(0, 2).map(i => ({ ...i, badgeCls: 'badge-scopus', srcName: 'Scopus' })));
+            if (openalexData.items) featuredItems.push(...openalexData.items.slice(0, 2).map(i => ({ ...i, badgeCls: 'badge-openalex', srcName: 'OpenAlex OA' })));
+            if (crossrefData.items) featuredItems.push(...crossrefData.items.slice(0, 1).map(i => ({ ...i, badgeCls: 'badge-crossref', srcName: 'Crossref' })));
+            if (springerData.items) featuredItems.push(...springerData.items.slice(0, 1).map(i => ({ ...i, badgeCls: 'badge-springer', srcName: 'Springer' })));
+
+            let zeroBannerHtml = '';
+            if (localCount === 0) {
+                zeroBannerHtml = `
+                    <div class="zero-local-alert">
+                        <span style="font-size:1.3rem">💡</span>
+                        <div>Koleksi lokal belum tersedia untuk kata kunci ini. Berikut <strong>${this.fmt(totalGlobal)}+ artikel ilmiah internasional</strong> yang kami temukan secara langsung:</div>
+                    </div>
+                `;
+            }
+
+            const pillsHtml = `
+                <div class="fed-insights-pills">
+                    ${openalexTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('openalex')">🌐 OpenAlex (${this.fmt(openalexTotal)} artikel)</button>` : ''}
+                    ${scopusTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('scopus')">📚 Scopus (${this.fmt(scopusTotal)} artikel)</button>` : ''}
+                    ${crossrefTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('crossref')">⚡ Crossref (${this.fmt(crossrefTotal)} artikel)</button>` : ''}
+                    ${springerTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('springer')">🔬 Springer (${this.fmt(springerTotal)} artikel)</button>` : ''}
+                    <button type="button" class="fed-insight-pill" style="border-color:var(--brand); color:var(--brand); font-weight:700" onclick="app.selectFedSource('openalex')">Lihat Seluruh Hasil Global →</button>
+                </div>
+            `;
+
+            const cardsHtml = featuredItems.slice(0, 4).map(it => {
+                const authors = it.authors || it.author || it.publicationName || '';
+                const yearStr = it.year ? `(${it.year})` : '';
+                const journalStr = it.publicationName || it.journal || '';
+                const doiUrl = it.doi || it.url || (it.doi ? `https://doi.org/${it.doi}` : '#');
+                const abstractStr = it.abstract ? it.abstract.substring(0, 220) + (it.abstract.length > 220 ? '...' : '') : '';
+
+                return `
+                    <div class="fed-insight-card">
+                        <div class="fed-card-top">
+                            <span class="fed-card-source-badge ${it.badgeCls}">${it.srcName}</span>
+                            <div class="fed-card-title">
+                                <a href="${doiUrl}" target="_blank" rel="noopener noreferrer">${this.esc(it.title)}</a>
+                            </div>
+                            <div class="fed-card-meta">
+                                ${authors ? `<span>✍️ ${this.esc(authors.substring(0, 75))}${authors.length > 75 ? '...' : ''}</span>` : ''}
+                                ${journalStr ? `<div>🏛️ <em>${this.esc(journalStr)}</em> ${yearStr}</div>` : ''}
+                            </div>
+                            ${abstractStr ? `<div class="fed-card-snippet">${this.esc(abstractStr)}</div>` : ''}
+                        </div>
+                        <div class="fed-card-footer">
+                            <a href="${doiUrl}" target="_blank" rel="noopener noreferrer" class="fed-card-doi-link">Buka Dokumen Asli ↗</a>
+                            <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.72rem" onclick="navigator.clipboard.writeText('${doiUrl}').then(()=>app.showAlert('Link artikel disalin!'))">Share</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                ${zeroBannerHtml}
+                <div class="fed-insights-header">
+                    <div class="fed-insights-title-group">
+                        <h3><span style="font-size:1.3rem">🌐</span> Literatur Ilmiah Internasional Terkait "${this.esc(q)}"</h3>
+                        <p>Ditemukan <strong>${this.fmt(totalGlobal)}+ artikel</strong> di database terindeks global:</p>
+                    </div>
+                </div>
+                ${pillsHtml}
+                <div class="fed-insights-grid">
+                    ${cardsHtml}
+                </div>
+            `;
+        });
     },
     renderResults() {
         const end = (this.resultsPage + 1) * this.perPage;
@@ -1714,7 +1829,14 @@ const app = {
                 </div>
             </div>
             
-            ${book.desc ? `<div style="margin-top:.75rem;padding:.85rem;background:var(--bg-2);border-radius:var(--r-sm);font-size:.82rem;color:var(--ink-2);line-height:1.55"><strong style="color:var(--ink)">${this.t('description')}:</strong> ${this.esc(book.desc)}</div>` : ''}
+            ${book.desc ? `
+            <div class="detail-abstract-box">
+                <div class="detail-abstract-header">
+                    <span class="detail-abstract-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> ${this.t('description') || 'Abstrak / Ringkasan'}</span>
+                    <button type="button" class="detail-abstract-copy" onclick="navigator.clipboard.writeText('${this.esc(book.desc).replace(/'/g, "\\'")}').then(()=>app.showAlert('Abstrak disalin ke clipboard!'))">Salin Abstrak</button>
+                </div>
+                <div class="detail-abstract-body">${this.esc(book.desc)}</div>
+            </div>` : ''}
             ${recH}
         </div>`;
             document.getElementById('modal').style.display = 'flex';

@@ -1,4 +1,6 @@
 import os
+import sys
+import json
 import re
 import html
 import requests
@@ -557,6 +559,70 @@ def scopus_search():
         return res
     json_data = res.get_json()
     return jsonify(json_data.get('items', []))
+
+
+# ── ADMIN HARVEST & SCHEDULER MONITORING ──
+ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'ums-onesearch-secret-key').strip('"\'')
+STATE_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'scheduler_state.json')
+
+@app.route('/api/admin/harvest/status')
+def harvest_status():
+    """Check current harvest & scheduler state."""
+    state = {
+        "status": "IDLE",
+        "last_run": None,
+        "last_mode": None,
+        "last_duration_seconds": 0,
+        "last_exit_code": 0,
+        "last_log_file": None,
+        "total_runs": 0,
+        "scheduler_enabled": os.environ.get('HARVEST_AUTO_ENABLED', 'true').lower() in ('1', 'true', 'yes'),
+        "schedule_time": os.environ.get('HARVEST_SCHEDULE_TIME', '02:00')
+    }
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, 'r', encoding='utf-8') as f:
+                saved = json.load(f)
+                state.update(saved)
+        except Exception:
+            pass
+    return jsonify(state)
+
+
+@app.route('/api/admin/harvest/run', methods=['GET', 'POST'])
+def harvest_trigger():
+    """Trigger harvest on-demand (protected with ADMIN_SECRET_KEY)."""
+    import threading
+    import subprocess
+    import json
+
+    provided_key = request.headers.get('X-Admin-Key') or request.args.get('key')
+    if provided_key != ADMIN_SECRET_KEY:
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    mode = request.args.get('mode', 'incremental').lower()
+    days = int(request.args.get('days', 3))
+
+    scripts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scripts')
+    scheduler_script = os.path.join(scripts_dir, 'scheduler.py')
+
+    def worker():
+        cmd = [sys.executable, scheduler_script, '--run-full' if mode == 'full' else '--run-now', '--days', str(days)]
+        try:
+            subprocess.run(cmd, cwd=os.path.dirname(scripts_dir))
+        except Exception as e:
+            print(f"[Admin Trigger] Error executing harvest: {e}", file=sys.stderr)
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+
+    return jsonify({
+        "status": "TRIGGERED",
+        "message": f"Harvest pipeline ({mode.upper()}) started in background thread.",
+        "mode": mode,
+        "days": days
+    })
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

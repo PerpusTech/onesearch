@@ -105,7 +105,7 @@ INSTITUTIONS = [
         'id': 'AISKA',
         'url': 'https://perpus.aiska-university.ac.id/oai2.php',
         'source': 'AISKA-UNIVERSITY',
-        'active': True,
+        'active': False,
     },
 
     # ── UMS Journals ──────────────────────────────────────────
@@ -199,7 +199,7 @@ def run_rebuild():
     print(f"{'━' * 62}")
 
     cmd = [sys.executable, os.path.join(SCRIPTS_DIR, 'rebuild.py'), '--all']
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, stdout=sys.stdout, stderr=sys.stderr)
 
     if result.returncode == 0:
         print(f"\n  ✅ Rebuild selesai!")

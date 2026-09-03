@@ -15,7 +15,27 @@ services:
     build: ./proxy
     container_name: ums-onesearch-proxy
     restart: unless-stopped
+    command: gunicorn -b 0.0.0.0:5000 --chdir /app/proxy app:app
+    working_dir: /app
+    volumes:
+      - .:/app
     env_file:
       - .env
     environment:
       - TZ=Asia/Jakarta
+      - PYTHONUNBUFFERED=1
+
+  scheduler:
+    build: ./proxy
+    container_name: ums-onesearch-scheduler
+    restart: unless-stopped
+    command: python -u /app/scripts/scheduler.py
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Jakarta
+      - PYTHONUNBUFFERED=1
+

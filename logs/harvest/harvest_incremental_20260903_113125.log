@@ -1,0 +1,661 @@
+=== UMS OneSearch Automated Harvest Log ===
+Mode: incremental
+Command: /usr/local/bin/python /app/scripts/harvest_all.py --rebuild --from 2026-09-02
+Started at: 2026-09-03T11:31:25.933853
+=============================================
+
+==============================================================
+  📚 Batch Harvest — UMS Library OneSearch
+  ⏰ 2026-09-03 11:31:26
+==============================================================
+
+  📋 Akan harvest 7 institusi:
+     • UMS (http://172.16.10.43/cgi-bin/koha/oai.pl)
+     • UMS-EPRINTS (https://eprints.ums.ac.id/cgi/oai2)
+     • UMS-JOURNALS (https://journals.ums.ac.id/index.php/index/oai)
+     • UMS-JOURNALS2 (https://journals2.ums.ac.id/index.php/index/oai)
+     • UMMAD (https://perpus.ummad.ac.id/oai2.php)
+     • SMAMUHPKSOLO (https://lib-smamuhpksolo.edutrend.id/oai2.php)
+     • SMABASASOLO (https://lib-smabasasolo.edutrend.id/oai2.php)
+
+  [1/7]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🏛️  Harvesting: UMS
+  📡 URL: http://172.16.10.43/cgi-bin/koha/oai.pl
+  🏷️  Source: UMS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+============================================================
+  Universal OAI-PMH Harvester
+  Target: http://172.16.10.43/cgi-bin/koha/oai.pl
+  Time: 2026-09-03 11:31:26
+============================================================
+  Request: http://172.16.10.43/cgi-bin/koha/oai.pl?verb=Identify
+
+=== Repository Info ===
+  repositoryName: UMS Library
+  baseURL: http://172.16.10.43/opac/oai.pl
+  protocolVersion: 2.0
+  earliestDatestamp: 2008-01-21T03:01:09Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: bm251@ums.ac.id
+  Request: http://172.16.10.43/cgi-bin/koha/oai.pl?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - oai_dc
+  - marc21
+  - marcxml
+  Request: http://172.16.10.43/cgi-bin/koha/oai.pl?verb=ListSets
+
+=== Sets ===
+  (none)
+
+  Source (manual): UMS
+  Auto-selected format: marcxml
+
+=== Harvesting Records (format: marcxml) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: http://172.16.10.43/cgi-bin/koha/oai.pl?verb=ListRecords&metadataPrefix=marcxml&from=2026-09-02
+  Records: 293 | Deleted: 0 | Total: 293
+
+  Harvesting complete!
+
+  Saved JSON: output/biblio_20260903_113129.json
+  Source: UMS
+  Saved CSV: output/biblio_20260903_113129.csv
+
+=== Summary ===
+  Total records: 293
+  Output: /app/output
+
+  ✅ UMS — selesai dalam 3s (exit code: 0)
+
+  [2/7]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🏛️  Harvesting: UMS-EPRINTS
+  📡 URL: https://eprints.ums.ac.id/cgi/oai2
+  🏷️  Source: UMS (eprints)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+============================================================
+  Universal OAI-PMH Harvester
+  Target: https://eprints.ums.ac.id/cgi/oai2
+  Time: 2026-09-03 11:31:29
+============================================================
+  Request: https://eprints.ums.ac.id/cgi/oai2?verb=Identify
+
+=== Repository Info ===
+  repositoryName: UMS ETD-db
+  baseURL: http://eprints.ums.ac.id/cgi/oai2
+  protocolVersion: 2.0
+  earliestDatestamp: 2010-11-17T14:13:47Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: ckw144@ums.ac.id
+  Request: https://eprints.ums.ac.id/cgi/oai2?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - didl
+  - mets
+  - oai_bibl
+  - oai_dc
+  - rdf
+  - uketd_dc
+  Request: https://eprints.ums.ac.id/cgi/oai2?verb=ListSets
+
+=== Sets (631) ===
+  - 7374617475733D756E707562: Status = Unpublished
+  - 7374617475733D7375626D6974746564: Status = Submitted
+  - 7374617475733D707562: Status = Published
+  - 7374617475733D696E7072657373: Status = In Press
+  - 7375626A656374733D52:5258: Subject = R Medicine: Homeopathy
+  - 7375626A656374733D42:4241:424135:42413531:4241353131: Subject = B Al Islam; Pcychology; Philosophy; Religion: BA Islamic: Fiqh Islam: Fiqh Ibadah: Ibadah Sholat
+  - 7375626A656374733D48:4845:484531:48453132: Subject = H Social Sciences: HE Communications: Jurnalistik: Media Online
+  - 7375626A656374733D43:4331:433143: Subject = C Auxiliary Sciences of History: C Auxiliary sciences of history (General): Merek
+  - 7375626A656374733D53:5331: Subject = S Agriculture: S Agriculture (General)
+  - 7375626A656374733D41:414D: Subject = A General Works: AM Museums (General). Collectors and collecting (General)
+  - 7375626A656374733D44:444B: Subject = D History General and Old World: DK Russia. Soviet Union. Former Soviet Republics
+  - 7375626A656374733D4B:4B49:4B4D:4B4D31: Subject = K Law: Indonesia Law: Konstitusi Indonesia: UUD dan Dasar Negara
+  - 7375626A656374733D48:4845:484532: Subject = H Social Sciences: HE Communications: Public Relations
+  - 7375626A656374733D52:5244:524431:524432: Subject = R Medicine: Surgery: Bedah Umum: 
+  - 7375626A656374733D4B:4B44:4B4443: Subject = K Law: England and Wales: KDC Scotland
+  - 7375626A656374733D5A:5A41:5A4134303530: Subject = Z Bibliography. Library Science. Information Resources: ZA Information resources: ZA4050 Electronic information resources
+  - 7375626A656374733D4C:4C43:4C4335363031: Subject = E Education: Special aspects of education: Informatics Education
+  - 7375626A656374733D54:5431: Subject = T Technology: T Technology (General)
+  - 7375626A656374733D42:4241:424135:42413533: Subject = B Al Islam; Pcychology; Philosophy; Religion: BA Islamic: Fiqh Islam: Fiqh Jihad
+  - 7375626A656374733D48:4846:484635363031:48463536303132: Subject = H Social Sciences: HF Commerce: Accounting: Financial Report
+  ... and 611 more
+
+  Source (manual): UMS (eprints)
+  Auto-selected format: oai_dc
+
+=== Harvesting Records (format: oai_dc) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: https://eprints.ums.ac.id/cgi/oai2?verb=ListRecords&metadataPrefix=oai_dc&from=2026-09-02
+  Records: 2 | Deleted: 0 | Total: 2
+
+  Harvesting complete!
+
+  Saved JSON: output/biblio_20260903_113132.json
+  Source: UMS (eprints)
+  Saved CSV: output/biblio_20260903_113132.csv
+
+=== Summary ===
+  Total records: 2
+  Output: /app/output
+
+  ✅ UMS-EPRINTS — selesai dalam 3s (exit code: 0)
+
+  [3/7]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🏛️  Harvesting: UMS-JOURNALS
+  📡 URL: https://journals.ums.ac.id/index.php/index/oai
+  🏷️  Source: UMS (Journal)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+============================================================
+  Universal OAI-PMH Harvester
+  Target: https://journals.ums.ac.id/index.php/index/oai
+  Time: 2026-09-03 11:31:32
+============================================================
+  Request: https://journals.ums.ac.id/index.php/index/oai?verb=Identify
+
+=== Repository Info ===
+  repositoryName: Universitas Muhammadiyah Surakarta Online Journals
+  baseURL: https://journals.ums.ac.id/index.php/index/oai
+  protocolVersion: 2.0
+  earliestDatestamp: 2015-03-10T14:49:11Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: lppi@ums.ac.id
+  Request: https://journals.ums.ac.id/index.php/index/oai?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - marcxml
+  - oai_dc
+  - rfc1807
+  - oai_marc
+  - nlm
+  Request: https://journals.ums.ac.id/index.php/index/oai?verb=ListSets
+
+=== Sets (100) ===
+  - fg: Forum Geografi
+  - fg:ART: Research Articles
+  - fg:GMCITZ: Special Section: Geography in Managing Coastal, Islands, and the Potential Disaster
+  - fg:GRI: Geographical Review of Indonesia
+  - fg:ED: Editorial
+  - JEP: Jurnal Ekonomi Pembangunan: Kajian Masalah Ekonomi dan Pembangunan
+  - JEP:FRM: Front Matter
+  - JEP:ART: Articles
+  - JEP:BAM: Back Matter
+  - JEP:ER%2FCO: Erratum/Corrigendum
+  - jramathedu: JRAMathEdu (Journal of Research and Advances in Mathematics Education)
+  - jramathedu:ART: Research Articles
+  - jramathedu:Ed: Editorial
+  - jramathedu:RV: Review
+  - khif: Khazanah Informatika : Jurnal Ilmu Komputer dan Informatika
+  - khif:ART: Articles
+  - reaksi: Riset Akuntansi dan Keuangan Indonesia
+  - reaksi:ART: Articles
+  - reaksi:ed: Editorial
+  - jak:ART: Articles
+  ... and 80 more
+
+  Source (manual): UMS (Journal)
+  Auto-selected format: marcxml
+
+=== Harvesting Records (format: marcxml) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: https://journals.ums.ac.id/index.php/index/oai?verb=ListRecords&metadataPrefix=marcxml&from=2026-09-02
+  OAI Error [noRecordsMatch]: No matching records in this repository
+  No records match criteria.
+
+=== Summary ===
+  Total records: 0
+  Output: /app/output
+
+  ✅ UMS-JOURNALS — selesai dalam 1s (exit code: 0)
+
+  [4/7]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🏛️  Harvesting: UMS-JOURNALS2
+  📡 URL: https://journals2.ums.ac.id/index.php/index/oai
+  🏷️  Source: UMS (Journal)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+============================================================
+  Universal OAI-PMH Harvester
+  Target: https://journals2.ums.ac.id/index.php/index/oai
+  Time: 2026-09-03 11:31:32
+============================================================
+  Request: https://journals2.ums.ac.id/index.php/index/oai?verb=Identify
+
+=== Repository Info ===
+  repositoryName: Universitas Muhammadiyah Surakarta Online Journals
+  baseURL: https://journals2.ums.ac.id/index/oai
+  protocolVersion: 2.0
+  earliestDatestamp: 2020-05-02T07:10:49Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: lppiums@gmail.com
+  Request: https://journals2.ums.ac.id/index.php/index/oai?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - oai_marc
+  - oai_dc
+  - marcxml
+  - rfc1807
+  Request: https://journals2.ums.ac.id/index.php/index/oai?verb=ListSets
+
+=== Sets (100) ===
+  - fg: Forum Geografi
+  - fg:ART: Research article
+  - fg:RP: Review article 
+  - fg:DT: Data
+  - jisel: Journal of Islamic Economic Laws
+  - jisel:ART: Articles
+  - ppd: Profesi Pendidikan Dasar
+  - ppd:ART: Articles
+  - reaksi: Riset Akuntansi dan Keuangan Indonesia
+  - reaksi:ART: Articles
+  - jramathedu: JRAMathEdu (Journal of Research and Advances in Mathematics Education)
+  - jramathedu:ART: Articles
+  - khif: Khazanah Informatika : Jurnal Ilmu Komputer dan Informatika
+  - khif:ART: Articles
+  - jiti: Jurnal Ilmiah Teknik Industri
+  - jiti:ART: Articles
+  - jep: Jurnal Ekonomi Pembangunan: Kajian Masalah Ekonomi dan Pembangunan
+  - jep:ART: Articles
+  - ajip: Asian Journal of Islamic Psychology
+  - ajip:ART: Articles
+  ... and 80 more
+
+  Source (manual): UMS (Journal)
+  Auto-selected format: marcxml
+
+=== Harvesting Records (format: marcxml) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: https://journals2.ums.ac.id/index.php/index/oai?verb=ListRecords&metadataPrefix=marcxml&from=2026-09-02
+  Records: 8 | Deleted: 0 | Total: 8
+
+  Harvesting complete!
+
+  Saved JSON: output/biblio_20260903_113133.json
+  Source: UMS (Journal)
+  Saved CSV: output/biblio_20260903_113133.csv
+
+=== Summary ===
+  Total records: 8
+  Output: /app/output
+
+  ✅ UMS-JOURNALS2 — selesai dalam 1s (exit code: 0)
+
+  [5/7]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🏛️  Harvesting: UMMAD
+  📡 URL: https://perpus.ummad.ac.id/oai2.php
+  🏷️  Source: UMMAD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+============================================================
+  Universal OAI-PMH Harvester
+  Target: https://perpus.ummad.ac.id/oai2.php
+  Time: 2026-09-03 11:31:34
+============================================================
+  Request: https://perpus.ummad.ac.id/oai2.php?verb=Identify
+
+=== Repository Info ===
+  repositoryName: Perpustakaan Universitas Muhammadiyah Madiun
+  baseURL: https://perpus.ummad.ac.id/oai2.php
+  protocolVersion: 2.0
+  earliestDatestamp: 2011-01-01T00:00:00Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: some.one@contact.com
+  Request: https://perpus.ummad.ac.id/oai2.php?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - oai_dc
+  Request: https://perpus.ummad.ac.id/oai2.php?verb=ListSets
+
+=== Sets (3) ===
+  - class:activity: Activities
+  - class:collection: Collections
+  - class:party: Parties
+
+  Source (manual): UMMAD
+  Auto-selected format: oai_dc
+
+=== Harvesting Records (format: oai_dc) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: https://perpus.ummad.ac.id/oai2.php?verb=ListRecords&metadataPrefix=oai_dc&from=2026-09-02
+  OAI Error [noRecordsMatch]: The combination of the given values results in an empty list.
+  No records match criteria.
+
+=== Summary ===
+  Total records: 0
+  Output: /app/output
+
+  ✅ UMMAD — selesai dalam 1s (exit code: 0)
+
+  [6/7]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🏛️  Harvesting: SMAMUHPKSOLO
+  📡 URL: https://lib-smamuhpksolo.edutrend.id/oai2.php
+  🏷️  Source: SMAMUHPKSOLO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+============================================================
+  Universal OAI-PMH Harvester
+  Target: https://lib-smamuhpksolo.edutrend.id/oai2.php
+  Time: 2026-09-03 11:31:35
+============================================================
+  Request: https://lib-smamuhpksolo.edutrend.id/oai2.php?verb=Identify
+
+=== Repository Info ===
+  repositoryName: Perpustakaan SMA Muhammadiyah PK Kottabarat Surakarta
+  baseURL: https://lib-smamuhpksolo.edutrend.id/oai2.php
+  protocolVersion: 2.0
+  earliestDatestamp: 2011-01-01T00:00:00Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: some.one@contact.com
+  Request: https://lib-smamuhpksolo.edutrend.id/oai2.php?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - oai_dc
+  Request: https://lib-smamuhpksolo.edutrend.id/oai2.php?verb=ListSets
+
+=== Sets (3) ===
+  - class:activity: Activities
+  - class:collection: Collections
+  - class:party: Parties
+
+  Source (manual): SMAMUHPKSOLO
+  Auto-selected format: oai_dc
+
+=== Harvesting Records (format: oai_dc) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: https://lib-smamuhpksolo.edutrend.id/oai2.php?verb=ListRecords&metadataPrefix=oai_dc&from=2026-09-02
+  OAI Error [noRecordsMatch]: The combination of the given values results in an empty list.
+  No records match criteria.
+
+=== Summary ===
+  Total records: 0
+  Output: /app/output
+
+  ✅ SMAMUHPKSOLO — selesai dalam 1s (exit code: 0)
+
+  [7/7]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🏛️  Harvesting: SMABASASOLO
+  📡 URL: https://lib-smabasasolo.edutrend.id/oai2.php
+  🏷️  Source: SMABASASOLO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+============================================================
+  Universal OAI-PMH Harvester
+  Target: https://lib-smabasasolo.edutrend.id/oai2.php
+  Time: 2026-09-03 11:31:35
+============================================================
+  Request: https://lib-smabasasolo.edutrend.id/oai2.php?verb=Identify
+
+=== Repository Info ===
+  repositoryName: Perpustakaan SMA Batik 1 Surakarta
+  baseURL: https://lib-smabasasolo.edutrend.id/oai2.php
+  protocolVersion: 2.0
+  earliestDatestamp: 2011-01-01T00:00:00Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: some.one@contact.com
+  Request: https://lib-smabasasolo.edutrend.id/oai2.php?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - oai_dc
+  Request: https://lib-smabasasolo.edutrend.id/oai2.php?verb=ListSets
+
+=== Sets (3) ===
+  - class:activity: Activities
+  - class:collection: Collections
+  - class:party: Parties
+
+  Source (manual): SMABASASOLO
+  Auto-selected format: oai_dc
+
+=== Harvesting Records (format: oai_dc) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: https://lib-smabasasolo.edutrend.id/oai2.php?verb=ListRecords&metadataPrefix=oai_dc&from=2026-09-02
+  OAI Error [noRecordsMatch]: The combination of the given values results in an empty list.
+  No records match criteria.
+
+=== Summary ===
+  Total records: 0
+  Output: /app/output
+
+  ✅ SMABASASOLO — selesai dalam 1s (exit code: 0)
+
+
+══════════════════════════════════════════════════════════════
+  📊 RINGKASAN HARVEST
+══════════════════════════════════════════════════════════════
+  ✅ UMS
+  ✅ UMS-EPRINTS
+  ✅ UMS-JOURNALS
+  ✅ UMS-JOURNALS2
+  ✅ UMMAD
+  ✅ SMAMUHPKSOLO
+  ✅ SMABASASOLO
+
+  Total: 7 berhasil, 0 gagal
+  Waktu: 10s (0.2 menit)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🔄 Rebuilding data...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+============================================================
+  UMS Library OneSearch — Rebuild Data
+============================================================
+
+📂 Loading: output/biblio_20260407_125138.json (sumber: UMS)
+   → 53046 record
+
+📂 Loading: output/biblio_20260408_095046.json (sumber: SMABASASOLO)
+   → 1 record
+
+📂 Loading: output/biblio_20260413_090551.json (sumber: UMS)
+   → 12 record
+
+📂 Loading: output/biblio_20260413_094614.json (sumber: UMS)
+   → 34369 record
+
+📂 Loading: output/biblio_20260413_102418.json (sumber: UMS)
+   → 34469 record
+
+📂 Loading: output/biblio_20260413_110324.json (sumber: UMS)
+   → 27747 record
+
+📂 Loading: output/biblio_20260413_131653.json (sumber: UMMAD)
+   → 2124 record
+
+📂 Loading: output/biblio_20260413_132323.json (sumber: SMAMUHPKSOLO)
+   → 1651 record
+
+📂 Loading: output/biblio_20260414_101623.json (sumber: UMS)
+   → 5985 record
+
+📂 Loading: output/biblio_20260414_134721.json (sumber: AISKA-UNIVERSITY)
+   → 3609 record
+
+📂 Loading: output/biblio_20260420_091355.json (sumber: UMS)
+   → 4035 record
+
+📂 Loading: output/biblio_20260421_091608.json (sumber: OPAC UMS Library)
+   → 52474 record
+
+📂 Loading: output/biblio_20260421_095242.json (sumber: OPAC UMS Library)
+   → 52474 record
+
+📂 Loading: output/biblio_20260421_102951.json (sumber: EPRINTS UMS)
+   → 62109 record
+
+📂 Loading: output/biblio_20260421_110037.json (sumber: EPRINTS UMMAD)
+   → 2124 record
+
+📂 Loading: output/biblio_20260421_110100.json (sumber: OPAC SMAMUHPKSOLO)
+   → 1651 record
+
+📂 Loading: output/biblio_20260421_110101.json (sumber: OPAC SMABASASOLO)
+   → 1 record
+
+📂 Loading: output/biblio_20260421_113332.json (sumber: JOURNALS UMS)
+   → 5955 record
+
+📂 Loading: output/biblio_20260421_113523.json (sumber: JOURNALS UMS)
+   → 4036 record
+
+📂 Loading: output/biblio_20260902_114810.json (sumber: UMS)
+   → 48796 record
+
+📂 Loading: output/biblio_20260902_122724.json (sumber: UMS)
+   → 62919 record
+
+📂 Loading: output/biblio_20260902_133313.json (sumber: UMMAD)
+   → 2644 record
+
+📂 Loading: output/biblio_20260902_133340.json (sumber: SMAMUHPKSOLO)
+   → 1651 record
+
+📂 Loading: output/biblio_20260902_133347.json (sumber: SMABASASOLO)
+   → 1 record
+
+📂 Loading: output/biblio_20260903_100744.json (sumber: UMS (journal))
+   → 6008 record
+
+📂 Loading: output/biblio_20260903_101007.json (sumber: UMS)
+   → 5957 record
+
+📂 Loading: output/biblio_20260903_103607.json (sumber: UMS (Journal))
+   → 4605 record
+
+📂 Loading: output/biblio_20260903_112929.json (sumber: UMS)
+   → 291 record
+
+📂 Loading: output/biblio_20260903_112932.json (sumber: UMS (eprints))
+   → 2 record
+
+📂 Loading: output/biblio_20260903_112935.json (sumber: UMS (Journal))
+   → 8 record
+
+📂 Loading: output/biblio_20260903_113054.json (sumber: UMS)
+   → 293 record
+
+📂 Loading: output/biblio_20260903_113057.json (sumber: UMS (eprints))
+   → 2 record
+
+📂 Loading: output/biblio_20260903_113059.json (sumber: UMS (Journal))
+   → 8 record
+
+📂 Loading: output/biblio_20260903_113129.json (sumber: UMS)
+   → 293 record
+
+📂 Loading: output/biblio_20260903_113132.json (sumber: UMS (eprints))
+   → 2 record
+
+📂 Loading: output/biblio_20260903_113133.json (sumber: UMS (Journal))
+   → 8 record
+
+📊 Total record dari semua sumber: 481360
+   Merged file: data/_merged_input.json
+
+🔄 Menjalankan preprocessing...
+============================================================
+  Preprocessing Bibliographic Data
+  Input: data/_merged_input.json
+  Output: data
+============================================================
+
+1. Loading data...
+   Loaded 481360 records
+
+2. Processing records...
+   Processed: 135380 books
+   Skipped: 345980 (no ID/title or duplicate)
+   Without DDC: 78658
+
+   Sources:
+     UMS (ETD): 63694
+     UMS: 57244
+     UMS (Journal): 6532
+     AISKA-UNIVERSITY: 3609
+     UMMAD: 2649
+     SMAMUHPKSOLO: 1651
+     SMABASASOLO: 1
+
+   Types:
+     THESIS: 65208
+     BKS: 54277
+     JR: 7078
+     : 4150
+     BKSA: 2677
+     EB: 920
+     CF: 409
+     JRA: 160
+     PR: 76
+     JRT: 74
+
+3. Building DDC tree...
+   000 💻 Komputer, Informasi & Referensi Umum: 3490 books, 9 divisions
+   100 🧠 Filsafat & Psikologi: 2561 books, 10 divisions
+   200 🕌 Agama: 9714 books, 10 divisions
+   300 👥 Ilmu Sosial: 14495 books, 10 divisions
+   400 🗣️ Bahasa: 2138 books, 9 divisions
+   500 🔬 Sains & Matematika: 3379 books, 10 divisions
+   600 ⚙️ Teknologi: 15906 books, 10 divisions
+   700 🎨 Kesenian & Rekreasi: 1364 books, 10 divisions
+   800 📖 Sastra: 1951 books, 8 divisions
+   900 🌍 Sejarah & Geografi: 1724 books, 10 divisions
+
+3b. Building Prodi index...
+   Prodi dengan koleksi: 35/35
+   FAI    FAI-HES         Hukum Ekonomi Syariah (S1)          : 16810 buku
+   FAI    FAI-HES-S2      Hukum Ekonomi Syariah (S2)          : 16810 buku
+   FK     FK-MARS         Magister Administrasi RS            : 14884 buku
+   FAI    FAI-PAI         Pendidikan Agama Islam              : 14487 buku
+   FKIP   FKIP-PAKT       Pendidikan Akuntansi                : 12688 buku
+   FHIP   FHIP-ADM        Administrasi Publik                 : 11677 buku
+   FAI    FAI-IQT         Ilmu Al-Quran & Tafsir              : 11309 buku
+   FEB    FEB-MJM         Manajemen                           : 10921 buku
+   FK     FK-KED          Kedokteran                          : 10776 buku
+   FIK    FIK-KESMAS      Kesehatan Masyarakat                : 10511 buku
+
+4. Building subject index...
+   Unique subjects: 27043
+   Top 10:
+     EDUCATION (GENERAL): 11617 books
+     THEORY AND PRACTICE OF EDUCATION: 5402 books
+     NURSING: 4156 books
+     ECONOMIC THEORY: 3794 books
+     1 MEDICINE (GENERAL): 3353 books
+     SOCIAL SCIENCES (GENERAL): 2798 books
+     LAW (GENERAL): 2713 books
+     RELIGION AND PHILOSOPHY: 2477 books
+     MANAGEMENT: 2356 books
+     ELEMENTARY EDUCATION: 2131 books
+
+5. Saving output...
+   books.json: 60.4 MB (135380 books)
+   ddc_tree.json: saved
+   subjects.json: 3.5 MB (27043 subjects)
+   prodi_index.json: 2294.2 KB (35 prodi)
+   prodi_meta.json: saved
+   stats.json: saved
+
+✅ Preprocessing complete!
+   Total books: 135380
+   Output: /app/data
+
+✅ Rebuild selesai! Data di: /app/data/
+   Refresh browser (http://localhost:8088) untuk melihat perubahan.
+
+  ✅ Rebuild selesai!

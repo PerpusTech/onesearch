@@ -623,15 +623,21 @@ def process_record(record, source='UMS'):
     if physical:
         book['phys'] = physical
     
-    # Store URL if from DC source
-    url = record.get('_dc_url', '')
+    # Store URL / DOI if available
+    url = record.get('url', '') or record.get('doi', '') or record.get('_dc_url', '')
     if url:
-        book['url'] = url
+        book['url'] = str(url).strip()
     
-    # Store short description if available
-    desc = record.get('_dc_description', '')
+    if record.get('doi'):
+        book['doi'] = str(record['doi']).strip()
+    
+    # Store full abstract / description if available
+    desc = record.get('abstract', '') or record.get('description', '') or record.get('_dc_description', '') or record.get('desc', '')
     if desc:
-        book['desc'] = desc[:200]
+        clean_desc = re.sub(r'<[^>]+>', ' ', str(desc))
+        clean_desc = re.sub(r'\s+', ' ', clean_desc).strip()
+        if clean_desc:
+            book['desc'] = clean_desc[:4000]
     
     return book
 

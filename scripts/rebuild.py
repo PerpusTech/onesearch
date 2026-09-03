@@ -48,9 +48,11 @@ def detect_source_from_file(filepath):
         if isinstance(data, dict) and '_meta' in data:
             return data['_meta'].get('source', None)
         
-        # Old format: plain array → try oai_identifier
+        # Array of records: check record.get('source') or fallback to oai_identifier
         if isinstance(data, list) and data:
             for record in data[:5]:
+                if record.get('source'):
+                    return record['source']
                 oai_id = record.get('oai_identifier', '')
                 if not oai_id:
                     continue
@@ -205,7 +207,7 @@ Contoh penggunaan:
         '--source', source_name,
     ]
     
-    result = subprocess.run(cmd, capture_output=False)
+    result = subprocess.run(cmd, stdout=sys.stdout, stderr=sys.stderr)
     
     # Clean up merged temp file
     if os.path.exists(merged_file):

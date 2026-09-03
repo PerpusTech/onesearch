@@ -1,0 +1,360 @@
+=== UMS OneSearch Automated Harvest Log ===
+Mode: incremental
+Command: /usr/local/bin/python3.11 /scripts/harvest_all.py --rebuild --from 2026-09-02
+Started at: 2026-09-03T11:27:12.819434
+=============================================
+
+============================================================
+  Universal OAI-PMH Harvester
+  Target: http://172.16.10.43/cgi-bin/koha/oai.pl
+  Time: 2026-09-03 11:27:12
+============================================================
+  Request: http://172.16.10.43/cgi-bin/koha/oai.pl?verb=Identify
+
+=== Repository Info ===
+  repositoryName: UMS Library
+  baseURL: http://172.16.10.43/opac/oai.pl
+  protocolVersion: 2.0
+  earliestDatestamp: 2008-01-21T03:01:09Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: bm251@ums.ac.id
+  Request: http://172.16.10.43/cgi-bin/koha/oai.pl?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - oai_dc
+  - marc21
+  - marcxml
+  Request: http://172.16.10.43/cgi-bin/koha/oai.pl?verb=ListSets
+
+=== Sets ===
+  (none)
+
+  Source (manual): UMS
+  Auto-selected format: marcxml
+
+=== Harvesting Records (format: marcxml) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: http://172.16.10.43/cgi-bin/koha/oai.pl?verb=ListRecords&metadataPrefix=marcxml&from=2026-09-02
+  Records: 290 | Deleted: 0 | Total: 290
+
+  Harvesting complete!
+
+  Saved JSON: output/biblio_20260903_112715.json
+  Source: UMS
+  Saved CSV: output/biblio_20260903_112715.csv
+
+=== Summary ===
+  Total records: 290
+  Output: /output
+============================================================
+  Universal OAI-PMH Harvester
+  Target: https://eprints.ums.ac.id/cgi/oai2
+  Time: 2026-09-03 11:27:15
+============================================================
+  Request: https://eprints.ums.ac.id/cgi/oai2?verb=Identify
+
+=== Repository Info ===
+  repositoryName: UMS ETD-db
+  baseURL: http://eprints.ums.ac.id/cgi/oai2
+  protocolVersion: 2.0
+  earliestDatestamp: 2010-11-17T14:13:47Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: ckw144@ums.ac.id
+  Request: https://eprints.ums.ac.id/cgi/oai2?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - didl
+  - mets
+  - oai_bibl
+  - oai_dc
+  - rdf
+  - uketd_dc
+  Request: https://eprints.ums.ac.id/cgi/oai2?verb=ListSets
+
+=== Sets (631) ===
+  - 7374617475733D7375626D6974746564: Status = Submitted
+  - 7374617475733D707562: Status = Published
+  - 7374617475733D696E7072657373: Status = In Press
+  - 7374617475733D756E707562: Status = Unpublished
+  - 7375626A656374733D51:5148:5148343236: Subject = Q Science: QH Natural history: QH426 Genetics
+  - 7375626A656374733D52:5243:524331323030: Subject = R Medicine: Internal medicine: Sports Medicine
+  - 7375626A656374733D48:4844:48443238:48443239:4844323933: Subject = H Social Sciences: HD Management, Business and Labor: Management: Promosi: CSR (Corporate Social Responsibility)
+  - 7375626A656374733D4E:4E31: Subject = N Fine Arts: N Visual arts (General) For photography, see TR
+  - 7375626A656374733D48:4846:484635363031:48463536303134: Subject = H Social Sciences: HF Commerce: Accounting: Inflation
+  - 7375626A656374733D47:4746:474631: Subject = G Geography. Anthropology. Recreation: GF Human Ecology. Anthropogeography: GF1 Census of Population
+  - 7375626A656374733D42:4241:424134: Subject = B Al Islam; Pcychology; Philosophy; Religion: BA Islamic: Teologi/Aqa'id Islam
+  - 7375626A656374733D4E:4E46:4E4633: Subject = N Fine Arts: NF Film: NF3 Action Movie
+  - 7375626A656374733D54:545A:545A3031:545A303135: Subject = T Technology: Information Technology: Hardware: Interfacing and Communications
+  - 7375626A656374733D48:4843:484333:48433333: Subject = H Social Sciences: HC Economic Development: Tenaga Kerja: Serikat Buruh, Demo Buruh
+  - 7375626A656374733D54:545A:545A3031:545A303132:545A30313233: Subject = T Technology: Information Technology: Hardware: Keamanan Data: Back Up Data
+  - 7375626A656374733D48:4847:484B: Subject = H Social Sciences: HG Finance: Bank Syariah
+  - 7375626A656374733D47:4756:475632: Subject = G Geography. Anthropology. Recreation: GV Recreation Leisure: Area Pertanian/Perkebunan
+  - 7375626A656374733D44:4441: Subject = D History General and Old World: DA Great Britain
+  - 7375626A656374733D42:4241:424132:424139: Subject = B Al Islam; Pcychology; Philosophy; Religion: BA Islamic: Sejarah Islam: Sejarah Kenabian
+  - 7375626A656374733D48:4844:48443238:4844323832: Subject = H Social Sciences: HD Management, Business and Labor: Management: Production management
+  ... and 611 more
+
+  Source (manual): UMS (eprints)
+  Auto-selected format: oai_dc
+
+=== Harvesting Records (format: oai_dc) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: https://eprints.ums.ac.id/cgi/oai2?verb=ListRecords&metadataPrefix=oai_dc&from=2026-09-02
+  Records: 2 | Deleted: 0 | Total: 2
+
+  Harvesting complete!
+
+  Saved JSON: output/biblio_20260903_112718.json
+  Source: UMS (eprints)
+  Saved CSV: output/biblio_20260903_112718.csv
+
+=== Summary ===
+  Total records: 2
+  Output: /output
+============================================================
+  Universal OAI-PMH Harvester
+  Target: https://journals.ums.ac.id/index.php/index/oai
+  Time: 2026-09-03 11:27:18
+============================================================
+  Request: https://journals.ums.ac.id/index.php/index/oai?verb=Identify
+
+=== Repository Info ===
+  repositoryName: Universitas Muhammadiyah Surakarta Online Journals
+  baseURL: https://journals.ums.ac.id/index.php/index/oai
+  protocolVersion: 2.0
+  earliestDatestamp: 2015-03-10T14:49:11Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: lppi@ums.ac.id
+  Request: https://journals.ums.ac.id/index.php/index/oai?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - marcxml
+  - oai_dc
+  - rfc1807
+  - oai_marc
+  - nlm
+  Request: https://journals.ums.ac.id/index.php/index/oai?verb=ListSets
+
+=== Sets (100) ===
+  - fg: Forum Geografi
+  - fg:ART: Research Articles
+  - fg:GMCITZ: Special Section: Geography in Managing Coastal, Islands, and the Potential Disaster
+  - fg:GRI: Geographical Review of Indonesia
+  - fg:ED: Editorial
+  - JEP: Jurnal Ekonomi Pembangunan: Kajian Masalah Ekonomi dan Pembangunan
+  - JEP:FRM: Front Matter
+  - JEP:ART: Articles
+  - JEP:BAM: Back Matter
+  - JEP:ER%2FCO: Erratum/Corrigendum
+  - jramathedu: JRAMathEdu (Journal of Research and Advances in Mathematics Education)
+  - jramathedu:ART: Research Articles
+  - jramathedu:Ed: Editorial
+  - jramathedu:RV: Review
+  - khif: Khazanah Informatika : Jurnal Ilmu Komputer dan Informatika
+  - khif:ART: Articles
+  - reaksi: Riset Akuntansi dan Keuangan Indonesia
+  - reaksi:ART: Articles
+  - reaksi:ed: Editorial
+  - jak:ART: Articles
+  ... and 80 more
+
+  Source (manual): UMS (Journal)
+  Auto-selected format: marcxml
+
+=== Harvesting Records (format: marcxml) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: https://journals.ums.ac.id/index.php/index/oai?verb=ListRecords&metadataPrefix=marcxml&from=2026-09-02
+  OAI Error [noRecordsMatch]: No matching records in this repository
+  No records match criteria.
+
+=== Summary ===
+  Total records: 0
+  Output: /output
+============================================================
+  Universal OAI-PMH Harvester
+  Target: https://journals2.ums.ac.id/index.php/index/oai
+  Time: 2026-09-03 11:27:19
+============================================================
+  Request: https://journals2.ums.ac.id/index.php/index/oai?verb=Identify
+
+=== Repository Info ===
+  repositoryName: Universitas Muhammadiyah Surakarta Online Journals
+  baseURL: https://journals2.ums.ac.id/index/oai
+  protocolVersion: 2.0
+  earliestDatestamp: 2020-05-02T07:10:49Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: lppiums@gmail.com
+  Request: https://journals2.ums.ac.id/index.php/index/oai?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - oai_marc
+  - oai_dc
+  - marcxml
+  - rfc1807
+  Request: https://journals2.ums.ac.id/index.php/index/oai?verb=ListSets
+
+=== Sets (100) ===
+  - fg: Forum Geografi
+  - fg:ART: Research article
+  - fg:RP: Review article 
+  - fg:DT: Data
+  - jisel: Journal of Islamic Economic Laws
+  - jisel:ART: Articles
+  - ppd: Profesi Pendidikan Dasar
+  - ppd:ART: Articles
+  - reaksi: Riset Akuntansi dan Keuangan Indonesia
+  - reaksi:ART: Articles
+  - jramathedu: JRAMathEdu (Journal of Research and Advances in Mathematics Education)
+  - jramathedu:ART: Articles
+  - khif: Khazanah Informatika : Jurnal Ilmu Komputer dan Informatika
+  - khif:ART: Articles
+  - jiti: Jurnal Ilmiah Teknik Industri
+  - jiti:ART: Articles
+  - jep: Jurnal Ekonomi Pembangunan: Kajian Masalah Ekonomi dan Pembangunan
+  - jep:ART: Articles
+  - ajip: Asian Journal of Islamic Psychology
+  - ajip:ART: Articles
+  ... and 80 more
+
+  Source (manual): UMS (Journal)
+  Auto-selected format: marcxml
+
+=== Harvesting Records (format: marcxml) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: https://journals2.ums.ac.id/index.php/index/oai?verb=ListRecords&metadataPrefix=marcxml&from=2026-09-02
+  Records: 8 | Deleted: 0 | Total: 8
+
+  Harvesting complete!
+
+  Saved JSON: output/biblio_20260903_112720.json
+  Source: UMS (Journal)
+  Saved CSV: output/biblio_20260903_112720.csv
+
+=== Summary ===
+  Total records: 8
+  Output: /output
+============================================================
+  Universal OAI-PMH Harvester
+  Target: https://perpus.ummad.ac.id/oai2.php
+  Time: 2026-09-03 11:27:20
+============================================================
+  Request: https://perpus.ummad.ac.id/oai2.php?verb=Identify
+
+=== Repository Info ===
+  repositoryName: Perpustakaan Universitas Muhammadiyah Madiun
+  baseURL: https://perpus.ummad.ac.id/oai2.php
+  protocolVersion: 2.0
+  earliestDatestamp: 2011-01-01T00:00:00Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: some.one@contact.com
+  Request: https://perpus.ummad.ac.id/oai2.php?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - oai_dc
+  Request: https://perpus.ummad.ac.id/oai2.php?verb=ListSets
+
+=== Sets (3) ===
+  - class:activity: Activities
+  - class:collection: Collections
+  - class:party: Parties
+
+  Source (manual): UMMAD
+  Auto-selected format: oai_dc
+
+=== Harvesting Records (format: oai_dc) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: https://perpus.ummad.ac.id/oai2.php?verb=ListRecords&metadataPrefix=oai_dc&from=2026-09-02
+  OAI Error [noRecordsMatch]: The combination of the given values results in an empty list.
+  No records match criteria.
+
+=== Summary ===
+  Total records: 0
+  Output: /output
+============================================================
+  Universal OAI-PMH Harvester
+  Target: https://lib-smamuhpksolo.edutrend.id/oai2.php
+  Time: 2026-09-03 11:27:22
+============================================================
+  Request: https://lib-smamuhpksolo.edutrend.id/oai2.php?verb=Identify
+
+=== Repository Info ===
+  repositoryName: Perpustakaan SMA Muhammadiyah PK Kottabarat Surakarta
+  baseURL: https://lib-smamuhpksolo.edutrend.id/oai2.php
+  protocolVersion: 2.0
+  earliestDatestamp: 2011-01-01T00:00:00Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: some.one@contact.com
+  Request: https://lib-smamuhpksolo.edutrend.id/oai2.php?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - oai_dc
+  Request: https://lib-smamuhpksolo.edutrend.id/oai2.php?verb=ListSets
+
+=== Sets (3) ===
+  - class:activity: Activities
+  - class:collection: Collections
+  - class:party: Parties
+
+  Source (manual): SMAMUHPKSOLO
+  Auto-selected format: oai_dc
+
+=== Harvesting Records (format: oai_dc) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: https://lib-smamuhpksolo.edutrend.id/oai2.php?verb=ListRecords&metadataPrefix=oai_dc&from=2026-09-02
+  OAI Error [noRecordsMatch]: The combination of the given values results in an empty list.
+  No records match criteria.
+
+=== Summary ===
+  Total records: 0
+  Output: /output
+============================================================
+  Universal OAI-PMH Harvester
+  Target: https://lib-smabasasolo.edutrend.id/oai2.php
+  Time: 2026-09-03 11:27:22
+============================================================
+  Request: https://lib-smabasasolo.edutrend.id/oai2.php?verb=Identify
+
+=== Repository Info ===
+  repositoryName: Perpustakaan SMA Batik 1 Surakarta
+  baseURL: https://lib-smabasasolo.edutrend.id/oai2.php
+  protocolVersion: 2.0
+  earliestDatestamp: 2011-01-01T00:00:00Z
+  granularity: YYYY-MM-DDThh:mm:ssZ
+  adminEmail: some.one@contact.com
+  Request: https://lib-smabasasolo.edutrend.id/oai2.php?verb=ListMetadataFormats
+
+=== Metadata Formats ===
+  - oai_dc
+  Request: https://lib-smabasasolo.edutrend.id/oai2.php?verb=ListSets
+
+=== Sets (3) ===
+  - class:activity: Activities
+  - class:collection: Collections
+  - class:party: Parties
+
+  Source (manual): SMABASASOLO
+  Auto-selected format: oai_dc
+
+=== Harvesting Records (format: oai_dc) ===
+  From: 2026-09-02
+
+--- Batch 1 ---
+  Request: https://lib-smabasasolo.edutrend.id/oai2.php?verb=ListRecords&metadataPrefix=oai_dc&from=2026-09-02
+  OAI Error [noRecordsMatch]: The combination of the given values results in an empty list.
+  No records match criteria.
+
+=== Summary ===
+  Total records: 0
+  Output: /output
