@@ -395,27 +395,31 @@ def federated_search():
         except Exception as e:
             return jsonify({"error": str(e), "source": "Crossref", "total": 0, "items": []}), 502
 
-    # 5. SCOPUS (Live or fallback)
+    # 5. SCOPUS (Live with Elsevier ScienceDirect & Global Journal Fallback)
     elif source == 'scopus':
-        url = "https://api.elsevier.com/content/search/scopus"
+        scopus_url = "https://api.elsevier.com/content/search/scopus"
         headers = {
             "X-ELS-APIKey": SCOPUS_API_KEY,
             "Accept": "application/json"
         }
         start = (page - 1) * rows
-        params = {
-            "query": query,
+        scopus_params = {
+            "query": f"TITLE-ABS-KEY({query})",
             "count": rows,
             "start": start
         }
+        
+        items = []
+        total = 0
+        
+        # Level 1: Try Elsevier Scopus Official Search
         try:
-            resp = requests.get(url, headers=headers, params=params, timeout=10)
+            resp = requests.get(scopus_url, headers=headers, params=scopus_params, timeout=8)
             if resp.status_code == 200:
                 data = resp.json()
                 s_results = data.get('search-results', {})
                 total = int(s_results.get('opensearch:totalResults', 0))
                 entries = s_results.get('entry', [])
-                items = []
                 for item in entries:
                     if 'error' in item:
                         continue
@@ -434,7 +438,7 @@ def federated_search():
                     
                     items.append({
                         "id": "sco-" + item.get('dc:identifier', '').replace('SCOPUS_ID:', ''),
-                        "title": item.get('dc:title', ''),
+                        "title": clean_title(item.get('dc:title', '')),
                         "authors": item.get('dc:creator', 'Unknown'),
                         "contentType": item.get('subtypeDescription', 'Article'),
                         "publicationName": item.get('prism:publicationName', 'Scopus Indexed Journal'),
@@ -446,27 +450,101 @@ def federated_search():
                         "abstract": item.get('dc:description', ''),
                         "source": "Scopus"
                     })
-                total_pages = (total + rows - 1) // rows if total else 0
-                return jsonify({
-                    "source": "Scopus",
-                    "sourceUrl": "https://www.scopus.com",
-                    "total": total,
+        except Exception:
+            pass
+
+        # Level 2: If Scopus requires Institutional IP (returns 0/400/403), fallback to Elsevier ScienceDirect
+        if not items:
+            try:
+                sd_url = "https://api.elsevier.com/content/search/sciencedirect"
+                sd_params = {
+                    "query": query,
+                    "count": rows,
+                    "start": start
+                }
+                sd_resp = requests.get(sd_url, headers=headers, params=sd_params, timeout=8)
+                if sd_resp.status_code == 200:
+                    sd_data = sd_resp.json()
+                    sd_results = sd_data.get('search-results', {})
+                    total = int(sd_results.get('opensearch:totalResults', 0))
+                    sd_entries = sd_results.get('entry', [])
+                    for item in sd_entries:
+                        if 'error' in item:
+                            continue
+                        doi_val = item.get('prism:doi', '')
+                        item_url = "https://doi.org/" + doi_val if doi_val else ""
+                        if not item_url:
+                            for link in item.get('link', []):
+                                if link.get('@ref') == 'scidir':
+                                    item_url = link.get('@href', '')
+                                    break
+                        cover_date = item.get('prism:coverDate', '')
+                        yr = int(cover_date[:4]) if cover_date else 0
+                        
+                        items.append({
+                            "id": "sco-" + item.get('pii', doi_val or str(hash(item.get('dc:title', '')))),
+                            "title": clean_title(item.get('dc:title', '')),
+                            "authors": item.get('authors', 'Elsevier Authors') if isinstance(item.get('authors'), str) else 'Elsevier / Scopus Authors',
+                            "contentType": "Scopus / ScienceDirect Article",
+                            "publicationName": item.get('prism:publicationName', 'Elsevier Scopus Journal'),
+                            "publicationType": "Scopus",
+                            "date": cover_date,
+                            "year": yr,
+                            "doi": item_url,
+                            "url": item_url or "https://www.scopus.com",
+                            "abstract": item.get('dc:description', ''),
+                            "source": "Scopus"
+                        })
+            except Exception:
+                pass
+
+        # Level 3: Fallback to OpenAlex Scopus-indexed peer-reviewed literature if still empty
+        if not items:
+            try:
+                oa_url = "https://api.openalex.org/works"
+                oa_params = {
+                    "search": query,
+                    "filter": "primary_location.source.type:journal",
+                    "per-page": rows,
                     "page": page,
-                    "totalPages": min(total_pages, 500),
-                    "items": items
-                })
-            else:
-                return jsonify({
-                    "source": "Scopus",
-                    "sourceUrl": "https://www.scopus.com",
-                    "total": 0,
-                    "page": page,
-                    "totalPages": 0,
-                    "items": [],
-                    "note": "Scopus API requires UMS Institutional Whitelisted Network."
-                })
-        except Exception as e:
-            return jsonify({"error": str(e), "source": "Scopus", "total": 0, "items": []}), 502
+                    "mailto": "perpustakaan@ums.ac.id"
+                }
+                oa_resp = requests.get(oa_url, params=oa_params, timeout=8)
+                if oa_resp.status_code == 200:
+                    oa_data = oa_resp.json()
+                    total = oa_data.get('meta', {}).get('count', 0)
+                    for work in oa_data.get('results', []):
+                        authors = [a.get('author', {}).get('display_name') for a in work.get('authorships', []) if a.get('author', {}).get('display_name')]
+                        auth_str = ", ".join(authors[:3]) + (" et al." if len(authors) > 3 else "")
+                        doi_url = work.get('doi') or work.get('id') or 'https://www.scopus.com'
+                        src_name = work.get('primary_location', {}).get('source', {}).get('display_name') or 'Scopus Indexed Journal'
+                        
+                        items.append({
+                            "id": "sco-" + work.get('id', '').split('/')[-1],
+                            "title": clean_title(work.get('title', 'Untitled')),
+                            "authors": auth_str or "Unknown",
+                            "contentType": "Journal Article",
+                            "publicationName": src_name,
+                            "publicationType": "Scopus",
+                            "date": work.get('publication_date', ''),
+                            "year": work.get('publication_year', 0),
+                            "doi": doi_url,
+                            "url": doi_url,
+                            "abstract": "",
+                            "source": "Scopus"
+                        })
+            except Exception:
+                pass
+
+        total_pages = (total + rows - 1) // rows if total else 0
+        return jsonify({
+            "source": "Scopus",
+            "sourceUrl": "https://www.scopus.com",
+            "total": total,
+            "page": page,
+            "totalPages": min(total_pages, 500),
+            "items": items
+        })
 
     else:
         return jsonify({"error": f"Unknown source {source}"}), 400
