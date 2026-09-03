@@ -222,29 +222,37 @@ img {
     transition: width .3s
 }
 
-/* ---- Top Bar (Centered Floating Pill) ---- */
+/* ---- Top Bar (Neo-Glass Dynamic Floating Capsule) ---- */
 .topbar {
     position: fixed;
-    top: 1rem;
+    top: 1.15rem;
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;
     width: auto;
     max-width: calc(100% - 2rem);
-    background: rgba(15, 23, 42, 0.75);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 9999px;
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    transition: all .35s var(--ease);
-    padding: 4px;
+    backdrop-filter: blur(28px) saturate(200%);
+    -webkit-backdrop-filter: blur(28px) saturate(200%);
+    box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    transition: all .35s cubic-bezier(0.16, 1, 0.3, 1);
+    padding: 5px 6px;
 }
 
 [data-theme="light"] .topbar {
-    background: rgba(255, 255, 255, 0.88);
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(203, 213, 225, 0.85);
+    box-shadow: 0 16px 36px -8px rgba(15, 23, 42, 0.09), 0 1px 3px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+}
+
+.topbar:hover {
+    box-shadow: 0 24px 50px -10px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+[data-theme="light"] .topbar:hover {
+    box-shadow: 0 20px 42px -8px rgba(15, 23, 42, 0.12), 0 1px 4px rgba(15, 23, 42, 0.05);
 }
 
 .topbar-inner {
@@ -260,7 +268,7 @@ img {
 .nav-mid {
     display: flex;
     align-items: center;
-    gap: .25rem;
+    gap: .35rem;
     margin: 0;
     background: transparent;
     padding: 0;
@@ -270,56 +278,71 @@ img {
 .nav-mid a {
     display: inline-flex;
     align-items: center;
-    gap: .5rem;
+    gap: .55rem;
     color: var(--ink-2);
-    font-size: .88rem;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: .86rem;
     font-weight: 600;
-    padding: .5rem 1.25rem;
+    padding: .52rem 1.25rem;
     border-radius: 9999px;
-    transition: all .2s var(--ease);
+    transition: all .25s cubic-bezier(0.16, 1, 0.3, 1);
     text-decoration: none;
     white-space: nowrap;
+    position: relative;
+    border: 1px solid transparent;
 }
 
 .nav-mid a svg {
-    opacity: .75;
-    transition: opacity .2s ease;
+    opacity: .7;
+    transition: all .25s ease;
 }
 
 .nav-mid a:hover {
     color: var(--ink);
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+}
+
+.nav-mid a:hover svg {
+    opacity: 1;
+    transform: scale(1.1);
 }
 
 [data-theme="light"] .nav-mid a:hover {
-    background: rgba(0, 0, 0, 0.04);
-    color: var(--ink);
+    background: rgba(241, 245, 249, 0.9);
+    border-color: rgba(226, 232, 240, 0.8);
+    color: var(--brand-dark);
 }
 
 .nav-mid a.on {
-    color: #ffffff;
-    background: var(--brand);
-    box-shadow: 0 4px 14px var(--brand-dim);
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2) inset;
     font-weight: 700;
+    transform: translateY(0);
 }
 
 [data-theme="light"] .nav-mid a.on {
-    color: #ffffff;
-    background: var(--brand);
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    border-color: rgba(37, 99, 235, 0.3);
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.32), 0 1px 2px rgba(255, 255, 255, 0.25) inset;
 }
 
 .nav-mid a.on svg {
     opacity: 1;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 
 .bm-badge-pill {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.3);
     color: #fff;
     font-size: .65rem;
-    font-weight: 700;
+    font-weight: 800;
     padding: 1px 6px;
-    border-radius: 20px;
+    border-radius: 999px;
     margin-left: 2px;
     line-height: 1.3;
 }

@@ -1,5 +1,6 @@
 import os
 import re
+import html
 import requests
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
@@ -10,10 +11,33 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 app = Flask(__name__)
 SCOPUS_API_KEY = os.environ.get('SCOPUS_API_KEY', '').strip('"\'')
 
-def clean_html_tags(text):
-    if not text:
+def clean_html_tags(raw_html):
+    """Remove HTML/XML tags and decode entities for clean display."""
+    if not raw_html:
         return ""
-    return re.sub(r'<[^>]+>', '', text).strip()
+    # Strip HTML tags
+    clean_text = re.sub(r'<[^>]+>', ' ', str(raw_html))
+    # Replace multiple spaces/newlines
+    clean_text = re.sub(r'\s+', ' ', clean_text)
+    # Decode HTML entities
+    clean_text = html.unescape(clean_text).strip()
+    return clean_text
+
+
+def clean_title(title_str, container_str=None):
+    """Clean and sanitize article/chapter titles, eliminating OCR glitches."""
+    if not title_str:
+        return "Untitled"
+    clean_t = clean_html_tags(title_str).strip()
+    words = clean_t.split()
+    # Detect repetitive OCR deposit glitch
+    short_fragments = sum(1 for w in words if len(w) <= 2)
+    repeated_first = sum(1 for w in words if w.lower().strip(',.:;') == words[0].lower().strip(',.:;'))
+    
+    if len(words) > 15 and (short_fragments >= 6 or repeated_first >= 3):
+        first_clean = words[0].strip(',.:;')
+        return first_clean.title()
+    return clean_t
 
 def reconstruct_openalex_abstract(inverted_index):
     if not inverted_index or not isinstance(inverted_index, dict):
@@ -301,7 +325,7 @@ def federated_search():
         url = 'https://api.crossref.org/works'
         offset = (page - 1) * rows
         params = {
-            'query': query,
+            'query.bibliographic': query,
             'rows': rows,
             'offset': offset
         }
@@ -327,7 +351,7 @@ def federated_search():
                 authors_str = "; ".join(authors_list) if authors_list else "Unknown"
 
                 titles = it.get('title', [])
-                title_str = titles[0] if titles else "Untitled"
+                title_str = clean_title(titles[0] if titles else "Untitled")
 
                 pub_date = it.get('published', {}).get('date-parts', [[]])[0]
                 year = pub_date[0] if len(pub_date) > 0 else 0
