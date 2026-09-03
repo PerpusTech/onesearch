@@ -8,6 +8,7 @@ output/
 
 # Data processed (bisa di-rebuild)
 data/
+logs/
 
 # Debug artifacts
 error_debug.xml

@@ -536,6 +536,8 @@ const app = {
             }
             const heroTotalEl = document.getElementById('hero-total');
             if (heroTotalEl) heroTotalEl.textContent = this.fmt(this.stats.total_books || this.books.length);
+            const footerYearEl = document.getElementById('footer-year');
+            if (footerYearEl) footerYearEl.textContent = new Date().getFullYear();
 
             setTimeout(() => {
                 document.getElementById('ld-screen').classList.add('hidden');
