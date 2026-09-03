@@ -16,6 +16,11 @@ import hashlib
 from collections import Counter, defaultdict
 from datetime import datetime
 
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 # Resolve project root (parent of scripts/)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(PROJECT_ROOT)
@@ -573,7 +578,26 @@ def process_record(record, source='UMS'):
         return None
     
     # Determine source from record tag or argument
-    src = record.get('_source', source)
+    src = str(record.get('_source', source)).strip()
+    
+    # Auto-classify and cleanly separate UMS sources
+    oai_id = str(record.get('oai_identifier', '')).lower()
+    rec_url = str(record.get('url', '') or record.get('_dc_url', '')).lower()
+    item_type = safe_str(record.get('item_type', ''))
+    
+    if 'journals.ums.ac.id' in oai_id or 'journals.ums.ac.id' in rec_url or 'journal' in src.lower():
+        src = 'UMS (Journal)'
+        if not item_type or item_type == 'ARTICLE':
+            item_type = 'JR'
+    elif 'eprints.ums.ac.id' in oai_id or 'eprints.ums.ac.id' in rec_url or 'eprints' in src.lower():
+        src = 'UMS (ETD)'
+        if not item_type:
+            item_type = 'THESIS'
+    elif src.upper() in ('UMS', 'OPAC UMS LIBRARY', 'KOHA') or '172.16.10.43' in oai_id or oai_id.startswith('ums:'):
+        if item_type == 'THESIS':
+            src = 'UMS (ETD)'
+        else:
+            src = 'UMS'
     
     book = {
         'id': rec_id,
@@ -584,7 +608,7 @@ def process_record(record, source='UMS'):
         'pub': safe_str(record.get('publisher', '')),
         'yr': year,
         'isbn': safe_str(record.get('isbn', '')),
-        'type': safe_str(record.get('item_type', '')),
+        'type': item_type,
         'src': src,
     }
     

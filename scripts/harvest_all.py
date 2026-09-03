@@ -21,6 +21,11 @@ import time
 import argparse
 from datetime import datetime
 
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 # Resolve project root (parent of scripts/)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(PROJECT_ROOT)
@@ -42,32 +47,40 @@ INSTITUTIONS = [
     # ── Koha ──────────────────────────────────────────────────
     {
         'id': 'UMS',
-        'url': 'http://search-lib.ums.ac.id/cgi-bin/koha/oai.pl',
-        'source': 'OPAC UMS Library',
+        'url': 'http://172.16.10.43/cgi-bin/koha/oai.pl',
+        'source': 'UMS',
         'active': True,
     },
 
     # ── EPrints ───────────────────────────────────────────────
     {
         'id': 'UMS-EPRINTS',
-        'url': 'http://eprints.ums.ac.id/cgi/oai2',
-        'source': 'EPRINTS UMS',
+        'url': 'https://eprints.ums.ac.id/cgi/oai2',
+        'source': 'UMS (eprints)',
         'active': True,
     },
 
-    # ── Universitas Muhammadiyah Yogyakarta ───────────────────
+    # ── OJS: Jurnal Ilmiah UMS (Server 1) ─────────────────────
     {
-        'id': 'UMY',
-        'url': 'http://eprints.umy.ac.id/cgi/oai2',
-        'source': 'EPRINTS UMY',
+        'id': 'UMS-JOURNALS',
+        'url': 'https://journals.ums.ac.id/index.php/index/oai',
+        'source': 'UMS (Journal)',
         'active': True,
     },
 
-    # ── Universitas Muhammadiyah Madiun ─────────────────────
+    # ── OJS: Jurnal Ilmiah UMS (Server 2) ─────────────────────
+    {
+        'id': 'UMS-JOURNALS2',
+        'url': 'https://journals2.ums.ac.id/index.php/index/oai',
+        'source': 'UMS (Journal)',
+        'active': True,
+    },
+
+    # ── SLiMS: Universitas Muhammadiyah Madiun ─────────────────────
     {
         'id': 'UMMAD',
         'url': 'https://perpus.ummad.ac.id/oai2.php',
-        'source': 'EPRINTS UMMAD',
+        'source': 'UMMAD',
         'active': True,
     },
 
@@ -75,7 +88,7 @@ INSTITUTIONS = [
     {
         'id': 'SMAMUHPKSOLO',
         'url': 'https://lib-smamuhpksolo.edutrend.id/oai2.php',
-        'source': 'OPAC SMAMUHPKSOLO',
+        'source': 'SMAMUHPKSOLO',
         'active': True,
     },
 
@@ -83,7 +96,7 @@ INSTITUTIONS = [
     {
         'id': 'SMABASASOLO',
         'url': 'https://lib-smabasasolo.edutrend.id/oai2.php',
-        'source': 'OPAC SMABASASOLO',
+        'source': 'SMABASASOLO',
         'active': True,
     },
 
@@ -96,25 +109,25 @@ INSTITUTIONS = [
     },
 
     # ── UMS Journals ──────────────────────────────────────────
-    {
-        'id': 'UMS-JOURNALS',
-        'url': 'https://journals.ums.ac.id/index.php/index/oai',
-        'source': 'JOURNALS UMS',
-        'active': True,
-    },
-    {
-        'id': 'UMS-JOURNALS-2',
-        'url': 'https://journals2.ums.ac.id/index.php/index/oai',
-        'source': 'JOURNALS UMS',
-        'active': True,
-    },
+    # {
+    #     'id': 'UMS-JOURNALS',
+    #     'url': 'https://journals.ums.ac.id/index.php/index/oai',
+    #     'source': 'UMS',
+    #     'active': True,
+    # },
+    # {
+    #     'id': 'UMS-JOURNALS-2',
+    #     'url': 'https://journals2.ums.ac.id/index.php/index/oai',
+    #     'source': 'UMS',
+    #     'active': True,
+    # },
 
     # ┌─────────────────────────────────────────────────────────┐
     # │ Tambah institusi baru di sini! Contoh:                  │
     # │                                                         │
     # │  {                                                      │
     # │      'id': 'UNISRI',                                    │
-    # │      'url': 'https://lib.unisri.ac.id/oai2.php',       │
+    # │      'url': 'https://lib.unisri.ac.id/oai2.php',        │
     # │      'source': 'UNISRI',                                │
     # │      'active': True,                                    │
     # │  },                                                     │

@@ -10,6 +10,7 @@ COPY css/ /usr/share/nginx/html/css/
 COPY js/ /usr/share/nginx/html/js/
 COPY img/ /usr/share/nginx/html/img/
 COPY data/ /usr/share/nginx/html/data/
+COPY manifest.json /usr/share/nginx/html/
 
 # Favicon
 COPY img/logo4.png /usr/share/nginx/html/favicon.png

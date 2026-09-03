@@ -10,3 +10,12 @@ services:
       - ./data:/usr/share/nginx/html/data:ro
     environment:
       - TZ=Asia/Jakarta
+
+  api_proxy:
+    build: ./proxy
+    container_name: ums-onesearch-proxy
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Jakarta
