@@ -35,7 +35,7 @@ const app = {
             stats: "Statistik",
             hero_title1: "UMSLibrary OneSearch",
             hero_title2: "Lintas Institusi",
-            hero_subtitle: "Temukan koleksi literatur akademik terlengkap dari berbagai perpustakaan dan arsip publik dengan mudah.",
+            hero_subtitle: "Pencarian satu pintu seluruh koleksi perpustakaan, repositori, dan literatur ilmiah.",
             search_placeholder: "Cari judul, pengarang, subjek (sejarah) ...",
             btn_search: "Cari",
             adv_search: "Pencarian Lanjut",
@@ -83,7 +83,7 @@ const app = {
             browse_subtitle: "Telusuri berdasarkan klasifikasi Dewey Decimal",
             stats_collection: "Statistik Koleksi",
             stats_subtitle: "Ringkasan data perpustakaan",
-            footer_tagline: "UMS Library OneSearch — Pencarian Terintegrasi",
+            footer_tagline: "UMS Library OneSearch — Pencarian Satu Pintu",
             footer_data: "Data dari",
             footer_updated: "Diperbarui",
             publisher: "Penerbit",
@@ -200,9 +200,9 @@ const app = {
             home: "Home",
             explore: "Explore",
             stats: "Statistics",
-            hero_title1: "UMS Library",
+            hero_title1: "UMS Library OneSearch",
             hero_title2: "OneSearch",
-            hero_subtitle: "Discover the most comprehensive academic literature collections from various libraries and public archives effortlessly.",
+            hero_subtitle: "One-stop search for library collections, institutional repositories, and academic literature.",
             search_placeholder: "Search title, author, subject (history) ...",
             btn_search: "Search",
             adv_search: "Advanced Search",
@@ -250,7 +250,7 @@ const app = {
             browse_subtitle: "Browse by Dewey Decimal Classification",
             stats_collection: "Collection Statistics",
             stats_subtitle: "Library data summary",
-            footer_tagline: "UMS Library OneSearch — Integrated Search",
+            footer_tagline: "UMS Library OneSearch — One-Stop Academic Search",
             footer_data: "Data from",
             footer_updated: "Updated",
             publisher: "Publisher",
@@ -572,17 +572,57 @@ const app = {
     // ──── Events ────
     listen() {
         const inp = document.getElementById('search-input');
+        const kbdHint = document.getElementById('search-kbd-hint');
+
+        // Detect Mac vs Windows/Linux for keyboard hint
+        if (kbdHint) {
+            const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+            kbdHint.innerHTML = isMac ? '<span class="kbd-mod">⌘</span> K' : '<span class="kbd-mod">Ctrl</span> K';
+        }
+
+        const updateKbdVisibility = () => {
+            if (kbdHint) {
+                const hasVal = inp && inp.value.trim().length > 0;
+                kbdHint.style.display = hasVal ? 'none' : 'inline-flex';
+            }
+        };
+
         inp.addEventListener('input', e => {
             clearTimeout(this.debounce);
             const q = e.target.value.trim();
             document.getElementById('search-clear').style.display = q ? 'block' : 'none';
+            updateKbdVisibility();
             this.debounce = setTimeout(() => q.length >= 2 ? this.showSuggest(q) : this.hideSuggest(), 200);
         });
+        inp.addEventListener('focus', updateKbdVisibility);
+        inp.addEventListener('blur', updateKbdVisibility);
+
         inp.addEventListener('keydown', e => {
             if (e.key === 'Enter') { this.hideSuggest(); this.doSearch(inp.value.trim()); }
             if (e.key === 'Escape') this.hideSuggest();
         });
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') this.closeBookDetail(); });
+
+        // Global keyboard shortcut (Ctrl+K, Cmd+K, or '/')
+        document.addEventListener('keydown', e => {
+            const isK = (e.key === 'k' || e.key === 'K');
+            const isCtrlOrCmdK = (e.ctrlKey || e.metaKey) && isK;
+            const isSlash = e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+
+            if (isCtrlOrCmdK || isSlash) {
+                e.preventDefault();
+                if (this.currentPage !== 'home') {
+                    this.showHome();
+                }
+                if (inp) {
+                    inp.focus();
+                    inp.select();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+                updateKbdVisibility();
+            }
+
+            if (e.key === 'Escape') this.closeBookDetail();
+        });
 
         window.addEventListener('popstate', e => {
             if (e.state && e.state.modal === 'open' && e.state.id) {
@@ -1195,9 +1235,21 @@ const app = {
     clearSearch() {
         document.getElementById('search-input').value = '';
         document.getElementById('search-clear').style.display = 'none';
+        const kbdHint = document.getElementById('search-kbd-hint');
+        if (kbdHint) kbdHint.style.display = 'inline-flex';
         if (document.getElementById('results-wrap')) document.getElementById('results-wrap').style.display = 'none';
         if (document.getElementById('fed-results-wrap')) document.getElementById('fed-results-wrap').style.display = 'none';
         this.hideSuggest();
+    },
+    quickSearch(keyword) {
+        if (!keyword) return;
+        const inp = document.getElementById('search-input');
+        if (inp) inp.value = keyword;
+        const clearBtn = document.getElementById('search-clear');
+        if (clearBtn) clearBtn.style.display = 'block';
+        const kbdHint = document.getElementById('search-kbd-hint');
+        if (kbdHint) kbdHint.style.display = 'none';
+        this.doSearch(keyword);
     },
     doSearch(q) {
         if (!q) return;

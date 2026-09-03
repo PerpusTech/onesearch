@@ -1,7 +1,7 @@
 {
   "name": "UMS Library OneSearch",
   "short_name": "OneSearch",
-  "description": "Temukan koleksi literatur akademik terlengkap dari berbagai perpustakaan dan arsip publik.",
+  "description": "Pencarian satu pintu seluruh koleksi perpustakaan, repositori, dan literatur ilmiah.",
   "start_url": "/?source=pwa",
   "display": "standalone",
   "background_color": "#06080a",

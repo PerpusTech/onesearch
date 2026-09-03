@@ -1,13 +1,20 @@
 <!DOCTYPE html>
-<html lang="id" data-theme="dark">
+<html lang="id">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-        content="h - Temukan koleksi literatur akademik terlengkap dari berbagai perpustakaan dan arsip publik dengan mudah.">
-    <title>UMS Library OneSearch - Pencarian Terintegrasi</title>
+        content="UMS Library OneSearch - Pencarian satu pintu seluruh koleksi perpustakaan, repositori institusi, dan literatur ilmiah.">
+    <title>UMS Library OneSearch - Pencarian Satu Pintu</title>
     <link rel="icon" href="/img/logo4.png" type="image/png">
+
+    <script>
+        (function() {
+            var t = localStorage.getItem('bf_theme') || 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +23,7 @@
         rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
 
-    <link rel="stylesheet" href="css/style.css?v=37">
+    <link rel="stylesheet" href="css/style.css?v=44">
 </head>
 
 <body>
@@ -34,7 +41,11 @@
 
     <!-- Top Bar -->
     <header class="topbar">
-        <div class="topbar-inner">
+        <div class="wrap topbar-inner">
+            <a href="#" class="logo" onclick="app.showHome();return false">
+                <img src="/img/logo-2.png" alt="UMS Library OneSearch" width="200" class="logo-light">
+                <img src="/img/logo-1.png" alt="UMS Library OneSearch" width="200" class="logo-dark">
+            </a>
             <nav class="nav-mid">
                 <a href="#" class="on" data-page="home" onclick="app.showHome();return false" id="nav-home">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -92,8 +103,7 @@
                 <div class="wrap hero-layout">
                     <div class="hero-text">
                         <h1><span data-i18n="hero_title1">UMS Library OneSearch</span></h1>
-                        <p data-i18n="hero_subtitle">Temukan koleksi literatur akademik terlengkap dari
-                            berbagai perpustakaan dan arsip publik dengan mudah.</p>
+                        <p data-i18n="hero_subtitle">Pencarian satu pintu seluruh koleksi perpustakaan, repositori, dan literatur ilmiah.</p>
                         <div class="search-wrap" id="search-wrap">
                             <div class="search-row">
                                 <div class="search-box">
@@ -104,6 +114,7 @@
                                     </svg>
                                     <input type="text" id="search-input" data-i18n="search_placeholder"
                                         placeholder="Cari judul, pengarang, subjek..." autocomplete="off">
+                                    <kbd class="search-kbd-hint" id="search-kbd-hint"><span class="kbd-mod">Ctrl</span> K</kbd>
                                     <button class="clear-btn" id="search-clear" onclick="app.clearSearch()"
                                         style="display:none">✕</button>
                                 </div>
@@ -351,7 +362,7 @@
     </div>
     <script src="js/search.js?v=16"></script>
     <script src="js/recommender.js?v=16"></script>
-    <script src="js/app.js?v=44"></script>
+    <script src="js/app.js?v=48"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
