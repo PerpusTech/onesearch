@@ -909,6 +909,47 @@ def scopus_search():
     return jsonify(json_data.get('items', []))
 
 
+@app.route('/api/topics')
+def get_academic_topics():
+    query = request.args.get('q', '').strip()
+    if not query or len(query) < 2:
+        return jsonify({"topics": []})
+
+    # Clean query from quotes and boolean operators for concept lookup
+    clean_q = re.sub(r'["\']', '', query).strip()
+    clean_q = re.sub(r'\b(AND|OR|NOT)\b', ' ', clean_q, flags=re.IGNORECASE).strip()
+
+    topics = []
+    seen = set()
+    seen.add(clean_q.lower())
+
+    try:
+        url = "https://api.openalex.org/concepts"
+        params = {
+            "search": clean_q,
+            "per_page": 8,
+            "mailto": "perpustakaan@ums.ac.id"
+        }
+        headers = {"User-Agent": "UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)"}
+        resp = requests.get(url, params=params, headers=headers, timeout=6)
+        if resp.status_code == 200:
+            data = resp.json()
+            for c in data.get('results', []):
+                name = c.get('display_name')
+                if name and name.lower() not in seen:
+                    seen.add(name.lower())
+                    topics.append({
+                        "name": name,
+                        "worksCount": c.get('works_count', 0),
+                        "level": c.get('level', 1),
+                        "description": c.get('description', '')
+                    })
+    except Exception:
+        pass
+
+    return jsonify({"topics": topics[:8]})
+
+
 # ── ADMIN HARVEST & SCHEDULER MONITORING ──
 ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'ums-onesearch-secret-key').strip('"\'')
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))

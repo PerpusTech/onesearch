@@ -82,50 +82,133 @@ class SearchEngine {
     }
 
     /**
-     * Search books by query string
-     * Returns array of { book, score } sorted by relevance
+     * Search books by query string with support for:
+     * - Exact phrases in quotes ("machine learning")
+     * - Boolean operators: AND, OR, NOT / -term
+     * - Prefix matching & DDC classification numbers
      */
     search(query, limit = 100) {
         if (!this.ready || !query.trim()) return [];
 
-        const words = this.tokenize(query);
-        if (words.length === 0) return [];
+        const rawQuery = query.trim();
 
+        // 1. Extract exact quoted phrases: "artificial intelligence"
+        const exactPhrases = [];
+        const phraseRegex = /"([^"]+)"|'([^']+)'/g;
+        let pMatch;
+        while ((pMatch = phraseRegex.exec(rawQuery)) !== null) {
+            const p = (pMatch[1] || pMatch[2] || '').trim().toLowerCase();
+            if (p) exactPhrases.push(p);
+        }
+
+        // Remove quotes from query string for token extraction
+        const remainingQuery = rawQuery.replace(/"[^"]+"|'[^']+'/g, ' ').trim();
+
+        // 2. Parse boolean operators: AND, OR, NOT / -
+        const tokens = remainingQuery.split(/\s+/).filter(t => t.length > 0);
+        const mustWords = [];
+        const notWords = [];
+        const shouldWords = [];
+
+        let currentOp = 'AND'; // default operator is AND
+        for (let i = 0; i < tokens.length; i++) {
+            const tok = tokens[i];
+            const upper = tok.toUpperCase();
+
+            if (upper === 'AND') {
+                currentOp = 'AND';
+            } else if (upper === 'OR') {
+                currentOp = 'OR';
+            } else if (upper === 'NOT') {
+                currentOp = 'NOT';
+            } else if (tok.startsWith('-') && tok.length > 1) {
+                notWords.push(tok.substring(1).toLowerCase().replace(/[^\w]/g, ''));
+            } else {
+                const cleanWord = tok.toLowerCase().replace(/[^\w]/g, '');
+                if (cleanWord.length >= 2) {
+                    if (currentOp === 'NOT') {
+                        notWords.push(cleanWord);
+                        currentOp = 'AND';
+                    } else if (currentOp === 'OR') {
+                        shouldWords.push(cleanWord);
+                    } else {
+                        mustWords.push(cleanWord);
+                    }
+                }
+            }
+        }
+
+        const words = [...mustWords, ...shouldWords];
         const scores = new Map(); // bookIndex -> score
 
         // Check if query looks like a DDC number
-        const ddcMatch = query.match(/^(\d{1,3}(\.\d+)?)/);
+        const ddcMatch = rawQuery.match(/^(\d{1,3}(\.\d+)?)/);
         if (ddcMatch) {
             const ddcQuery = ddcMatch[1];
             const indices = this.ddcIndex.get(ddcQuery) || [];
             for (const idx of indices) {
-                scores.set(idx, (scores.get(idx) || 0) + 10);
+                scores.set(idx, (scores.get(idx) || 0) + 15);
             }
         }
 
-        for (const word of words) {
-            // Title matches (highest weight)
-            this.findMatches(this.titleIndex, word).forEach(idx => {
-                scores.set(idx, (scores.get(idx) || 0) + 5);
-            });
+        // If no standalone words, but has exact phrases: search by phrase substring
+        if (words.length === 0 && exactPhrases.length > 0) {
+            for (let i = 0; i < this.books.length; i++) {
+                const book = this.books[i];
+                const t = (book.t || '').toLowerCase();
+                const a = (book.a || '').toLowerCase();
+                const subStr = (book.sub || []).join(' ').toLowerCase();
+                const allText = `${t} ${a} ${subStr}`;
 
-            // Author matches
-            this.findMatches(this.authorIndex, word).forEach(idx => {
-                scores.set(idx, (scores.get(idx) || 0) + 3);
-            });
+                let allPhrasesMatch = true;
+                for (const ph of exactPhrases) {
+                    if (!allText.includes(ph)) {
+                        allPhrasesMatch = false;
+                        break;
+                    }
+                }
+                if (allPhrasesMatch) {
+                    let score = 25;
+                    if (exactPhrases.some(ph => t.includes(ph))) score += 20;
+                    scores.set(i, score);
+                }
+            }
+        } else {
+            // Match individual tokens
+            for (const word of words) {
+                this.findMatches(this.titleIndex, word).forEach(idx => {
+                    scores.set(idx, (scores.get(idx) || 0) + 6);
+                });
+                this.findMatches(this.authorIndex, word).forEach(idx => {
+                    scores.set(idx, (scores.get(idx) || 0) + 3);
+                });
+                this.findMatches(this.subjectIndex, word).forEach(idx => {
+                    scores.set(idx, (scores.get(idx) || 0) + 4);
+                });
+            }
 
-            // Subject matches
-            this.findMatches(this.subjectIndex, word).forEach(idx => {
-                scores.set(idx, (scores.get(idx) || 0) + 4);
-            });
+            // Boost exact phrases if present
+            if (exactPhrases.length > 0) {
+                for (const [idx, score] of scores) {
+                    const book = this.books[idx];
+                    const fullTxt = `${book.t || ''} ${book.a || ''} ${(book.sub || []).join(' ')}`.toLowerCase();
+                    for (const ph of exactPhrases) {
+                        if (fullTxt.includes(ph)) {
+                            scores.set(idx, score + 25);
+                        }
+                    }
+                }
+            }
         }
 
-        // Boost exact phrase matches in title
-        const queryLower = query.toLowerCase();
-        for (const [idx, score] of scores) {
-            const title = (this.books[idx].t || '').toLowerCase();
-            if (title.includes(queryLower)) {
-                scores.set(idx, score + 15);
+        // Filter out NOT words
+        if (notWords.length > 0) {
+            for (const [idx] of Array.from(scores.entries())) {
+                const book = this.books[idx];
+                const fullTxt = `${book.t || ''} ${book.a || ''} ${(book.sub || []).join(' ')}`.toLowerCase();
+                if (notWords.some(nw => nw && fullTxt.includes(nw))) {
+                    scores.delete(idx);
+                }
             }
         }
 

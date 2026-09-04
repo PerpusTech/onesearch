@@ -1063,7 +1063,8 @@ const app = {
         openAccessOnly: false,
         contentType: 'all',
         yearRange: 'all',
-        sort: 'default'
+        sort: 'default',
+        sources: new Set()
     },
 
     fetchFederatedDiscovery(srcObj, query, page = 1) {
@@ -1072,6 +1073,9 @@ const app = {
         this._fedCurrentQuery = query;
         this._fedCurrentPage = page;
         this._fedCurrentSrcObj = srcObj;
+
+        // Fetch smart academic topic concepts
+        this.fetchAndRenderSmartTopics(query);
 
         const fedWrap = document.getElementById('fed-results-wrap');
         const locWrap = document.getElementById('results-wrap');
@@ -1177,15 +1181,18 @@ const app = {
         const filterBarEl = document.getElementById('fed-filter-bar');
         if (!filterBarEl) return;
 
-        // Extract available content types dynamically from current raw items
+        // Extract available content types & database sources dynamically
         const typesSet = new Set();
         const yearsSet = new Set();
+        const sourcesCount = {};
         let oaCount = 0;
 
         (this._fedRawItems || []).forEach(it => {
             if (it.contentType) typesSet.add(it.contentType);
             if (it.year && it.year > 1900) yearsSet.add(it.year);
             if (it.openAccess || it.isOpenAccess || it.is_oa || it.openaccess) oaCount++;
+            const s = it.source || 'Lainnya';
+            sourcesCount[s] = (sourcesCount[s] || 0) + 1;
         });
 
         const typesList = Array.from(typesSet).sort();
@@ -1195,7 +1202,35 @@ const app = {
         const curType = this._fedFilters.contentType;
         const curYear = this._fedFilters.yearRange;
         const curSort = this._fedFilters.sort;
-        const hasActiveFilters = isOaActive || curType !== 'all' || curYear !== 'all' || curSort !== 'default';
+        const hasActiveSourceFilters = this._fedFilters.sources && this._fedFilters.sources.size > 0;
+        const hasActiveFilters = isOaActive || curType !== 'all' || curYear !== 'all' || curSort !== 'default' || hasActiveSourceFilters;
+
+        // Source database filter for multi-database aggregated view
+        let sourcesFilterHtml = '';
+        if (srcObj && srcObj.id === 'all_global') {
+            const activeSources = this._fedFilters.sources || new Set();
+            const isAllSelected = activeSources.size === 0;
+            sourcesFilterHtml = `
+                <div class="fed-source-filter-group">
+                    <span class="fed-filter-sublabel">Database Asal:</span>
+                    <button type="button" class="fed-src-chip ${isAllSelected ? 'active' : ''}" onclick="app.setAllFedSources()">Semua Basis Data</button>
+                    ${Object.entries(sourcesCount).map(([srcName, cnt]) => {
+                        const isSelected = activeSources.has(srcName);
+                        let badgeClass = 'fed-badge-type';
+                        if (srcName.toLowerCase().includes('scopus')) badgeClass = 'badge-scopus';
+                        else if (srcName.toLowerCase().includes('semantic')) badgeClass = 'badge-semanticscholar';
+                        else if (srcName.toLowerCase().includes('lens')) badgeClass = 'badge-lens';
+                        else if (srcName.toLowerCase().includes('openalex')) badgeClass = 'badge-openalex';
+                        else if (srcName.toLowerCase().includes('crossref')) badgeClass = 'badge-crossref';
+                        else if (srcName.toLowerCase().includes('springer')) badgeClass = 'badge-springer';
+                        return `<button type="button" class="fed-src-chip ${isSelected ? 'active' : ''} ${badgeClass}" onclick="app.toggleFedSourceFilter('${this.esc(srcName)}')">
+                            <span>${this.esc(srcName)}</span>
+                            <span class="fed-oa-badge" style="margin-left:4px; font-size:0.65rem">${cnt}</span>
+                        </button>`;
+                    }).join('')}
+                </div>
+            `;
+        }
 
         filterBarEl.style.display = 'block';
         filterBarEl.innerHTML = `
@@ -1250,6 +1285,7 @@ const app = {
                         </button>
                     ` : ''}
                 </div>
+                ${sourcesFilterHtml}
             </div>
             <div id="fed-filter-status" class="fed-filter-status-bar"></div>
         `;
@@ -1279,12 +1315,30 @@ const app = {
         this.applyFedFiltersAndRender(this._fedCurrentPage);
     },
 
+    toggleFedSourceFilter(srcName) {
+        if (!this._fedFilters.sources) this._fedFilters.sources = new Set();
+        if (this._fedFilters.sources.has(srcName)) {
+            this._fedFilters.sources.delete(srcName);
+        } else {
+            this._fedFilters.sources.add(srcName);
+        }
+        this.renderFedFilterBar(this._fedCurrentSrcObj, this._fedCurrentPage);
+        this.applyFedFiltersAndRender(this._fedCurrentPage);
+    },
+
+    setAllFedSources() {
+        if (this._fedFilters.sources) this._fedFilters.sources.clear();
+        this.renderFedFilterBar(this._fedCurrentSrcObj, this._fedCurrentPage);
+        this.applyFedFiltersAndRender(this._fedCurrentPage);
+    },
+
     resetFedFilters() {
         this._fedFilters = {
             openAccessOnly: false,
             contentType: 'all',
             yearRange: 'all',
-            sort: 'default'
+            sort: 'default',
+            sources: new Set()
         };
         this.renderFedFilterBar(this._fedCurrentSrcObj, this._fedCurrentPage);
         this.applyFedFiltersAndRender(this._fedCurrentPage);
@@ -1297,6 +1351,11 @@ const app = {
 
         let filtered = [...(this._fedRawItems || [])];
         const totalRaw = filtered.length;
+
+        // 0. Filter Source Databases (if specific sources chosen on all_global)
+        if (this._fedFilters.sources && this._fedFilters.sources.size > 0) {
+            filtered = filtered.filter(it => this._fedFilters.sources.has(it.source));
+        }
 
         // 1. Filter Open Access
         if (this._fedFilters.openAccessOnly) {
@@ -1336,7 +1395,8 @@ const app = {
 
         // Update Filter Status Info
         if (statusEl) {
-            const hasActiveFilters = this._fedFilters.openAccessOnly || this._fedFilters.contentType !== 'all' || this._fedFilters.yearRange !== 'all' || this._fedFilters.sort !== 'default';
+            const hasActiveSourceFilters = this._fedFilters.sources && this._fedFilters.sources.size > 0;
+            const hasActiveFilters = this._fedFilters.openAccessOnly || this._fedFilters.contentType !== 'all' || this._fedFilters.yearRange !== 'all' || this._fedFilters.sort !== 'default' || hasActiveSourceFilters;
             if (hasActiveFilters) {
                 statusEl.innerHTML = `<span>Menampilkan <strong>${filtered.length}</strong> dari <strong>${totalRaw}</strong> artikel pada halaman ini</span>`;
                 statusEl.style.display = 'block';
@@ -1556,6 +1616,8 @@ const app = {
         if (document.getElementById('fed-results-wrap')) document.getElementById('fed-results-wrap').style.display = 'none';
         const autoInsights = document.getElementById('fed-auto-insights');
         if (autoInsights) autoInsights.style.display = 'none';
+        const smartTopics = document.getElementById('smart-topics-wrap');
+        if (smartTopics) { smartTopics.style.display = 'none'; smartTopics.innerHTML = ''; }
         this.hideSuggest();
         this._currentSearchQuery = '';
 
@@ -1584,6 +1646,9 @@ const app = {
 
         this._currentSearchQuery = q;
         const field = (document.getElementById('search-field-sel') || {}).value || 'all';
+
+        // Fetch smart academic topics
+        this.fetchAndRenderSmartTopics(q);
 
         // Update URL query parameters for Deep Link Sharing
         try {
@@ -2778,17 +2843,71 @@ const app = {
         const queryTerm = (q || this._currentSearchQuery || '').trim();
         if (!queryTerm) return escapedText;
 
-        // Split query into terms to highlight multi-word search
-        const terms = queryTerm.split(/\s+/).filter(t => t.length > 1).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-        if (terms.length === 0) {
-            const single = queryTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`(${single})`, 'gi');
-            return escapedText.replace(regex, '<mark class="kw-highlight">$1</mark>');
+        // Extract exact phrases from quotes
+        const exactPhrases = [];
+        const phraseRegex = /"([^"]+)"|'([^']+)'/g;
+        let pMatch;
+        while ((pMatch = phraseRegex.exec(queryTerm)) !== null) {
+            const p = (pMatch[1] || pMatch[2] || '').trim();
+            if (p.length >= 2) exactPhrases.push(p);
         }
 
-        const pattern = `(${terms.join('|')})`;
+        const remainingQuery = queryTerm.replace(/"[^"]+"|'[^']+'/g, ' ').replace(/\b(AND|OR|NOT)\b/gi, ' ').trim();
+        const words = remainingQuery.split(/\s+/).filter(t => t.length > 1);
+
+        const allTerms = [...exactPhrases, ...words].map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        if (allTerms.length === 0) return escapedText;
+
+        // Sort terms by length descending so longer phrases match first
+        allTerms.sort((a, b) => b.length - a.length);
+        const pattern = `(${allTerms.join('|')})`;
         const regex = new RegExp(pattern, 'gi');
         return escapedText.replace(regex, '<mark class="kw-highlight">$1</mark>');
+    },
+
+    async fetchAndRenderSmartTopics(query) {
+        const wrap = document.getElementById('smart-topics-wrap');
+        if (!wrap) return;
+        if (!query || query.trim().length < 2) {
+            wrap.style.display = 'none';
+            wrap.innerHTML = '';
+            return;
+        }
+
+        try {
+            const resp = await fetch(`/api/topics?q=${encodeURIComponent(query.trim())}`);
+            if (!resp.ok) {
+                wrap.style.display = 'none';
+                return;
+            }
+            const data = await resp.json();
+            const topics = data.topics || [];
+            if (topics.length === 0) {
+                wrap.style.display = 'none';
+                wrap.innerHTML = '';
+                return;
+            }
+
+            wrap.style.display = 'flex';
+            wrap.innerHTML = `
+                <div class="smart-topics-bar">
+                    <span class="smart-topics-label">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                        Topik Terkait:
+                    </span>
+                    <div class="smart-topics-list">
+                        ${topics.map(t => `
+                            <button type="button" class="smart-topic-chip" onclick="document.getElementById('search-input').value='${this.esc(t.name).replace(/'/g, "\\'")}'; app.doSearch('${this.esc(t.name).replace(/'/g, "\\'")}');" title="${t.worksCount ? `${this.fmt(t.worksCount)} publikasi global` : ''}">
+                                <span>${this.esc(t.name)}</span>
+                                ${t.worksCount ? `<small>${this.fmt(t.worksCount)}</small>` : ''}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } catch (e) {
+            wrap.style.display = 'none';
+        }
     },
     ddcLabel(ddc) {
         if (!ddc) return '';
