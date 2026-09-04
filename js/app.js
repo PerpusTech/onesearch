@@ -633,6 +633,18 @@ const app = {
                 this._closeModalInternal();
             }
         });
+
+        // Scroll-to-top button visibility
+        const scrollTopBtn = document.getElementById('scroll-top-btn');
+        if (scrollTopBtn) {
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 400) {
+                    scrollTopBtn.classList.add('visible');
+                } else {
+                    scrollTopBtn.classList.remove('visible');
+                }
+            }, { passive: true });
+        }
     },
 
     // ──── Theme ────
@@ -1324,10 +1336,19 @@ const app = {
         this.activeFilters = { access: new Set(), src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
         this.resultsPage = 0;
         document.getElementById('results-title').textContent = `"${q}"${fieldLabel} — ${results.length} ${this.t('results_found').toLowerCase()}`;
-        this.renderFacets();
-        this.applyFiltersAndRender();
+
+        // Show result wrapper & scroll immediately, then show skeleton
         document.getElementById('results-wrap').style.display = 'block';
         document.getElementById('results-wrap').scrollIntoView({ behavior: 'smooth' });
+        this.showSkeleton(Math.min(results.length || 12, 12));
+
+        // Small RAF delay lets browser paint skeleton before heavy DOM work
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                this.renderFacets();
+                this.applyFiltersAndRender();
+            });
+        });
 
         // Trigger Automated Smart Multi-Source Discovery in parallel
         this.fetchAutoFederatedInsights(q, results.length);
@@ -1462,6 +1483,26 @@ const app = {
             `;
         });
     },
+    // ──── Skeleton Loading ────
+    _skeletonCard() {
+        return `<div class="sk-card">
+            <div class="sk-line sk-title"></div>
+            <div class="sk-line sk-title-2"></div>
+            <div class="sk-line sk-author"></div>
+            <div class="sk-chip-row">
+                <div class="sk-line sk-chip"></div>
+                <div class="sk-line sk-chip"></div>
+                <div class="sk-line sk-chip"></div>
+            </div>
+        </div>`;
+    },
+
+    showSkeleton(count = 12) {
+        const grid = document.getElementById('results-grid');
+        if (!grid) return;
+        grid.innerHTML = Array(count).fill(this._skeletonCard()).join('');
+    },
+
     renderResults() {
         const end = (this.resultsPage + 1) * this.perPage;
         const show = this.currentResults.slice(0, end);

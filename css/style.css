@@ -102,12 +102,10 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: var(--font);
 }
 
 html {
     scroll-behavior: smooth;
-    font-family: var(--font);
 }
 
 body {
@@ -121,6 +119,15 @@ body {
     transition: background .35s var(--ease), color .35s var(--ease);
 }
 
+/* Header, Topbar & Headings (Manrope) */
+header,
+.topbar,
+.topbar *,
+.nav-mid,
+.nav-mid a,
+.nav-right,
+.nav-right *,
+.logo,
 h1,
 h2,
 h3,
@@ -128,27 +135,20 @@ h4,
 h5,
 h6,
 .hero h1,
+.hero-title,
 .page-top h1,
 .modal-title,
 .fed-header-title,
 .fed-btn-title,
-.logo,
+.fed-card-title,
 .stats-card-val,
-.bk-title {
+.bk-title,
+.shelf-title,
+.filter-box-title,
+.sec-title,
+.banner-title,
+.card-title {
     font-family: var(--font-heading) !important;
-}
-
-input,
-button,
-select,
-textarea,
-span,
-p,
-a,
-div,
-li,
-small {
-    font-family: var(--font);
 }
 
 .wrap {
@@ -3243,4 +3243,201 @@ h6 {
 .site-footer strong {
     color: var(--ink-2);
     font-weight: 600;
+}
+
+/* ---- Scroll to Top Button ---- */
+.scroll-top-btn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(24, 24, 27, 0.8);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    color: var(--ink-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 900;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255,255,255,0.06) inset;
+    /* hidden by default */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(12px) scale(0.9);
+    transition: opacity .3s var(--ease), visibility .3s var(--ease), transform .3s var(--ease), background .2s var(--ease), border-color .2s var(--ease), color .2s var(--ease);
+}
+
+[data-theme="light"] .scroll-top-btn {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(228, 228, 231, 0.9);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    color: var(--ink-3);
+}
+
+.scroll-top-btn.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+.scroll-top-btn:hover {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #ffffff;
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+}
+
+.scroll-top-btn:active {
+    transform: translateY(0) scale(0.95);
+}
+
+/* ---- Floating FAB Group (bottom-right) ---- */
+.fab-group {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+    z-index: 900;
+}
+
+/* Make scroll-top-btn work inside fab-group (override position:fixed to position:relative) */
+.fab-group .scroll-top-btn {
+    position: relative;
+    bottom: auto;
+    right: auto;
+    /* visibility is still controlled by .visible class */
+}
+
+.fab-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(24, 24, 27, 0.8);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    color: var(--ink-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .75rem;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: .04em;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255,255,255,0.06) inset;
+    transition: background .2s var(--ease), border-color .2s var(--ease), color .2s var(--ease), transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+
+[data-theme="light"] .fab-btn {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(228, 228, 231, 0.9);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    color: var(--ink-3);
+}
+
+.fab-btn:hover {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #ffffff;
+    transform: scale(1.08);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+}
+
+.fab-btn:active {
+    transform: scale(0.93);
+}
+
+/* ---- Skeleton Loading Cards ---- */
+@keyframes skeleton-shimmer {
+    0% { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+}
+
+.sk-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 1.1rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+    position: relative;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* Shimmer pulse base for all skeleton elements */
+.sk-line {
+    border-radius: var(--r-sm);
+    background: linear-gradient(
+        90deg,
+        var(--border) 0%,
+        var(--bg-3) 40%,
+        var(--border) 80%
+    );
+    background-size: 800px 100%;
+    animation: skeleton-shimmer 1.5s infinite linear;
+}
+
+.sk-title {
+    height: 14px;
+    width: 90%;
+}
+
+.sk-title-2 {
+    height: 14px;
+    width: 65%;
+}
+
+.sk-author {
+    height: 11px;
+    width: 50%;
+    margin-top: .1rem;
+}
+
+.sk-chip-row {
+    display: flex;
+    gap: .35rem;
+    margin-top: auto;
+    padding-top: .4rem;
+}
+
+.sk-chip {
+    height: 20px;
+    border-radius: 999px;
+}
+
+.sk-chip:nth-child(1) { width: 60px; }
+.sk-chip:nth-child(2) { width: 40px; }
+.sk-chip:nth-child(3) { width: 72px; }
+
+/* Light mode skeleton */
+[data-theme="light"] .sk-line {
+    background: linear-gradient(
+        90deg,
+        #e4e4e7 0%,
+        #f4f4f5 40%,
+        #e4e4e7 80%
+    );
+    background-size: 800px 100%;
+    animation: skeleton-shimmer 1.5s infinite linear;
+}
+
+/* card-enter animation for real cards appearing after skeleton */
+@keyframes card-enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.bk-card {
+    animation: card-enter .25s var(--ease) both;
 }

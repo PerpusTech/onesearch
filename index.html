@@ -23,7 +23,7 @@
         rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
 
-    <link rel="stylesheet" href="css/style.css?v=50">
+    <link rel="stylesheet" href="css/style.css?v=55">
 </head>
 
 <body>
@@ -290,14 +290,18 @@
             </div>
         </div>
     </main>
-    <div class="floating-actions"
-        style="position:fixed; bottom:2rem; right:2rem; display:flex; flex-direction:column; gap:0.6rem; align-items:center; z-index:9999;">
-        <button class="theme-btn"
-            style="font-weight:700;font-size:0.75rem;width:36px;height:36px;font-family:'Inter',sans-serif;letter-spacing:0.05em;display:flex;align-items:center;justify-content:center;border-radius:50%;padding:0;"
-            onclick="app.toggleLang()" id="lang-toggle">ID</button>
-        <button class="theme-btn" id="theme-btn" onclick="app.toggleTheme()" title="Ganti tema">
-            <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2">
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="wrap site-footer-inner">
+            <p>© <span id="footer-year"></span> Developed by <strong>IT UMS Library</strong></p>
+        </div>
+    </footer>
+    <!-- Floating FAB Group: lang + theme + scroll-to-top -->
+    <div class="fab-group">
+        <button class="fab-btn" onclick="app.toggleLang()" id="lang-toggle" title="Ubah Bahasa / Change Language" aria-label="Toggle language">ID</button>
+        <button class="fab-btn" id="theme-btn" onclick="app.toggleTheme()" title="Ganti Tema" aria-label="Toggle theme">
+            <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="5" />
                 <line x1="12" y1="1" x2="12" y2="3" />
                 <line x1="12" y1="21" x2="12" y2="23" />
@@ -308,22 +312,19 @@
                 <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
             </svg>
-            <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2">
+            <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
         </button>
+        <button class="scroll-top-btn" id="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Kembali ke atas" aria-label="Scroll to top">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="18 15 12 9 6 15"></polyline>
+            </svg>
+        </button>
     </div>
-
-    <!-- Footer -->
-    <footer class="site-footer">
-        <div class="wrap site-footer-inner">
-            <p>© <span id="footer-year"></span> Developed by <strong>IT UMS Library</strong></p>
-        </div>
-    </footer>
     <script src="js/search.js?v=16"></script>
     <script src="js/recommender.js?v=16"></script>
-    <script src="js/app.js?v=51"></script>
+    <script src="js/app.js?v=55"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
