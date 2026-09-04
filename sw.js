@@ -1,10 +1,12 @@
-const CACHE_NAME_SHELL = 'onesearch-shell-v2';
-const CACHE_NAME_DATA  = 'onesearch-data-v1';
+const CACHE_NAME_SHELL = 'onesearch-shell-v82';
+const CACHE_NAME_DATA  = 'onesearch-data-v82';
 
 const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/css/style.css',
+  '/js/search.js',
+  '/js/recommender.js',
   '/js/app.js',
   '/img/logo-1.png',
   '/img/logo-2.png',
@@ -16,7 +18,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME_SHELL).then((cache) => {
-      console.log('[SW] Pre-caching App Shell');
+      console.log('[SW] Pre-caching App Shell v82');
       return cache.addAll(SHELL_ASSETS);
     })
   );
@@ -27,7 +29,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keyList) => {
       return Promise.all(keyList.map((key) => {
         if (key !== CACHE_NAME_SHELL && key !== CACHE_NAME_DATA) {
-          console.log('[SW] Removing old cache', key);
+          console.log('[SW] Removing old cache:', key);
           return caches.delete(key);
         }
       }));
@@ -36,10 +38,20 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // If it's a request to our data directory (books.json, prodi_index.json, etc.)
-  // We use Stale-While-Revalidate strategy
+  // Ignore cross-origin requests
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // API calls & proxy requests: Network-only
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/search') || url.pathname.startsWith('/suggest')) {
+    return;
+  }
+
+  // Data files: Stale-While-Revalidate
   if (url.pathname.startsWith('/data/')) {
     event.respondWith(
       caches.open(CACHE_NAME_DATA).then((cache) => {
@@ -49,10 +61,7 @@ self.addEventListener('fetch', (event) => {
               cache.put(event.request, networkResponse.clone());
             }
             return networkResponse;
-          }).catch((err) => {
-            console.log('[SW] Network error on data fetch, using cached if available', err);
-          });
-          
+          }).catch(() => null);
           return cachedResponse || fetchPromise;
         });
       })
@@ -60,19 +69,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For app shell and other assets: Cache-First strategy with network fallback
+  // Scripts, CSS, and HTML: Network-First strategy
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request).then(fetchRes => {
-         // Optionally cache new found images/assets dynamically 
-         if(event.request.method === 'GET' && fetchRes.status === 200) {
-             return caches.open(CACHE_NAME_SHELL).then(cache => {
-                 cache.put(event.request, fetchRes.clone());
-                 return fetchRes;
-             });
-         }
-         return fetchRes;
-      });
+    fetch(event.request).then((networkResponse) => {
+      if (networkResponse && networkResponse.status === 200) {
+        const responseClone = networkResponse.clone();
+        caches.open(CACHE_NAME_SHELL).then((cache) => {
+          cache.put(event.request, responseClone);
+        });
+      }
+      return networkResponse;
+    }).catch(() => {
+      return caches.match(event.request);
     })
   );
 });

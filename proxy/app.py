@@ -10,7 +10,7 @@ from urllib3.util import Retry
 from requests.adapters import HTTPAdapter
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, redirect
 from dotenv import load_dotenv
 
 # Load env variables from root .env or proxy/.env
@@ -262,7 +262,10 @@ def _fetch_openalex_fallback(query, page, rows, badge_source="OpenAlex", venue_t
                 doi_url = work.get('doi') or work.get('id') or ''
                 src_name = extract_openalex_source_name(work.get('primary_location'), venue_title_hint or 'International Journal')
                 oa_info = work.get('open_access') or {}
-                is_oa = bool(oa_info.get('is_oa', False)) or bool(oa_info.get('oa_url')) or bool(work.get('doi'))
+                best_oa = work.get('best_oa_location') or {}
+                prim_loc = work.get('primary_location') or {}
+                pdf_link = best_oa.get('pdf_url') or prim_loc.get('pdf_url') or (oa_info.get('oa_url') if (oa_info.get('oa_url') or '').endswith('.pdf') else '')
+                is_oa = bool(oa_info.get('is_oa', False)) or bool(oa_info.get('oa_url')) or bool(pdf_link)
                 raw_type = work.get('type') or 'journal-article'
 
                 items.append({
@@ -276,6 +279,7 @@ def _fetch_openalex_fallback(query, page, rows, badge_source="OpenAlex", venue_t
                     "year": work.get('publication_year', 0),
                     "doi": doi_url,
                     "url": doi_url or f"https://openalex.org/{clean_id}",
+                    "pdfUrl": pdf_link or (oa_info.get('oa_url') if (oa_info.get('oa_url') or '').endswith('.pdf') else ""),
                     "abstract": reconstruct_openalex_abstract(work.get('abstract_inverted_index')),
                     "openAccess": is_oa,
                     "source": badge_source
@@ -371,6 +375,7 @@ def _fetch_single_source(source, query, page, rows):
                             "year": year,
                             "doi": doi_url,
                             "url": springer_url,
+                            "pdfUrl": next((l.get('URL', '') for l in it.get('link', []) if 'pdf' in str(l.get('content-type', '')).lower() or str(l.get('URL', '')).endswith('.pdf')), '') if is_oa else '',
                             "abstract": abstract_clean,
                             "openAccess": is_oa,
                             "source": "Springer"
@@ -468,6 +473,7 @@ def _fetch_single_source(source, query, page, rows):
                             "year": year,
                             "doi": doi_url,
                             "url": emerald_url,
+                            "pdfUrl": next((l.get('URL', '') for l in it.get('link', []) if 'pdf' in str(l.get('content-type', '')).lower() or str(l.get('URL', '')).endswith('.pdf')), '') if is_oa else '',
                             "abstract": abstract_clean,
                             "openAccess": is_oa,
                             "source": "Emerald"
@@ -501,15 +507,14 @@ def _fetch_single_source(source, query, page, rows):
         if CIRCUIT_BREAKERS["openalex"].can_attempt():
             url = 'https://api.openalex.org/works'
             params = {
-                'filter': f'title.search:{query}',
+                'search': query,
                 'page': page,
-                'per-page': rows
+                'per-page': rows,
+                'mailto': 'perpustakaan@ums.ac.id'
             }
             headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
             try:
                 resp = HTTP_SESSION.get(url, params=params, headers=headers, timeout=(2.0, 3.5))
-                if resp.status_code != 200:
-                    resp = HTTP_SESSION.get(url, params={'search': query, 'page': page, 'per-page': rows}, headers=headers, timeout=(2.0, 3.5))
                 
                 if resp.status_code == 200:
                     CIRCUIT_BREAKERS["openalex"].record_success()
@@ -519,21 +524,19 @@ def _fetch_single_source(source, query, page, rows):
                     items_raw = data.get('results', [])
                     
                     for it in items_raw:
-                        authors_list = [a.get('author', {}).get('display_name', '') for a in it.get('authorships', []) if a.get('author', {}).get('display_name')]
-                        authors_str = "; ".join(authors_list) if authors_list else "Unknown"
-
+                        authors_str = extract_openalex_authors(it.get('authorships'))
                         title_str = clean_title(it.get('title', 'Untitled') or 'Untitled')
                         year = it.get('publication_year', 0)
                         date_str = it.get('publication_date', str(year or ""))
-
-                        primary_loc = it.get('primary_location') or {}
-                        source_obj = primary_loc.get('source') or {}
-                        pub_name = source_obj.get('display_name', '') or it.get('host_venue', {}).get('name', 'Open Access Repository')
+                        pub_name = extract_openalex_source_name(it.get('primary_location'), 'Open Access Repository')
 
                         doi = it.get('doi', '')
-                        oa_info = it.get('open_access') or {}
-                        oa_url = oa_info.get('oa_url', '')
-                        is_oa = bool(oa_info.get('is_oa', False)) or bool(oa_url)
+                        oa_info = it.get('open_access') if isinstance(it.get('open_access'), dict) else {}
+                        oa_url = oa_info.get('oa_url', '') if isinstance(oa_info, dict) else ''
+                        best_oa = it.get('best_oa_location') if isinstance(it.get('best_oa_location'), dict) else {}
+                        primary_loc = it.get('primary_location') if isinstance(it.get('primary_location'), dict) else {}
+                        pdf_link = (best_oa.get('pdf_url') or primary_loc.get('pdf_url') or (oa_url if str(oa_url).endswith('.pdf') else '')) if isinstance(best_oa, dict) and isinstance(primary_loc, dict) else ''
+                        is_oa = bool(oa_info.get('is_oa', False)) or bool(oa_url) or bool(pdf_link)
 
                         raw_id = str(it.get('id', '') or '').strip()
                         clean_id = raw_id.split('/')[-1] if raw_id else ''
@@ -546,7 +549,7 @@ def _fetch_single_source(source, query, page, rows):
 
                         direct_url = oa_url or doi or oa_page_url
                         abstract_clean = reconstruct_openalex_abstract(it.get('abstract_inverted_index'))
-                        doc_type = it.get('type', 'article').replace('-', ' ').title()
+                        doc_type = str(it.get('type', 'article') or 'article').replace('-', ' ').title()
 
                         items.append({
                             "id": f"oa-{clean_id or raw_id}",
@@ -559,7 +562,8 @@ def _fetch_single_source(source, query, page, rows):
                             "year": year,
                             "doi": doi,
                             "url": direct_url,
-                            "abstract": abstract_clean,
+                            "pdfUrl": pdf_link or (oa_url if (oa_url or '').endswith('.pdf') else ""),
+                            "abstract": it.get('abstract') or '',
                             "openAccess": is_oa,
                             "source": "OpenAlex"
                         })
@@ -643,6 +647,7 @@ def _fetch_single_source(source, query, page, rows):
                             "year": year,
                             "doi": doi_url,
                             "url": doi_url,
+                            "pdfUrl": next((l.get('URL', '') for l in it.get('link', []) if 'pdf' in str(l.get('content-type', '')).lower() or str(l.get('URL', '')).endswith('.pdf')), '') if is_oa else '',
                             "abstract": abstract_clean,
                             "openAccess": is_oa,
                             "source": "Crossref"
@@ -858,6 +863,7 @@ def _fetch_single_source(source, query, page, rows):
                             "year": year,
                             "doi": doi_url or doi,
                             "url": direct_url,
+                            "pdfUrl": oa_pdf,
                             "abstract": it.get('abstract', '') or '',
                             "openAccess": is_oa,
                             "source": "Semantic Scholar",
@@ -940,6 +946,7 @@ def _fetch_single_source(source, query, page, rows):
                         oa_info = work.get('open_access') or {}
                         is_oa = bool(oa_info.get('is_open_access', False))
 
+                        oa_pdf = (oa_info.get('url') or '') if is_oa else ''
                         items.append({
                             "id": f"lens-{lens_id or doi}",
                             "title": clean_title(work.get('title', 'Untitled')),
@@ -951,6 +958,7 @@ def _fetch_single_source(source, query, page, rows):
                             "year": pub_year,
                             "doi": doi_url,
                             "url": lens_url,
+                            "pdfUrl": oa_pdf,
                             "abstract": clean_html_tags(work.get('abstract', '')),
                             "openAccess": is_oa,
                             "source": "The Lens"
@@ -978,6 +986,42 @@ def _fetch_single_source(source, query, page, rows):
 
     else:
         return {"error": f"Unknown source {source}", "source": source, "total": 0, "items": []}
+
+
+# ── DIRECT PDF PROXY STREAMER (STRIPS X-FRAME-OPTIONS FOR IN-BROWSER PREVIEW) ──
+@app.route('/api/pdf_proxy')
+def pdf_proxy():
+    raw_url = request.args.get('url', '').strip()
+    if not raw_url or not raw_url.startswith(('http://', 'https://')):
+        return jsonify({"error": "Invalid or missing url parameter"}), 400
+    
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/pdf,application/octet-stream,*/*'
+        }
+        r = HTTP_SESSION.get(raw_url, headers=headers, stream=True, timeout=(6.0, 20.0), allow_redirects=True)
+        if r.status_code != 200:
+            return jsonify({"error": f"Upstream error HTTP {r.status_code}"}), r.status_code
+        
+        content_type = r.headers.get('Content-Type', '').lower()
+        if 'application/pdf' not in content_type and 'octet-stream' not in content_type:
+            # Publisher returned an HTML landing / paywall page. Redirect to origin URL.
+            return redirect(raw_url)
+            
+        def generate():
+            for chunk in r.iter_content(chunk_size=16384):
+                if chunk:
+                    yield chunk
+
+        resp = Response(generate(), content_type=content_type or 'application/pdf')
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        resp.headers['Content-Disposition'] = 'inline'
+        resp.headers['X-Frame-Options'] = 'ALLOWALL'
+        resp.headers['Content-Security-Policy'] = "frame-ancestors *"
+        return resp
+    except Exception as e:
+        return jsonify({"error": f"PDF proxy error: {str(e)}"}), 500
 
 
 # ── FEDERATED SEARCH ENDPOINT (AGGREGATION + CACHING) ──

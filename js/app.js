@@ -168,7 +168,7 @@ const app = {
             btn_bookmark: "Simpan",
             btn_bookmarked: "Tersimpan",
             no_bookmarks: "Belum ada literatur yang disimpan. Mulai jelajahi dan klik ikon bintang untuk menyimpan koleksi Anda di sini.",
-            scopus_live_prompt: "Pencarian Scopus terhubung secara live (waktu nyata). Silakan ketik kata kunci Anda di kotak pencarian.",
+            scopus_live_prompt: "Pencarian Scopus terhubung secara langsung (waktu nyata). Silakan ketik kata kunci Anda di kotak pencarian.",
             copied_link: "Tautan berhasil disalin!",
             btn_share: "Bagikan",
             eyebrow_text: "UPT Perpustakaan dan Layanan Digital UMS",
@@ -366,25 +366,28 @@ const app = {
         return this.translations[this.lang][key] || key;
     },
 
-    theme: 'dark',
+    theme: 'light',
 
     initTheme() {
-        const saved = localStorage.getItem('bf-theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        const saved = localStorage.getItem('bf_theme') || localStorage.getItem('bf-theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         this.setTheme(saved);
     },
 
     toggleTheme() {
-        this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
+        const cur = document.documentElement.getAttribute('data-theme') || this.theme || 'light';
+        const next = (cur === 'dark') ? 'light' : 'dark';
+        this.setTheme(next);
     },
 
     setTheme(t) {
         this.theme = t;
         document.documentElement.setAttribute('data-theme', t);
+        localStorage.setItem('bf_theme', t);
         localStorage.setItem('bf-theme', t);
-        const btn = document.getElementById('theme-toggle');
+        const btn = document.getElementById('theme-toggle-fab') || document.getElementById('theme-toggle');
         if (btn) {
-            btn.setAttribute('aria-label', t === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode');
-            btn.title = t === 'dark' ? 'Mode Terang' : 'Mode Gelap';
+            btn.setAttribute('aria-label', t === 'dark' ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap');
+            btn.title = t === 'dark' ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap';
         }
     },
 
@@ -524,6 +527,7 @@ const app = {
             if (langBtn) langBtn.textContent = this.lang.toUpperCase();
             this.searchHistory = JSON.parse(localStorage.getItem('bf-search-history') || '[]');
             this.bookmarks = new Set(JSON.parse(localStorage.getItem('bf-bookmarks') || '[]'));
+            this.bookmarksData = JSON.parse(localStorage.getItem('bf-bookmarks-data') || '{}');
             this.renderShelves();
             this.renderInstitutionPicker();
             this.listen();
@@ -658,18 +662,6 @@ const app = {
         });
     },
 
-    // ──── Theme ────
-    initTheme() {
-        const saved = localStorage.getItem('bf-theme');
-        if (saved) document.documentElement.setAttribute('data-theme', saved);
-    },
-    toggleTheme() {
-        const cur = document.documentElement.getAttribute('data-theme');
-        const next = cur === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', next);
-        localStorage.setItem('bf-theme', next);
-    },
-
     // ──── Navigation ────
     showPage(p) {
         document.querySelectorAll('.page').forEach(el => el.classList.remove('on'));
@@ -747,34 +739,68 @@ const app = {
         }
     },
 
-    // ──── Bookmarks Logic ────
+    // ──── Bookmarks & Reference Management Logic ────
     _bmSort: 'az', // current sort mode for bookmarks page
+    bookmarksData: {}, // stores metadata for remote/federated items: { [id]: item }
 
-    toggleBookmark(id) {
-        if (this.bookmarks.has(id)) {
-            this.bookmarks.delete(id);
+    toggleBookmark(id, itemData = null) {
+        const idStr = String(id);
+        const isBm = this.bookmarks.has(id) || this.bookmarks.has(idStr);
+        const actualId = this.bookmarks.has(id) ? id : (this.bookmarks.has(idStr) ? idStr : id);
+
+        if (isBm) {
+            this.bookmarks.delete(actualId);
+            delete this.bookmarksData[actualId];
+            this.toast(this.lang === 'id' ? 'Dihapus dari Koleksi Saya' : 'Removed from collection');
         } else {
             this.bookmarks.add(id);
+            if (!itemData) {
+                itemData = this.searchEngine.getById(id)
+                    || (this.baseResults && this.baseResults.find(b => b.id == id))
+                    || (this.currentResults && this.currentResults.find(b => b.id == id))
+                    || (this._fedRawItems && this._fedRawItems.find(it => String(it.id) === idStr));
+            }
+            if (itemData) {
+                this.bookmarksData[id] = itemData;
+            }
+            this.toast(this.lang === 'id' ? 'Disimpan ke Koleksi Saya ⭐' : 'Saved to collection ⭐');
         }
         localStorage.setItem('bf-bookmarks', JSON.stringify([...this.bookmarks]));
+        localStorage.setItem('bf-bookmarks-data', JSON.stringify(this.bookmarksData));
 
         // Update button in currently open modal if any
         const btn = document.getElementById('btn-toggle-bookmark');
         if (btn) {
-            const isBookmarked = this.bookmarks.has(id);
-            btn.innerHTML = isBookmarked ? this.t('btn_bookmarked') : this.t('btn_bookmark');
-            btn.className = 'btn btn-ghost' + (isBookmarked ? ' txt-brand' : '');
-            if (isBookmarked) btn.style.color = 'var(--brand)';
+            const hasBm = this.bookmarks.has(id) || this.bookmarks.has(idStr);
+            btn.innerHTML = hasBm ? this.t('btn_bookmarked') : this.t('btn_bookmark');
+            btn.className = 'btn btn-ghost' + (hasBm ? ' txt-brand' : '');
+            if (hasBm) btn.style.color = 'var(--brand)';
             else btn.style.color = '';
         }
 
-        // Update star button directly on the card (if visible in grid)
+        const artBtn = document.getElementById('btn-art-bm');
+        if (artBtn) {
+            const hasBm = this.bookmarks.has(id) || this.bookmarks.has(idStr);
+            artBtn.innerHTML = hasBm ? '⭐ Tersimpan di Koleksi' : '☆ Simpan ke Koleksi';
+            artBtn.style.color = hasBm ? 'var(--brand)' : '';
+        }
+
+        // Update star button on local cards
         const cardBtn = document.getElementById('bm-star-' + id);
         if (cardBtn) {
-            const isBm = this.bookmarks.has(id);
-            cardBtn.textContent = isBm ? '⭐' : '☆';
-            cardBtn.style.color = isBm ? 'var(--brand)' : 'var(--ink-3)';
+            const hasBm = this.bookmarks.has(id) || this.bookmarks.has(idStr);
+            cardBtn.textContent = hasBm ? '⭐' : '☆';
+            cardBtn.style.color = hasBm ? 'var(--brand)' : 'var(--ink-3)';
         }
+
+        // Update star button on federated cards
+        const fedCardBtns = document.querySelectorAll(`[data-fed-bm="${CSS.escape(idStr)}"]`);
+        fedCardBtns.forEach(b => {
+            const hasBm = this.bookmarks.has(id) || this.bookmarks.has(idStr);
+            b.classList.toggle('active', hasBm);
+            b.textContent = hasBm ? '⭐' : '☆';
+            b.title = hasBm ? (this.lang === 'id' ? 'Tersimpan di Koleksi Saya' : 'Saved in collection') : (this.lang === 'id' ? 'Simpan ke Koleksi Saya' : 'Save to collection');
+        });
 
         // Update badge count on nav
         this._updateBmBadge();
@@ -785,8 +811,19 @@ const app = {
         }
     },
 
+    toggleBookmarkFromFed(id, el) {
+        let itemData = null;
+        if (this._fedRawItems) {
+            itemData = this._fedRawItems.find(it => String(it.id) === String(id));
+        }
+        if (!itemData && this.bookmarksData) {
+            itemData = this.bookmarksData[id];
+        }
+        this.toggleBookmark(id, itemData);
+    },
+
     _updateBmBadge() {
-        const count = this.bookmarks.size;
+        const count = this.bookmarks ? this.bookmarks.size : 0;
         const text = count > 0 ? (count > 99 ? '99+' : String(count)) : '';
         const show = count > 0;
         ['bm-badge', 'bm-badge-mob'].forEach(id => {
@@ -799,54 +836,167 @@ const app = {
 
     setBmSort(mode) {
         this._bmSort = mode;
-        // Update active button style
         ['az', 'year', 'ddc'].forEach(m => {
             const el = document.getElementById('bm-sort-' + m);
             if (el) el.classList.toggle('active', m === mode);
         });
-        this.renderBookmarks(false); // re-render without rebuilding toolbar
+        this.renderBookmarks(false);
     },
 
     clearAllBookmarks() {
         if (!confirm(this.lang === 'id' ? 'Hapus semua koleksi yang tersimpan?' : 'Clear all saved collections?')) return;
         this.bookmarks.clear();
+        this.bookmarksData = {};
         localStorage.removeItem('bf-bookmarks');
+        localStorage.removeItem('bf-bookmarks-data');
         this._updateBmBadge();
         this.renderBookmarks();
     },
 
+    // ──── Citation & Reference Manager Generators (.RIS & .BIB) ────
+    generateRIS(item) {
+        if (!item) return '';
+        const title = item.t || item.title || 'Untitled';
+        const rawAuthors = item.a || item.authors || '';
+        let authors = [];
+        if (rawAuthors.includes(';')) {
+            authors = rawAuthors.split(';').map(s => s.trim()).filter(Boolean);
+        } else if (rawAuthors.includes(' and ')) {
+            authors = rawAuthors.split(' and ').map(s => s.trim()).filter(Boolean);
+        } else if (rawAuthors.trim()) {
+            authors = [rawAuthors.trim()];
+        }
+        const yr = item.yr || item.year || '';
+        const pub = item.pub || item.publicationName || '';
+        const doi = item.doi || '';
+        const cleanDoi = doi.replace(/^https?:\/\/doi\.org\//, '');
+        const url = item.url || (doi ? `https://doi.org/${cleanDoi}` : '');
+        const desc = item.desc || item.abstract || '';
+        const isBook = item.type === 'book' || (!item.contentType && item.ddc);
+        const isThesis = (item.type || '').includes('thesis') || (item.src || '').includes('eprints');
+        const isArticle = Boolean(item.contentType) || (!isBook && !isThesis);
+
+        let ty = 'JOUR';
+        if (isBook) ty = 'BOOK';
+        else if (isThesis) ty = 'THES';
+        else if (isArticle) ty = 'JOUR';
+
+        const lines = [
+            `TY  - ${ty}`,
+            `TI  - ${title}`
+        ];
+        if (authors.length > 0) {
+            authors.forEach(auth => lines.push(`AU  - ${auth}`));
+        } else {
+            lines.push(`AU  - ${rawAuthors || 'Anonim'}`);
+        }
+        if (yr) lines.push(`PY  - ${yr}`);
+        if (pub) {
+            if (ty === 'JOUR') lines.push(`JO  - ${pub}`);
+            lines.push(`PB  - ${pub}`);
+        }
+        if (cleanDoi) lines.push(`DO  - ${cleanDoi}`);
+        if (url) lines.push(`UR  - ${url}`);
+        if (desc) lines.push(`AB  - ${desc.replace(/[\r\n]+/g, ' ')}`);
+        lines.push('ER  - ');
+        return lines.join('\r\n');
+    },
+
+    generateBibTeX(item) {
+        if (!item) return '';
+        const title = (item.t || item.title || 'Untitled').replace(/[{}]/g, '');
+        const rawAuthors = (item.a || item.authors || 'Anonim').replace(/[{}]/g, '');
+        const yr = item.yr || item.year || '2024';
+        const pub = (item.pub || item.publicationName || 'Universitas Muhammadiyah Surakarta').replace(/[{}]/g, '');
+        const doi = item.doi || '';
+        const cleanDoi = doi.replace(/^https?:\/\/doi\.org\//, '');
+        const url = item.url || (doi ? `https://doi.org/${cleanDoi}` : '');
+        const isBook = item.type === 'book' || (!item.contentType && item.ddc);
+        const isThesis = (item.type || '').includes('thesis') || (item.src || '').includes('eprints');
+
+        const firstAuthor = rawAuthors.split(/[;,]/)[0].trim().replace(/[^a-zA-Z]/g, '').toLowerCase() || 'ref';
+        const firstWord = title.split(/\s+/)[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'item';
+        const citeKey = `${firstAuthor}${yr}${firstWord}`;
+
+        if (isBook) {
+            return `@book{${citeKey},\n  title = {${title}},\n  author = {${rawAuthors}},\n  year = {${yr}},\n  publisher = {${pub}},\n  url = {${url}}\n}`;
+        } else if (isThesis) {
+            return `@thesis{${citeKey},\n  title = {${title}},\n  author = {${rawAuthors}},\n  year = {${yr}},\n  school = {${pub || 'Universitas Muhammadiyah Surakarta'}},\n  url = {${url}}\n}`;
+        } else {
+            return `@article{${citeKey},\n  title = {${title}},\n  author = {${rawAuthors}},\n  journal = {${pub}},\n  year = {${yr}},\n  doi = {${cleanDoi}},\n  url = {${url}}\n}`;
+        }
+    },
+
+    downloadCitation(item, format) {
+        if (!item) return;
+        let content = '', filename = '', mime = '';
+        const rawTitle = item.t || item.title || 'citation';
+        const titleSlug = rawTitle.slice(0, 25).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+        if (format === 'ris') {
+            content = this.generateRIS(item);
+            filename = `${titleSlug}.ris`;
+            mime = 'application/x-research-info-systems;charset=utf-8;';
+        } else {
+            content = this.generateBibTeX(item);
+            filename = `${titleSlug}.bib`;
+            mime = 'application/x-bibtex;charset=utf-8;';
+        }
+        const blob = new Blob([content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.toast(`File .${format.toUpperCase()} berhasil diunduh!`);
+    },
+
     exportBookmarks(format) {
-        const books = [...this.bookmarks].map(id => this.searchEngine.getById(id)).filter(Boolean);
-        if (!books.length) return;
+        const savedItems = [...this.bookmarks].map(id => {
+            return this.searchEngine.getById(id)
+                || (this.bookmarksData && this.bookmarksData[id])
+                || (this.baseResults && this.baseResults.find(b => b.id == id));
+        }).filter(Boolean);
+
+        if (!savedItems.length) {
+            this.toast(this.lang === 'id' ? 'Belum ada koleksi yang disimpan.' : 'No saved collections to export.');
+            return;
+        }
+
         let content, filename, mime;
         if (format === 'csv') {
-            const header = 'Judul,Pengarang,Tahun,Penerbit,DDC,Tipe,Sumber';
-            const rows = books.map(b => [
-                `"${(b.t || '').replace(/"/g, '""')}"`,
-                `"${(b.a || '').replace(/"/g, '""')}"`,
-                b.yr || '',
-                `"${(b.pub || '').replace(/"/g, '""')}"`,
-                b.ddc || '',
-                b.type || '',
-                `"${(b.src || '').replace(/"/g, '""')}"`
+            const header = 'Judul,Pengarang,Tahun,Penerbit / Jurnal,DDC / Subjek,Tipe,Sumber,DOI / URL';
+            const rows = savedItems.map(b => [
+                `"${(b.t || b.title || '').replace(/"/g, '""')}"`,
+                `"${(b.a || b.authors || '').replace(/"/g, '""')}"`,
+                b.yr || b.year || '',
+                `"${(b.pub || b.publicationName || '').replace(/"/g, '""')}"`,
+                b.ddc || b.contentType || '',
+                b.type || b.contentType || 'Literature',
+                `"${(b.src || b.source || '').replace(/"/g, '""')}"`,
+                `"${(b.doi || b.url || '').replace(/"/g, '""')}"`
             ].join(','));
             content = [header, ...rows].join('\n');
             filename = 'koleksi-saya.csv';
             mime = 'text/csv;charset=utf-8;';
+        } else if (format === 'ris') {
+            content = savedItems.map(item => this.generateRIS(item)).join('\r\n\r\n');
+            filename = 'koleksi-ums-onesearch.ris';
+            mime = 'application/x-research-info-systems;charset=utf-8;';
         } else {
             // BibTeX
-            content = books.map((b, i) => {
-                const key = ((b.a || 'anon').split(/[,\s]/)[0].toLowerCase() || 'ref') + (b.yr || i);
-                return `@book{${key},\n  title={${b.t || ''}},\n  author={${b.a || ''}},\n  year={${b.yr || ''}},\n  publisher={${b.pub || ''}},\n}`;
-            }).join('\n\n');
-            filename = 'koleksi-saya.bib';
-            mime = 'text/plain;charset=utf-8;';
+            content = savedItems.map(item => this.generateBibTeX(item)).join('\n\n');
+            filename = 'koleksi-ums-onesearch.bib';
+            mime = 'application/x-bibtex;charset=utf-8;';
         }
         const blob = new Blob([content], { type: mime });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = filename; a.click();
         URL.revokeObjectURL(url);
+        this.toast(`Koleksi (${savedItems.length} item) diekspor ke .${format.toUpperCase()}!`);
     },
 
     renderBookmarks(buildToolbar = true) {
@@ -854,26 +1004,35 @@ const app = {
         const grid = document.getElementById('bookmarks-grid');
         if (!grid) return;
 
-        let savedBooks = [...this.bookmarks].map(id => this.searchEngine.getById(id)).filter(Boolean);
+        let savedItems = [...this.bookmarks].map(id => {
+            return this.searchEngine.getById(id)
+                || (this.bookmarksData && this.bookmarksData[id])
+                || (this.baseResults && this.baseResults.find(b => b.id == id));
+        }).filter(Boolean);
 
         // Sort
-        if (this._bmSort === 'az') savedBooks.sort((a, b) => (a.t || '').localeCompare(b.t || ''));
-        else if (this._bmSort === 'year') savedBooks.sort((a, b) => (b.yr || '').localeCompare(a.yr || ''));
-        else if (this._bmSort === 'ddc') savedBooks.sort((a, b) => (a.ddc || '').localeCompare(b.ddc || '') || (a.t || '').localeCompare(b.t || ''));
+        if (this._bmSort === 'az') savedItems.sort((a, b) => (a.t || a.title || '').localeCompare(b.t || b.title || ''));
+        else if (this._bmSort === 'year') savedItems.sort((a, b) => String(b.yr || b.year || '').localeCompare(String(a.yr || a.year || '')));
+        else if (this._bmSort === 'ddc') savedItems.sort((a, b) => (a.ddc || a.contentType || '').localeCompare(b.ddc || b.contentType || '') || (a.t || a.title || '').localeCompare(b.t || b.title || ''));
 
-        // Toolbar (hanya bangun ulang saat pertama render atau dipanggil manual)
+        // Toolbar
         if (buildToolbar && wrap) {
             const toolbar = document.getElementById('bookmarks-toolbar');
             if (toolbar) {
-                toolbar.style.display = savedBooks.length > 0 ? 'flex' : 'none';
+                toolbar.style.display = savedItems.length > 0 ? 'flex' : 'none';
             }
         }
 
-        if (savedBooks.length > 0) {
+        if (savedItems.length > 0) {
             grid.style.display = 'grid';
             grid.innerHTML = `<div style="grid-column:1/-1;color:var(--ink-2);font-size:.82rem;margin-bottom:.25rem">
-                ${this.fmt(savedBooks.length)} ${this.t('results_found').toLowerCase()}</div>` +
-                savedBooks.map(b => this.bookCard(b)).join('');
+                ${this.fmt(savedItems.length)} ${this.t('results_found').toLowerCase()}</div>` +
+                savedItems.map(b => {
+                    if (b.t && !b.contentType) {
+                        return this.bookCard(b);
+                    }
+                    return this.fedBookmarkCard(b);
+                }).join('');
         } else {
             grid.style.display = 'block';
             grid.innerHTML = `
@@ -882,7 +1041,7 @@ const app = {
                         ${this.getEmptyStateSvg('bookmarks')}
                     </div>
                     <div class="empty-state-title">Belum Ada Koleksi Disimpan</div>
-                    <div class="empty-state-desc">Simpan buku, skripsi, atau artikel penting dengan menekan tombol bintang pada kartu koleksi agar tersimpan di sini.</div>
+                    <div class="empty-state-desc">Simpan buku, skripsi, atau artikel jurnal internasional dengan menekan tombol bintang pada kartu agar tersimpan di sini.</div>
                     <div class="empty-state-actions">
                         <button type="button" class="btn btn-brand" onclick="app.showBrowse()">Jelajahi Koleksi</button>
                         <button type="button" class="btn btn-ghost" onclick="app.showHome()">Kembali ke Beranda</button>
@@ -890,6 +1049,446 @@ const app = {
                 </div>
             `;
         }
+    },
+
+    _articlesMap: {},
+
+    registerArticle(it) {
+        if (!it) return null;
+        if (!this._articlesMap) this._articlesMap = {};
+        const key = String(it.id || it.doi || it.url || '');
+        if (key) {
+            this._articlesMap[key] = it;
+        }
+        return it;
+    },
+
+    getArticle(id) {
+        if (!id) return null;
+        const key = String(id);
+        if (this._articlesMap && this._articlesMap[key]) return this._articlesMap[key];
+        if (this._fedRawItems) {
+            const found = this._fedRawItems.find(it => String(it.id) === key || String(it.doi) === key || String(it.url) === key);
+            if (found) { this.registerArticle(found); return found; }
+        }
+        if (this.bookmarksData && this.bookmarksData[key]) {
+            this.registerArticle(this.bookmarksData[key]);
+            return this.bookmarksData[key];
+        }
+        if (this.searchEngine) {
+            const found = this.searchEngine.getById(id);
+            if (found) { this.registerArticle(found); return found; }
+        }
+        if (this.baseResults) {
+            const found = this.baseResults.find(b => String(b.id) === key);
+            if (found) { this.registerArticle(found); return found; }
+        }
+        return null;
+    },
+
+    downloadCitationById(id, format) {
+        const item = this.getArticle(id);
+        if (item) {
+            this.downloadCitation(item, format);
+        } else {
+            this.toast('Gagal memuat metadata sitasi artikel.');
+        }
+    },
+
+    shareArticleById(id) {
+        const item = this.getArticle(id);
+        if (item) {
+            this.shareArticle(item);
+        }
+    },
+
+    copyArticleCitation(id) {
+        const it = this.getArticle(id);
+        if (!it) return;
+        const title = it.title || it.t || 'Untitled';
+        const authors = it.authors || it.a || 'Unknown';
+        const yr = it.year || it.yr || '';
+        const pub = it.publicationName || it.pub || '';
+        this.copyCitation(title, authors, yr, pub);
+    },
+
+    copyArticleAbstract(id) {
+        const it = this.getArticle(id);
+        if (!it || !it.abstract) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(it.abstract).then(() => {
+                this.showAlert('Abstrak artikel disalin ke clipboard!');
+            }).catch(() => {
+                this.showAlert('Gagal menyalin abstrak.');
+            });
+        } else {
+            prompt('Salin abstrak artikel:', it.abstract);
+        }
+    },
+
+    toggleArticleCitePanel(id) {
+        const el = document.getElementById('art-cite-panel');
+        if (!el) return;
+        const isHidden = (el.style.display === 'none');
+        el.style.display = isHidden ? 'block' : 'none';
+        if (isHidden) {
+            const it = this.getArticle(id);
+            const linkUrl = (it ? (it.url || it.doi) : '') || window.location.href;
+            this.renderQR(linkUrl, 'qr-art-' + String(id).replace(/[^a-zA-Z0-9]/g, '_'));
+        }
+    },
+
+    // ──── SVG Logos & Badges Helper ────
+    getSourceLogoSvg(sourceName, size = 14) {
+        if (!sourceName) return '';
+        const s = String(sourceName).toLowerCase();
+        
+        if (s.includes('springer')) {
+            // Springer Nature Knight Icon
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px"><path d="M19 22H5a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1zM18 16H6c0-3.5 1.8-5.5 2.8-7.2C7.9 7.6 7.2 6.5 7 5c0-.6.4-1 1-1h2.5c1.4 0 2.5 1.1 2.5 2.5 0 .5-.2 1-.5 1.4.9.4 1.7 1 2.3 1.8 1.4 1.8 2.2 3.6 2.2 5.3 0 .6.4 1 1 1z"/></svg>`;
+        }
+        if (s.includes('scopus')) {
+            // Elsevier Scopus Radial Ring Logo Icon
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="9.5"/><path d="M8 12a4 4 0 1 1 8 0 4 4 0 0 1-8 0z"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>`;
+        }
+        if (s.includes('openalex') || s.includes('alex')) {
+            // OpenAlex Constellation Graph Logo Icon
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="6" cy="6" r="3" fill="currentColor"/><circle cx="18" cy="6" r="3" fill="currentColor"/><circle cx="12" cy="18" r="3" fill="currentColor"/><line x1="8.5" y1="7.5" x2="15.5" y2="7.5"/><line x1="7.5" y1="8.5" x2="10.5" y2="15.5"/><line x1="16.5" y1="8.5" x2="13.5" y2="15.5"/></svg>`;
+        }
+        if (s.includes('semantic') || s.includes('scholar')) {
+            // Semantic Scholar S2 Crest Logo Icon
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.5a3.5 3.5 0 0 1-3.5-3.5 1 1 0 0 1 2 0 1.5 1.5 0 0 0 3 0c0-1-1.5-1.5-2.5-2S9 9.5 9 8a3.5 3.5 0 0 1 7 0 1 1 0 0 1-2 0 1.5 1.5 0 0 0-3 0c0 1 1.5 1.5 2.5 2s3 1.5 3 3a3.5 3.5 0 0 1-3.5 3.5z"/></svg>`;
+        }
+        if (s.includes('lens')) {
+            // The Lens Aperture / Focus Icon
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="19.07" y1="4.93" x2="14.83" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="9.17" y1="14.83" x2="4.93" y2="19.07"/></svg>`;
+        }
+        if (s.includes('crossref')) {
+            // Crossref Interlocking Node Cross Icon
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px"><path d="M11 2h2v7h7v2h-7v7h-2v-7H4V9h7V2z"/><circle cx="5" cy="5" r="2.2"/><circle cx="19" cy="5" r="2.2"/><circle cx="5" cy="19" r="2.2"/><circle cx="19" cy="19" r="2.2"/></svg>`;
+        }
+        if (s.includes('emerald')) {
+            // Emerald Insight Diamond Gem Icon
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="12" y1="21" x2="8" y2="9"/><line x1="12" y1="21" x2="16" y2="9"/><line x1="6" y1="3" x2="8" y2="9"/><line x1="18" y1="3" x2="16" y2="9"/></svg>`;
+        }
+        if (s.includes('koha') || s.includes('buku') || s.includes('katalog')) {
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`;
+        }
+        if (s.includes('etd') || s.includes('skripsi') || s.includes('tesis')) {
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`;
+        }
+        if (s.includes('jurnal') || s.includes('journal')) {
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
+        }
+        if (s.includes('sibi')) {
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`;
+        }
+        if (s.includes('global') || s.includes('all')) {
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+        }
+        // Default academic icon
+        return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+    },
+
+    getSourceBadgeHtml(sourceName, extraClass = '') {
+        const src = sourceName || 'Global Journal';
+        const s = src.toLowerCase();
+        let cls = 'fed-badge-type';
+        if (s.includes('scopus')) cls = 'badge-scopus';
+        else if (s.includes('semantic')) cls = 'badge-semanticscholar';
+        else if (s.includes('lens')) cls = 'badge-lens';
+        else if (s.includes('openalex')) cls = 'badge-openalex';
+        else if (s.includes('crossref')) cls = 'badge-crossref';
+        else if (s.includes('springer')) cls = 'badge-springer';
+        else if (s.includes('emerald')) cls = 'badge-emerald';
+
+        return `<span class="fed-card-source-badge ${cls} ${extraClass}">
+            ${this.getSourceLogoSvg(src, 13)}
+            <span>${this.esc(src)}</span>
+        </span>`;
+    },
+
+    getOaBadgeHtml(isOa, customStyle = '') {
+        if (isOa) {
+            return `<span class="fed-badge-oa" style="${customStyle}" title="Artikel Open Access - Bebas diakses terbuka">
+                <svg class="fed-oa-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                <span>Open Access</span>
+            </span>`;
+        }
+        return `<span class="fed-badge-sub" style="${customStyle}" title="Subscription / Akses institusi via DOI">
+            <svg class="fed-sub-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Subscription / DOI</span>
+        </span>`;
+    },
+
+    openPdfViewerById(id) {
+        const it = this.getArticle(id);
+        if (!it) return;
+        const pdfUrl = it.pdfUrl || it.pdf_url || '';
+        const title = it.title || it.t || 'Pratinjau Dokumen PDF';
+        const linkUrl = it.url || it.doi || '';
+        this.openPdfViewer(pdfUrl, title, linkUrl);
+    },
+
+    fedBookmarkCard(it) {
+        this.registerArticle(it);
+        const rawId = String(it.id || it.doi || it.url);
+        const title = it.title || it.t || 'Untitled';
+        const authors = it.authors || it.a || 'Unknown';
+        const pub = it.publicationName || it.pub || 'International Journal';
+        const yr = it.year || it.yr || '';
+        const src = it.source || it.publicationType || 'Global Journal';
+        const isOa = it.openAccess || it.isOpenAccess || it.is_oa || it.openaccess;
+        const linkUrl = it.url || it.doi || '#';
+        const pdfUrl = it.pdfUrl || it.pdf_url || '';
+        const hasDirectPdf = Boolean(pdfUrl && pdfUrl.trim().length > 5 && pdfUrl !== linkUrl);
+
+        return `
+        <div class="fed-item fed-bm-card" style="margin-bottom:1rem; border-left:4px solid var(--brand); position:relative;">
+            <div class="fed-item-header-row">
+                <div class="fed-item-num-title">
+                    <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" class="fed-title-link" title="Klik untuk membuka modal detail artikel">${this.esc(title)}</a>
+                </div>
+                <div class="fed-item-badges">
+                    ${this.getSourceBadgeHtml(src)}
+                    ${this.getOaBadgeHtml(isOa)}
+                    ${yr ? `<span class="fed-badge-year">${this.esc(String(yr))}</span>` : ''}
+                    <button class="fed-star-btn active" data-fed-bm="${this.esc(rawId)}" onclick="app.toggleBookmark(${this.idAttr(rawId)})" title="Hapus dari Koleksi Saya" style="margin-left:0.5rem">⭐</button>
+                </div>
+            </div>
+            <ul class="fed-meta-list" style="margin-bottom:0.75rem">
+                <li><span class="fed-meta-label">Creator :</span> ${this.esc(authors)}</li>
+                <li><span class="fed-meta-label">Publication :</span> ${this.esc(pub)}</li>
+                ${it.doi ? `<li><span class="fed-meta-label">DOI :</span> ${this.esc(it.doi)}</li>` : ''}
+            </ul>
+            <div class="fed-actions-row">
+                <button type="button" class="btn btn-ghost" onclick="app.showArticleDetail(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; font-weight:600;" title="Buka modal detail artikel">
+                    📋 Detail Lengkap
+                </button>
+                <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="font-size:0.75rem; padding:0.32rem 0.75rem">
+                    Buka Dokumen ↗
+                </a>
+                ${hasDirectPdf ? `
+                <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem">
+                    📄 Baca / Unduh PDF
+                </button>` : ''}
+                <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.75rem; padding:0.32rem 0.75rem" title="Unduh file .RIS untuk Mendeley/Zotero">
+                    📥 .RIS
+                </button>
+                <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" style="font-size:0.75rem; padding:0.32rem 0.75rem" title="Unduh file .BIB untuk LaTeX/Overleaf">
+                    📥 BibTeX
+                </button>
+                <button type="button" class="btn btn-ghost" onclick="app.copyArticleCitation(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem">
+                    Salin Sitasi
+                </button>
+            </div>
+        </div>`;
+    },
+
+    // ──── Modal Detail untuk Artikel Internasional ────
+    showArticleDetail(articleId, articleData = null) {
+        let article = articleData || this.getArticle(articleId);
+        if (!article) {
+            console.error('Article not found for id:', articleId);
+            return;
+        }
+        this.registerArticle(article);
+
+        const rawId = String(article.id || articleId);
+        const title = article.title || article.t || 'Untitled';
+        const authors = article.authors || article.a || 'Unknown Author';
+        const pub = article.publicationName || article.pub || '-';
+        const yr = article.year || article.yr || '';
+        const date = article.date || yr;
+        const type = article.contentType || 'Article';
+        const src = article.source || 'International Journal';
+        const isOa = article.openAccess || article.isOpenAccess || article.is_oa || article.openaccess;
+        let linkUrl = (article.url || article.doi || '#').trim();
+        if (linkUrl.startsWith('https://openalex.org/https://openalex.org/')) {
+            linkUrl = linkUrl.replace('https://openalex.org/https://openalex.org/', 'https://openalex.org/');
+        } else if (linkUrl.startsWith('https://openalex.org/http://') || linkUrl.startsWith('https://openalex.org/https://')) {
+            linkUrl = linkUrl.replace('https://openalex.org/', '');
+        } else if (linkUrl.startsWith('https://doi.org/https://doi.org/')) {
+            linkUrl = linkUrl.replace('https://doi.org/https://doi.org/', 'https://doi.org/');
+        }
+        const pdfUrl = article.pdfUrl || article.pdf_url || '';
+        const hasDirectPdf = Boolean(pdfUrl && pdfUrl.trim().length > 5 && pdfUrl !== linkUrl);
+        const citations = article.citationCount || article.cited_by_count || 0;
+        const isBm = this.bookmarks && (this.bookmarks.has(rawId) || this.bookmarks.has(String(article.id)));
+        const bookmarkLbl = isBm ? '⭐ Tersimpan di Koleksi' : '☆ Simpan ke Koleksi';
+        const bookmarkStyle = isBm ? 'color:var(--brand); font-weight:600;' : '';
+
+        // Abstract formatting
+        const abstractText = article.abstract || 'Abstrak tidak disertakan dalam metadata ringkas publikasi ini.';
+        const hasRealAbstract = Boolean(article.abstract && article.abstract.trim().length > 10);
+
+        // APA / MLA / Chicago citation formats
+        const apaCite = `${this.cleanAuth(authors)}. (${yr || 'n.d.'}). ${title}. ${pub !== '-' ? pub + '.' : ''} ${article.doi ? 'https://doi.org/' + article.doi.replace(/^https?:\/\/doi\.org\//, '') : linkUrl}`;
+        const mlaCite = `${this.cleanAuth(authors)}. "${title}." ${pub !== '-' ? pub + ', ' : ''}${yr ? yr + '.' : ''} ${linkUrl}`;
+        const chiCite = `${this.cleanAuth(authors)}. "${title}." ${pub !== '-' ? pub : 'Publication'} (${yr || 'n.d.'}). ${linkUrl}`;
+
+        document.getElementById('modal-body').innerHTML = `
+        <div class="detail fed-detail">
+            <div class="detail-head" style="min-height: auto; padding-bottom: 1rem;">
+                <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; margin-bottom:0.75rem;">
+                    ${this.getSourceBadgeHtml(src)}
+                    ${this.getOaBadgeHtml(isOa, 'font-size:0.75rem; padding:0.25rem 0.65rem;')}
+                    <span class="fed-badge-type" style="font-size:0.75rem; padding:0.25rem 0.65rem;">${this.esc(type)}</span>
+                    ${date ? `<span class="fed-badge-year" style="font-size:0.75rem; padding:0.25rem 0.65rem;">${this.esc(String(date))}</span>` : ''}
+                    ${citations > 0 ? `<span style="background:var(--bg-3); color:var(--ink-1); font-size:0.75rem; padding:0.25rem 0.65rem; border-radius:999px; font-weight:600; border:1px solid var(--border)">📊 ${this.fmt(citations)} Sitasi Global</span>` : ''}
+                </div>
+                <h2 class="detail-title" style="font-size:1.35rem; line-height:1.45; margin-bottom:0.5rem;">${this.esc(title)}</h2>
+                <p class="detail-author" style="font-size:0.95rem; color:var(--ink-2);">${this.esc(authors)}</p>
+            </div>
+
+            <div class="detail-grid" style="margin-top:1rem; margin-bottom:1.25rem;">
+                <div><div class="d-label">Jurnal / Publikasi</div><div class="d-val">${this.esc(pub)}</div></div>
+                <div><div class="d-label">Tahun Terbit</div><div class="d-val">${this.esc(String(yr || '-'))}</div></div>
+                <div><div class="d-label">Tipe Konten</div><div class="d-val">${this.esc(type)}</div></div>
+                <div><div class="d-label">Basis Data Indeks</div><div class="d-val">${this.esc(src)}</div></div>
+                ${article.doi ? `<div><div class="d-label">Digital Object Identifier (DOI)</div><div class="d-val"><a href="https://doi.org/${this.esc(article.doi.replace(/^https?:\/\/doi\.org\//, ''))}" target="_blank" rel="noopener noreferrer" style="color:var(--brand); word-break:break-all;">${this.esc(article.doi)}</a></div></div>` : ''}
+                <div><div class="d-label">Aksesibilitas Dokumen</div><div class="d-val">${isOa ? 'Open Access (Bebas Unduh)' : 'Subscription / Akses Institusi'}</div></div>
+                ${citations > 0 ? `<div><div class="d-label">Metrik Sitasi Global</div><div class="d-val"><strong>${this.fmt(citations)}</strong> kali disitasi oleh karya ilmiah lain</div></div>` : ''}
+            </div>
+
+            <!-- Full Abstract Box -->
+            <div class="detail-abstract-box" style="margin-bottom:1.5rem;">
+                <div class="detail-abstract-header">
+                    <span class="detail-abstract-title">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        Abstrak Lengkap
+                    </span>
+                    ${hasRealAbstract ? `<button type="button" class="detail-abstract-copy" onclick="app.copyArticleAbstract(${this.idAttr(rawId)})">Salin Abstrak</button>` : ''}
+                </div>
+                <div class="detail-abstract-body" style="font-size:0.92rem; line-height:1.7; color:var(--ink-1);">
+                    ${hasRealAbstract ? this.esc(article.abstract) : `<em style="color:var(--ink-3);">${this.esc(abstractText)}</em>`}
+                </div>
+            </div>
+
+            <!-- Action Buttons Row -->
+            <div class="detail-actions" style="margin-bottom:1.5rem; flex-wrap:wrap; gap:0.65rem;">
+                <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand">
+                    Buka Dokumen Asli / DOI ↗
+                </a>
+                ${hasDirectPdf ? `
+                <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})">
+                    📄 Baca / Unduh PDF
+                </button>` : ''}
+                <button id="btn-art-bm" class="btn btn-ghost" style="${bookmarkStyle}" onclick="app.toggleBookmark(${this.idAttr(rawId)})">
+                    ${bookmarkLbl}
+                </button>
+                <button type="button" class="btn btn-ghost" onclick="app.shareArticleById(${this.idAttr(rawId)})">
+                    Bagikan
+                </button>
+                <button type="button" class="btn btn-ghost" onclick="app.toggleArticleCitePanel(${this.idAttr(rawId)})">
+                    Kutipan & QR Code
+                </button>
+            </div>
+
+            <!-- Cite & QR Code Panel -->
+            <div id="art-cite-panel" class="action-panel" style="display:block; margin-top:1rem; padding:1.25rem; background:var(--bg-2); border-radius:var(--r-md); border:1px solid var(--border);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1.5rem; flex-wrap:wrap">
+                    <div style="flex:1; min-width:260px">
+                        <h3 style="font-size:1rem; margin-bottom:.85rem; font-weight:700">Format Sitasi Otomatis</h3>
+                        <div class="cite-group">
+                            <div class="cite-label">APA 7th Edition</div>
+                            <div class="cite-text">${this.esc(apaCite)}</div>
+                        </div>
+                        <div class="cite-group">
+                            <div class="cite-label">MLA 9th Edition</div>
+                            <div class="cite-text">${this.esc(mlaCite)}</div>
+                        </div>
+                        <div class="cite-group">
+                            <div class="cite-label">Chicago Manual</div>
+                            <div class="cite-text">${this.esc(chiCite)}</div>
+                        </div>
+                        <div style="margin-top:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.8rem; padding:0.35rem 0.8rem" title="Unduh file .RIS untuk Mendeley, Zotero, EndNote">
+                                📥 Unduh .RIS (Mendeley/Zotero)
+                            </button>
+                            <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" style="font-size:0.8rem; padding:0.35rem 0.8rem" title="Unduh file .BIB untuk LaTeX/Overleaf">
+                                📥 Unduh .BIB (LaTeX)
+                            </button>
+                            <button type="button" class="btn btn-ghost" onclick="app.copyArticleCitation(${this.idAttr(rawId)})" style="font-size:0.8rem; padding:0.35rem 0.8rem">
+                                Salin Sitasi
+                            </button>
+                        </div>
+                    </div>
+                    <div style="text-align:center; flex-shrink:0">
+                        <h3 style="font-size:1rem; margin-bottom:.85rem; font-weight:700">QR Code Dokumen</h3>
+                        <div id="qr-art-${this.esc(rawId).replace(/[^a-zA-Z0-9]/g, '_')}" style="padding:10px; background:#fff; border-radius:8px; display:inline-block; border:1px solid var(--border)">
+                            <!-- QR image renders here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+        // Render QR Code dynamically
+        this.renderQR(linkUrl, 'qr-art-' + rawId.replace(/[^a-zA-Z0-9]/g, '_'));
+
+        document.getElementById('modal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    },
+
+    async shareArticle(article) {
+        if (!article) return;
+        const title = article.title || article.t || 'Artikel Ilmiah';
+        const authors = article.authors || article.a || '';
+        const url = (article.url || article.doi || window.location.href).trim();
+        const shareText = `Artikel Ilmiah: "${title}" ${authors ? 'oleh ' + authors : ''}`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: title,
+                    text: shareText,
+                    url: url
+                });
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+            }
+        }
+
+        try {
+            await navigator.clipboard.writeText(url);
+            this.showAlert('Tautan artikel disalin ke clipboard!');
+        } catch (e) {
+            prompt('Salin tautan artikel ini:', url);
+        }
+    },
+
+    // ──── Quick PDF Viewer Modal & Direct Access ────
+    openPdfViewer(pdfUrl, title, fallbackUrl) {
+        const targetUrl = (pdfUrl || fallbackUrl || '').trim();
+        if (!targetUrl) return;
+
+        const modal = document.getElementById('pdf-modal');
+        const titleEl = document.getElementById('pdf-modal-title');
+        const frameEl = document.getElementById('pdf-modal-frame');
+        const directBtn = document.getElementById('pdf-modal-direct-btn');
+
+        if (titleEl) titleEl.textContent = title || 'Pratinjau Dokumen PDF';
+        if (directBtn) {
+            directBtn.onclick = () => window.open(targetUrl, '_blank');
+        }
+        if (frameEl) {
+            // Stream PDF through backend proxy to eliminate X-Frame-Options blocking and render PDF directly in modal
+            frameEl.src = '/api/pdf_proxy?url=' + encodeURIComponent(targetUrl);
+        }
+        if (modal) {
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+    },
+
+    closePdfViewer() {
+        const modal = document.getElementById('pdf-modal');
+        const frameEl = document.getElementById('pdf-modal-frame');
+        if (frameEl) frameEl.src = 'about:blank';
+        if (modal) modal.style.display = 'none';
+        document.body.style.overflow = '';
     },
 
     // ──── Home: DDC Shelves ────
@@ -948,7 +1547,10 @@ const app = {
         const renderBtn = s => {
             const isActive = this._activeFedSource === s.id;
             return `<button type="button" class="fed-btn${isActive ? ' active' : ''}" onclick="app.selectFedSource('${s.id}')">
-                <span class="fed-btn-title">${this.esc(s.name)}</span>
+                <span class="fed-btn-title" style="display:inline-flex; align-items:center; gap:0.4rem;">
+                    ${this.getSourceLogoSvg(s.name || s.id, 16)}
+                    <span>${this.esc(s.name)}</span>
+                </span>
                 <span class="fed-btn-url">${this.esc(s.subtitle)}</span>
             </button>`;
         };
@@ -1007,7 +1609,7 @@ const app = {
                     document.getElementById('fed-items-list').innerHTML = `
                         <div style="text-align:center; padding:3rem 1.5rem; color:var(--ink-2);">
                             <p style="font-size:1.05rem; font-weight:600; margin-bottom:0.5rem">Silakan ketik kata kunci pada kotak pencarian di atas, lalu klik <strong>Cari</strong>.</p>
-                            <p style="font-size:0.85rem; color:var(--ink-3);">Sistem akan mencari jutaan koleksi literatur secara live dari <strong>${this.esc(srcObj.name)}</strong> (${this.esc(srcObj.domain || '')}).</p>
+                            <p style="font-size:0.85rem; color:var(--ink-3);">Sistem akan mencari jutaan koleksi literatur secara langsung dari <strong>${this.esc(srcObj.name)}</strong> (${this.esc(srcObj.domain || '')}).</p>
                         </div>
                     `;
                     document.getElementById('fed-pagination-top').innerHTML = '';
@@ -1213,21 +1815,26 @@ const app = {
             sourcesFilterHtml = `
                 <div class="fed-source-filter-group">
                     <span class="fed-filter-sublabel">Database Asal:</span>
-                    <button type="button" class="fed-src-chip ${isAllSelected ? 'active' : ''}" onclick="app.setAllFedSources()">Semua Basis Data</button>
+                    <button type="button" class="fed-src-chip ${isAllSelected ? 'active' : ''}" onclick="app.setAllFedSources()" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                        ${this.getSourceLogoSvg('global', 13)}
+                        <span>Semua Basis Data</span>
+                    </button>
                     ${Object.entries(sourcesCount).map(([srcName, cnt]) => {
-                        const isSelected = activeSources.has(srcName);
-                        let badgeClass = 'fed-badge-type';
-                        if (srcName.toLowerCase().includes('scopus')) badgeClass = 'badge-scopus';
-                        else if (srcName.toLowerCase().includes('semantic')) badgeClass = 'badge-semanticscholar';
-                        else if (srcName.toLowerCase().includes('lens')) badgeClass = 'badge-lens';
-                        else if (srcName.toLowerCase().includes('openalex')) badgeClass = 'badge-openalex';
-                        else if (srcName.toLowerCase().includes('crossref')) badgeClass = 'badge-crossref';
-                        else if (srcName.toLowerCase().includes('springer')) badgeClass = 'badge-springer';
-                        return `<button type="button" class="fed-src-chip ${isSelected ? 'active' : ''} ${badgeClass}" onclick="app.toggleFedSourceFilter('${this.esc(srcName)}')">
+                const isSelected = activeSources.has(srcName);
+                let badgeClass = 'fed-badge-type';
+                if (srcName.toLowerCase().includes('scopus')) badgeClass = 'badge-scopus';
+                else if (srcName.toLowerCase().includes('semantic')) badgeClass = 'badge-semanticscholar';
+                else if (srcName.toLowerCase().includes('lens')) badgeClass = 'badge-lens';
+                else if (srcName.toLowerCase().includes('openalex')) badgeClass = 'badge-openalex';
+                else if (srcName.toLowerCase().includes('crossref')) badgeClass = 'badge-crossref';
+                else if (srcName.toLowerCase().includes('springer')) badgeClass = 'badge-springer';
+                else if (srcName.toLowerCase().includes('emerald')) badgeClass = 'badge-emerald';
+                return `<button type="button" class="fed-src-chip ${isSelected ? 'active' : ''} ${badgeClass}" onclick="app.toggleFedSourceFilter(${this.idAttr(srcName)})" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                            ${this.getSourceLogoSvg(srcName, 13)}
                             <span>${this.esc(srcName)}</span>
                             <span class="fed-oa-badge" style="margin-left:4px; font-size:0.65rem">${cnt}</span>
                         </button>`;
-                    }).join('')}
+            }).join('')}
                 </div>
             `;
         }
@@ -1426,10 +2033,11 @@ const app = {
         const startNum = (page - 1) * 15 + 1;
 
         listEl.innerHTML = filtered.map((it, idx) => {
+            this.registerArticle(it);
             const itemNum = startNum + idx;
             const q = this._fedCurrentQuery || '';
+            const rawId = String(it.id || it.doi || it.url);
             const safeTitle = this.hl(it.title || 'Untitled', q);
-            const rawTitle = this.esc(it.title || 'Untitled');
             const safeAuthors = this.hl(it.authors || 'Unknown', q);
             const safePub = this.esc(it.publicationName || '-');
             const safeType = this.esc(it.contentType || 'Article');
@@ -1445,28 +2053,23 @@ const app = {
             }
             const abstractText = it.abstract ? this.hl(it.abstract, q) : '';
             const isOa = it.openAccess || it.isOpenAccess || it.is_oa || it.openaccess;
+            const pdfUrl = it.pdfUrl || it.pdf_url || '';
+            const hasDirectPdf = Boolean(pdfUrl && pdfUrl.trim().length > 5 && pdfUrl !== linkUrl);
+            const isBm = this.bookmarks && (this.bookmarks.has(rawId) || this.bookmarks.has(String(it.id)));
             const itemSource = it.source || (srcObj ? srcObj.name : '');
-            let srcBadgeCls = 'fed-badge-type';
-            if (itemSource.toLowerCase().includes('scopus')) srcBadgeCls = 'badge-scopus';
-            else if (itemSource.toLowerCase().includes('semantic')) srcBadgeCls = 'badge-semanticscholar';
-            else if (itemSource.toLowerCase().includes('lens')) srcBadgeCls = 'badge-lens';
-            else if (itemSource.toLowerCase().includes('openalex')) srcBadgeCls = 'badge-openalex';
-            else if (itemSource.toLowerCase().includes('crossref')) srcBadgeCls = 'badge-crossref';
-            else if (itemSource.toLowerCase().includes('springer')) srcBadgeCls = 'badge-springer';
-            else if (itemSource.toLowerCase().includes('emerald')) srcBadgeCls = 'badge-emerald';
-
             return `
             <div class="fed-item">
                 <div class="fed-item-header-row">
                     <div class="fed-item-num-title">
                         <span class="fed-item-idx">${itemNum}.</span>
-                        <a href="${linkUrl}" target="_blank" rel="noopener noreferrer">${safeTitle}</a>
+                        <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" class="fed-title-link" title="Klik untuk membuka modal detail artikel, abstrak, dan sitasi">${safeTitle}</a>
                     </div>
                     <div class="fed-item-badges">
-                        ${itemSource ? `<span class="fed-card-source-badge ${srcBadgeCls}" style="font-size:0.72rem; padding:0.18rem 0.55rem; border-radius:999px;">${this.esc(itemSource)}</span>` : ''}
-                        ${isOa ? `<span class="fed-badge-oa" title="Artikel dapat diakses terbuka secara gratis">Open Access</span>` : `<span class="fed-badge-sub" title="Diperlukan langganan institusi atau akses via DOI">Subscription / DOI</span>`}
+                        ${itemSource ? this.getSourceBadgeHtml(itemSource) : ''}
+                        ${this.getOaBadgeHtml(isOa)}
                         <span class="fed-badge-type">${safeType}</span>
                         ${safeDate ? `<span class="fed-badge-year">${safeDate}</span>` : ''}
+                        <button id="fed-bm-star-${this.esc(rawId)}" class="fed-star-btn ${isBm ? 'active' : ''}" data-fed-bm="${this.esc(rawId)}" onclick="event.stopPropagation(); app.toggleBookmark(${this.idAttr(rawId)})" title="${isBm ? 'Hapus dari Koleksi' : 'Simpan ke Koleksi'}">${isBm ? '⭐' : '☆'}</button>
                     </div>
                 </div>
                 <ul class="fed-meta-list">
@@ -1480,13 +2083,25 @@ const app = {
                         <span class="fed-meta-label">Abstract:</span> ${abstractText}
                     </div>` : ''}
                 <div class="fed-actions-row">
+                    <button type="button" class="btn btn-ghost" onclick="app.showArticleDetail(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; font-weight:600;" title="Buka modal detail artikel">
+                        📋 Detail & Sitasi
+                    </button>
                     <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="font-size:0.75rem; padding:0.32rem 0.75rem">
                         Buka Dokumen / DOI ↗
                     </a>
-                    <button type="button" class="btn btn-ghost" onclick="app.copyCitation('${rawTitle.replace(/'/g, "\\'")}', '${this.esc(it.authors || 'Unknown').replace(/'/g, "\\'")}', '${it.year || ''}', '${safePub.replace(/'/g, "\\'")}')" style="font-size:0.75rem; padding:0.32rem 0.75rem">
+                    ${hasDirectPdf ? `
+                    <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem" title="Baca atau unduh PDF langsung">
+                        📄 Baca / Unduh PDF
+                    </button>` : ''}
+                    <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.75rem; padding:0.32rem 0.75rem" title="Unduh file .RIS untuk Mendeley/Zotero">
+                        📥 .RIS
+                    </button>
+                    <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" style="font-size:0.75rem; padding:0.32rem 0.75rem" title="Unduh file .BIB untuk LaTeX/Overleaf">
+                        📥 BibTeX
+                    </button>
+                    <button type="button" class="btn btn-ghost" onclick="app.copyArticleCitation(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem">
                         Salin Sitasi
                     </button>
-                    ${isOa ? `<span style="font-size:0.75rem; color:#10b981; font-weight:600; display:inline-flex; align-items:center;">Teks Lengkap Bebas Akses</span>` : ''}
                 </div>
             </div>`;
         }).join('');
@@ -1584,7 +2199,7 @@ const app = {
             const type = s.type === 'title' ? this.t('sug_title') : s.type === 'author' ? this.t('sug_author') : this.t('sug_subject');
             const cls = s.type === 'title' ? 'is-title' : s.type === 'author' ? 'is-author' : 'is-subject';
             const sub = s.subtext ? `<small> — ${this.esc(s.subtext)}</small>` : '';
-            return `<div class="sug-item" onclick="app.pickSuggest(${s.book ? `'book',${this.idAttr(s.book.id)}` : `'q','${this.esc(s.text).replace(/'/g, "\\'")}'`})">
+            return `<div class="sug-item" onclick="app.pickSuggest(${s.book ? `'book',${this.idAttr(s.book.id)}` : `'q',${this.idAttr(s.text)}`})">
                 <span class="sug-badge ${cls}">${type}</span>
                 <span class="sug-text">${this.hl(s.text, inp)}${sub}</span>
             </div>`;
@@ -1592,7 +2207,7 @@ const app = {
 
         if (q && q.trim().length >= 2) {
             html += `
-            <div class="sug-item" style="background:var(--bg-2); border-top:1px solid var(--border); margin-top:3px;" onclick="app.selectFedSource('openalex'); app.fetchFederatedDiscovery(app._allFedSources.find(s=>s.id==='openalex'), '${this.esc(q).replace(/'/g, "\\'")}', 1); app.hideSuggest();">
+            <div class="sug-item" style="background:var(--bg-2); border-top:1px solid var(--border); margin-top:3px;" onclick="app.searchGlobalFromSuggest(${this.idAttr(q)})">
                 <span class="sug-badge" style="background:rgba(37,99,235,0.12); color:var(--brand); font-weight:700">Global OA</span>
                 <span class="sug-text">Cari <strong>"${this.esc(q)}"</strong> di Scopus, Crossref & OpenAlex →</span>
             </div>`;
@@ -1602,6 +2217,11 @@ const app = {
         box.classList.add('open');
     },
     hideSuggest() { document.getElementById('suggest-box').classList.remove('open'); },
+    searchGlobalFromSuggest(q) {
+        this.hideSuggest();
+        this.selectFedSource('openalex');
+        this.fetchFederatedDiscovery(this._allFedSources.find(s => s.id === 'openalex'), q, 1);
+    },
     pickSuggest(type, val) {
         this.hideSuggest();
         if (type === 'book') this.showBookDetail(val);
@@ -1629,7 +2249,7 @@ const app = {
             currentUrl.searchParams.delete('src');
             currentUrl.searchParams.delete('id');
             window.history.replaceState({}, '', currentUrl.pathname);
-        } catch (e) {}
+        } catch (e) { }
     },
     quickSearch(keyword) {
         if (!keyword) return;
@@ -1660,7 +2280,7 @@ const app = {
             else currentUrl.searchParams.delete('src');
             currentUrl.searchParams.delete('id');
             window.history.replaceState({ q, field, src: this._activeFedSource }, '', currentUrl.toString());
-        } catch (e) {}
+        } catch (e) { }
 
         // Check if currently selected tab is an external database (Springer, Emerald, OpenAlex, Crossref, Scopus)
         const srcObj = (this._allFedSources || []).find(s => s.id === this._activeFedSource);
@@ -1818,17 +2438,19 @@ const app = {
 
             const pillsHtml = `
                 <div class="fed-insights-pills">
-                    ${semanticTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('semanticscholar')">Semantic Scholar (${this.fmt(semanticTotal)} artikel)</button>` : ''}
-                    ${lensTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('lens')">The Lens (${this.fmt(lensTotal)} artikel)</button>` : ''}
-                    ${scopusTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('scopus')">Scopus (${this.fmt(scopusTotal)} artikel)</button>` : ''}
-                    ${openalexTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('openalex')">OpenAlex (${this.fmt(openalexTotal)} artikel)</button>` : ''}
-                    ${crossrefTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('crossref')">Crossref (${this.fmt(crossrefTotal)} artikel)</button>` : ''}
-                    ${springerTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('springer')">Springer (${this.fmt(springerTotal)} artikel)</button>` : ''}
-                    <button type="button" class="fed-insight-pill" style="border-color:var(--brand); color:var(--brand); font-weight:700" onclick="app.selectFedSource('all_global')">Lihat Seluruh Hasil Global →</button>
+                    ${semanticTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('semanticscholar')" style="display:inline-flex; align-items:center; gap:0.35rem;">${this.getSourceLogoSvg('semanticscholar', 13)} <span>Semantic Scholar (${this.fmt(semanticTotal)} artikel)</span></button>` : ''}
+                    ${lensTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('lens')" style="display:inline-flex; align-items:center; gap:0.35rem;">${this.getSourceLogoSvg('lens', 13)} <span>The Lens (${this.fmt(lensTotal)} artikel)</span></button>` : ''}
+                    ${scopusTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('scopus')" style="display:inline-flex; align-items:center; gap:0.35rem;">${this.getSourceLogoSvg('scopus', 13)} <span>Scopus (${this.fmt(scopusTotal)} artikel)</span></button>` : ''}
+                    ${openalexTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('openalex')" style="display:inline-flex; align-items:center; gap:0.35rem;">${this.getSourceLogoSvg('openalex', 13)} <span>OpenAlex (${this.fmt(openalexTotal)} artikel)</span></button>` : ''}
+                    ${crossrefTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('crossref')" style="display:inline-flex; align-items:center; gap:0.35rem;">${this.getSourceLogoSvg('crossref', 13)} <span>Crossref (${this.fmt(crossrefTotal)} artikel)</span></button>` : ''}
+                    ${springerTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('springer')" style="display:inline-flex; align-items:center; gap:0.35rem;">${this.getSourceLogoSvg('springer', 13)} <span>Springer (${this.fmt(springerTotal)} artikel)</span></button>` : ''}
+                    <button type="button" class="fed-insight-pill" style="border-color:var(--brand); color:var(--brand); font-weight:700; display:inline-flex; align-items:center; gap:0.35rem;" onclick="app.selectFedSource('all_global')">${this.getSourceLogoSvg('global', 13)} <span>Lihat Seluruh Hasil Global →</span></button>
                 </div>
             `;
 
             const cardsHtml = featuredItems.slice(0, 4).map(it => {
+                this.registerArticle(it);
+                const rawId = String(it.id || it.doi || it.url);
                 const authors = it.authors || it.author || it.publicationName || '';
                 const yearStr = it.year ? `(${it.year})` : '';
                 const journalStr = it.publicationName || it.journal || '';
@@ -1838,9 +2460,9 @@ const app = {
                 return `
                     <div class="fed-insight-card">
                         <div class="fed-card-top">
-                            <span class="fed-card-source-badge ${it.badgeCls}">${it.srcName}</span>
+                            ${this.getSourceBadgeHtml(it.srcName)}
                             <div class="fed-card-title">
-                                <a href="${doiUrl}" target="_blank" rel="noopener noreferrer">${this.esc(it.title)}</a>
+                                <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" class="fed-title-link" title="Klik untuk membuka modal detail artikel">${this.esc(it.title)}</a>
                             </div>
                             <div class="fed-card-meta">
                                 ${authors ? `<span>${this.esc(authors.substring(0, 75))}${authors.length > 75 ? '...' : ''}</span>` : ''}
@@ -1849,8 +2471,9 @@ const app = {
                             ${abstractStr ? `<div class="fed-card-snippet">${this.esc(abstractStr)}</div>` : ''}
                         </div>
                         <div class="fed-card-footer">
-                            <a href="${doiUrl}" target="_blank" rel="noopener noreferrer" class="fed-card-doi-link">Buka Dokumen Asli ↗</a>
-                            <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.72rem" onclick="navigator.clipboard.writeText('${doiUrl}').then(()=>app.showAlert('Link artikel disalin!'))">Share</button>
+                            <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.75rem; font-weight:600" onclick="app.showArticleDetail(${this.idAttr(rawId)})">📋 Detail & Sitasi</button>
+                            <a href="${doiUrl}" target="_blank" rel="noopener noreferrer" class="fed-card-doi-link">Buka DOI ↗</a>
+                            <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.72rem" onclick="app.shareArticleById(${this.idAttr(rawId)})">Share</button>
                         </div>
                     </div>
                 `;
@@ -2084,7 +2707,7 @@ const app = {
             const isAc = this.activeFilters[category].has(val);
             const displayVal = category === 'type' ? this.typeName(val) : (category === 'access' ? this.t(val) || val : val);
             listHTML += `
-            <div class="facet-item ${isAc ? 'active' : ''}" onclick="app.toggleFilter('${category}', '${this.esc(val).replace(/'/g, "\\'")}')"
+            <div class="facet-item ${isAc ? 'active' : ''}" onclick="app.toggleFilter('${category}', ${this.idAttr(val)})"
                 title="${this.esc(displayVal)}">
                 <div class="facet-left">
                     <input type="checkbox" ${isAc ? 'checked' : ''} tabindex="-1">
@@ -2344,6 +2967,14 @@ const app = {
                             <div class="cite-label">Chicago</div>
                             <div class="cite-text">${this.esc(this.citeChicago(book))}</div>
                         </div>
+                        <div style="margin-top:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-ghost" onclick="app.downloadCitation(app.searchEngine.getById('${book.id}') || ${JSON.stringify(book).replace(/"/g, '&quot;')}, 'ris')" style="font-size:0.8rem; padding:0.35rem 0.8rem" title="Unduh file .RIS untuk Mendeley, Zotero, EndNote">
+                                📥 Unduh .RIS (Mendeley/Zotero)
+                            </button>
+                            <button type="button" class="btn btn-ghost" onclick="app.downloadCitation(app.searchEngine.getById('${book.id}') || ${JSON.stringify(book).replace(/"/g, '&quot;')}, 'bib')" style="font-size:0.8rem; padding:0.35rem 0.8rem" title="Unduh file .BIB untuk LaTeX/Overleaf">
+                                📥 Unduh .BIB (LaTeX)
+                            </button>
+                        </div>
                     </div>
                     ${this.sourceLink(book) ? `
                     <div style="text-align:center; flex-shrink:0">
@@ -2359,7 +2990,7 @@ const app = {
             <div class="detail-abstract-box">
                 <div class="detail-abstract-header">
                     <span class="detail-abstract-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> ${this.t('description') || 'Abstrak / Ringkasan'}</span>
-                    <button type="button" class="detail-abstract-copy" onclick="navigator.clipboard.writeText('${this.esc(book.desc).replace(/'/g, "\\'")}').then(()=>app.showAlert('Abstrak disalin ke clipboard!'))">Salin Abstrak</button>
+                    <button type="button" class="detail-abstract-copy" onclick="app.copyBookDesc(${this.idAttr(book.id)})">Salin Abstrak</button>
                 </div>
                 <div class="detail-abstract-body">${this.esc(book.desc)}</div>
             </div>` : ''}
@@ -2374,6 +3005,21 @@ const app = {
             if (card && card.dataset.url) {
                 window.open(card.dataset.url, '_blank');
             }
+        }
+    },
+    copyBookDesc(id) {
+        let book = this.searchEngine.getById(id)
+            || (this.baseResults && this.baseResults.find(b => b.id == id))
+            || (this.currentResults && this.currentResults.find(b => b.id == id));
+        if (!book || !book.desc) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(book.desc).then(() => {
+                this.showAlert('Abstrak disalin ke clipboard!');
+            }).catch(() => {
+                this.showAlert('Gagal menyalin abstrak.');
+            });
+        } else {
+            prompt('Salin abstrak:', book.desc);
         }
     },
     closeBookDetail() {
@@ -2897,7 +3543,7 @@ const app = {
                     </span>
                     <div class="smart-topics-list">
                         ${topics.map(t => `
-                            <button type="button" class="smart-topic-chip" onclick="document.getElementById('search-input').value='${this.esc(t.name).replace(/'/g, "\\'")}'; app.doSearch('${this.esc(t.name).replace(/'/g, "\\'")}');" title="${t.worksCount ? `${this.fmt(t.worksCount)} publikasi global` : ''}">
+                            <button type="button" class="smart-topic-chip" onclick="app.searchTopic(${this.idAttr(t.name)})" title="${t.worksCount ? `${this.fmt(t.worksCount)} publikasi global` : ''}">
                                 <span>${this.esc(t.name)}</span>
                                 ${t.worksCount ? `<small>${this.fmt(t.worksCount)}</small>` : ''}
                             </button>
@@ -2908,6 +3554,12 @@ const app = {
         } catch (e) {
             wrap.style.display = 'none';
         }
+    },
+    searchTopic(name) {
+        if (!name) return;
+        const inp = document.getElementById('search-input');
+        if (inp) inp.value = name;
+        this.doSearch(name);
     },
     ddcLabel(ddc) {
         if (!ddc) return '';

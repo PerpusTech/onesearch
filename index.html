@@ -23,7 +23,7 @@
         rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
 
-    <link rel="stylesheet" href="css/style.css?v=66">
+    <link rel="stylesheet" href="css/style.css?v=82">
 </head>
 
 <body>
@@ -109,7 +109,8 @@
             </svg>
             <span style="display:flex; align-items:center; gap:0.4rem;">
                 <span data-i18n="nav_bookmarks">Koleksi Saya</span>
-                <span id="bm-badge-mob" class="bm-badge-pill" style="display:none;background:var(--brand);color:#fff;font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:30px;"></span>
+                <span id="bm-badge-mob" class="bm-badge-pill"
+                    style="display:none;background:var(--brand);color:#fff;font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:30px;"></span>
             </span>
         </a>
         <a href="#" data-page="stats" onclick="app.showStats();app.toggleMobileMenu(true);return false">
@@ -297,10 +298,12 @@
                     <button id="bm-sort-ddc" class="bm-sort-btn" onclick="app.setBmSort('ddc')"
                         data-i18n="bm_sort_ddc">DDC</button>
                     <div style="flex:1"></div>
-                    <button class="bm-act-btn" onclick="app.exportBookmarks('csv')" data-i18n="bm_export_csv">
-                        CSV</button>
-                    <button class="bm-act-btn" onclick="app.exportBookmarks('bib')" data-i18n="bm_export_bib">
+                    <button class="bm-act-btn" onclick="app.exportBookmarks('ris')" title="Ekspor ke format RIS (Mendeley, Zotero, EndNote)">
+                        RIS (.ris)</button>
+                    <button class="bm-act-btn" onclick="app.exportBookmarks('bib')" data-i18n="bm_export_bib" title="Ekspor ke format BibTeX (LaTeX, Overleaf)">
                         BibTeX</button>
+                    <button class="bm-act-btn" onclick="app.exportBookmarks('csv')" data-i18n="bm_export_csv" title="Ekspor ke tabel CSV / Excel">
+                        CSV</button>
                     <button class="bm-act-btn danger" onclick="app.clearAllBookmarks()" data-i18n="bm_clear_all">
                         Hapus Semua</button>
                 </div>
@@ -320,60 +323,88 @@
             </div>
         </section>
 
-        <!-- Modal -->
+        <!-- Detail Modal -->
         <div class="modal-bg" id="modal" style="display:none" onclick="app.closeModal(event)">
             <div class="modal-box" onclick="event.stopPropagation()">
                 <button class="modal-x" onclick="app.closeBookDetail()">✕</button>
                 <div id="modal-body"></div>
             </div>
         </div>
+
+        <!-- Quick PDF Viewer Modal -->
+        <div class="modal-bg" id="pdf-modal" style="display:none" onclick="if(event.target===this) app.closePdfViewer()">
+            <div class="pdf-modal-box" onclick="event.stopPropagation()">
+                <div class="pdf-modal-header">
+                    <span class="pdf-modal-title" id="pdf-modal-title">Pratinjau Dokumen PDF</span>
+                    <div class="pdf-modal-actions">
+                        <button type="button" class="btn btn-brand" id="pdf-modal-direct-btn" style="font-size:0.8rem; padding:0.35rem 0.8rem;">
+                            Buka di Tab Baru ↗
+                        </button>
+                        <button class="modal-x" style="position:static; margin:0;" onclick="app.closePdfViewer()">✕</button>
+                    </div>
+                </div>
+                <div class="pdf-modal-body">
+                    <iframe id="pdf-modal-frame" class="pdf-modal-frame" src="about:blank"></iframe>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- Footer -->
     <footer class="site-footer">
-        <div class="wrap site-footer-inner" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+        <div class="wrap site-footer-inner"
+            style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
             <p>© <span id="footer-year"></span> Developed by <strong>IT UMS Library</strong></p>
-            <a href="/admin.html" class="footer-admin-link" style="font-size:0.75rem; color:inherit; opacity:0.6; text-decoration:none; display:inline-flex; align-items:center; gap:4px;" title="Monitoring Harvester & Scheduler">
-                <span>Harvester Admin</span>
-            </a>
         </div>
     </footer>
     <!-- Floating FAB Group: lang + theme + scroll-to-top -->
-    <div class="fab-group">
-        <button class="fab-btn" onclick="app.toggleLang()" id="lang-toggle" title="Ubah Bahasa / Change Language" aria-label="Toggle language">ID</button>
-        <button class="fab-btn" id="theme-btn" onclick="app.toggleTheme()" title="Ganti Tema" aria-label="Toggle theme">
-            <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="5" />
-                <line x1="12" y1="1" x2="12" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="23" />
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                <line x1="1" y1="12" x2="3" y2="12" />
-                <line x1="21" y1="12" x2="23" y2="12" />
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    <div class="floating-controls">
+        <button class="theme-toggle-fab" id="theme-toggle-fab" onclick="app.toggleTheme()"
+            title="Ganti Tema (Gelap/Terang)" aria-label="Toggle theme">
+            <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
             </svg>
-            <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
             </svg>
         </button>
-        <button class="scroll-top-btn" id="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Kembali ke atas" aria-label="Scroll to top">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <button class="scroll-top-btn" id="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})"
+            title="Kembali ke atas" aria-label="Scroll to top">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="18 15 12 9 6 15"></polyline>
             </svg>
         </button>
     </div>
-    <script src="js/search.js?v=17"></script>
-    <script src="js/recommender.js?v=16"></script>
-    <script src="js/app.js?v=67"></script>
+    <script src="js/search.js?v=18"></script>
+    <script src="js/recommender.js?v=17"></script>
+    <script src="js/app.js?v=82"></script>
     <script>
+        // Inisialisasi Service Worker untuk offline PWA caching & caching data discovery
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').then(reg => {
-                    console.log('[SW] Registered: ', reg.scope);
+                navigator.serviceWorker.register('/sw.js?v=82').then(reg => {
+                    console.log('BookFinder Service Worker terdaftar:', reg.scope);
                 }).catch(err => {
-                    console.log('[SW] Registration failed: ', err);
+                    console.warn('Gagal mendaftarkan Service Worker:', err);
                 });
+            });
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
             });
         }
     </script>
