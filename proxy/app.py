@@ -3,7 +3,11 @@ import sys
 import json
 import re
 import html
+import time
+import threading
 import requests
+from urllib3.util import Retry
+from requests.adapters import HTTPAdapter
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, request, jsonify
@@ -17,15 +21,164 @@ SCOPUS_API_KEY = os.environ.get('SCOPUS_API_KEY', '').strip('"\'')
 SEMANTIC_SCHOLAR_API_KEY = os.environ.get('SEMANTIC_SCHOLAR_API_KEY', '').strip('"\'')
 LENS_API_KEY = os.environ.get('LENS_API_KEY', '').strip('"\'')
 
+
+# ── RESILIENT HTTP SESSION WITH AUTO-RETRY ──
+def _init_resilient_session():
+    """Create a persistent requests session with connection pooling and fast-fail retry."""
+    session = requests.Session()
+    retries = Retry(
+        total=1,
+        connect=1,
+        read=0,
+        redirect=2,
+        status=0,
+        raise_on_status=False
+    )
+    adapter = HTTPAdapter(max_retries=retries, pool_connections=30, pool_maxsize=60)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
+
+HTTP_SESSION = _init_resilient_session()
+
+
+
+# ── THREAD-SAFE IN-MEMORY QUERY TTL CACHE ──
+class TTLCache:
+    """Thread-safe in-memory cache with Time-To-Live (TTL) and LRU/size eviction."""
+    def __init__(self, maxsize=3000, default_ttl=2700):
+        self.maxsize = maxsize
+        self.default_ttl = default_ttl
+        self._cache = {}  # key -> (data, expire_at, access_time)
+        self._lock = threading.Lock()
+        self.hits = 0
+        self.misses = 0
+
+    def get(self, key):
+        with self._lock:
+            if key not in self._cache:
+                self.misses += 1
+                return None
+            data, expire_at, _ = self._cache[key]
+            now = time.time()
+            if now > expire_at:
+                del self._cache[key]
+                self.misses += 1
+                return None
+            self._cache[key] = (data, expire_at, now)
+            self.hits += 1
+            return data
+
+    def set(self, key, value, ttl=None):
+        if ttl is None:
+            ttl = self.default_ttl
+        now = time.time()
+        expire_at = now + ttl
+        with self._lock:
+            if len(self._cache) >= self.maxsize:
+                # 1. Purge expired entries
+                expired_keys = [k for k, (_, exp, _) in self._cache.items() if now > exp]
+                for k in expired_keys:
+                    del self._cache[k]
+                # 2. If still full, drop oldest 15% accessed entries
+                if len(self._cache) >= self.maxsize:
+                    sorted_items = sorted(self._cache.items(), key=lambda x: x[1][2])
+                    drop_count = max(1, int(self.maxsize * 0.15))
+                    for k, _ in sorted_items[:drop_count]:
+                        del self._cache[k]
+            self._cache[key] = (value, expire_at, now)
+
+    def clear(self):
+        with self._lock:
+            self._cache.clear()
+            self.hits = 0
+            self.misses = 0
+
+    def stats(self):
+        with self._lock:
+            now = time.time()
+            valid_count = sum(1 for _, exp, _ in self._cache.values() if now <= exp)
+            total_req = self.hits + self.misses
+            hit_ratio = round((self.hits / total_req * 100), 2) if total_req > 0 else 0.0
+            return {
+                "total_entries": len(self._cache),
+                "active_valid_entries": valid_count,
+                "hits": self.hits,
+                "misses": self.misses,
+                "hit_ratio_percent": hit_ratio,
+                "default_ttl_seconds": self.default_ttl
+            }
+
+QUERY_CACHE = TTLCache(maxsize=3000, default_ttl=2700)   # 45 minutes TTL
+TOPICS_CACHE = TTLCache(maxsize=1000, default_ttl=3600)  # 60 minutes TTL
+
+
+# ── CIRCUIT BREAKER PATTERN FOR EXTERNAL APIS ──
+class CircuitBreaker:
+    """
+    Circuit breaker pattern to protect from external API outages/timeouts.
+    States:
+      - CLOSED: Service is healthy. Requests go through.
+      - OPEN: Failures exceeded threshold. Fast-fail to fallback without waiting.
+      - HALF_OPEN: Cooldown period expired. Testing recovery with 1 request.
+    """
+    def __init__(self, name, failure_threshold=3, recovery_cooldown=60):
+        self.name = name
+        self.failure_threshold = failure_threshold
+        self.recovery_cooldown = recovery_cooldown
+        self.failure_count = 0
+        self.last_failure_time = 0
+        self.state = "CLOSED"
+        self._lock = threading.Lock()
+
+    def can_attempt(self):
+        with self._lock:
+            now = time.time()
+            if self.state == "OPEN":
+                if (now - self.last_failure_time) > self.recovery_cooldown:
+                    self.state = "HALF_OPEN"
+                    return True
+                return False
+            return True
+
+    def record_success(self):
+        with self._lock:
+            self.failure_count = 0
+            self.state = "CLOSED"
+
+    def record_failure(self):
+        with self._lock:
+            self.failure_count += 1
+            self.last_failure_time = time.time()
+            if self.failure_count >= self.failure_threshold:
+                self.state = "OPEN"
+
+    def status(self):
+        with self._lock:
+            return {
+                "name": self.name,
+                "state": self.state,
+                "failure_count": self.failure_count,
+                "cooldown_remaining_sec": max(0, int(self.recovery_cooldown - (time.time() - self.last_failure_time))) if self.state == "OPEN" else 0
+            }
+
+CIRCUIT_BREAKERS = {
+    "crossref": CircuitBreaker("crossref", failure_threshold=3, recovery_cooldown=45),
+    "openalex": CircuitBreaker("openalex", failure_threshold=4, recovery_cooldown=30),
+    "scopus": CircuitBreaker("scopus", failure_threshold=2, recovery_cooldown=60),
+    "sciencedirect": CircuitBreaker("sciencedirect", failure_threshold=2, recovery_cooldown=60),
+    "semanticscholar": CircuitBreaker("semanticscholar", failure_threshold=3, recovery_cooldown=45),
+    "lens": CircuitBreaker("lens", failure_threshold=2, recovery_cooldown=60)
+}
+
+
+# ── DATA CLEANING & NORMALIZATION HELPERS ──
 def clean_html_tags(raw_html):
     """Remove HTML/XML tags and decode entities for clean display."""
     if not raw_html:
         return ""
-    # Strip HTML tags
     clean_text = re.sub(r'<[^>]+>', ' ', str(raw_html))
-    # Replace multiple spaces/newlines
     clean_text = re.sub(r'\s+', ' ', clean_text)
-    # Decode HTML entities
     clean_text = html.unescape(clean_text).strip()
     return clean_text
 
@@ -36,7 +189,6 @@ def clean_title(title_str, container_str=None):
         return "Untitled"
     clean_t = clean_html_tags(title_str).strip()
     words = clean_t.split()
-    # Detect repetitive OCR deposit glitch
     short_fragments = sum(1 for w in words if len(w) <= 2)
     repeated_first = sum(1 for w in words if w.lower().strip(',.:;') == words[0].lower().strip(',.:;'))
     
@@ -44,6 +196,7 @@ def clean_title(title_str, container_str=None):
         first_clean = words[0].strip(',.:;')
         return first_clean.title()
     return clean_t
+
 
 def reconstruct_openalex_abstract(inverted_index):
     if not inverted_index or not isinstance(inverted_index, dict):
@@ -82,349 +235,440 @@ def extract_openalex_source_name(primary_loc, default="International Journal"):
                 return name
     return default
 
+
+def _fetch_openalex_fallback(query, page, rows, badge_source="OpenAlex", venue_title_hint=""):
+    """Robust universal fallback querying OpenAlex peer-reviewed catalog."""
+    items = []
+    total = 0
+    try:
+        oa_url = "https://api.openalex.org/works"
+        search_term = f"{query} {venue_title_hint}".strip() if venue_title_hint else query
+        oa_params = {
+            "search": search_term,
+            "per-page": rows,
+            "page": page,
+            "mailto": "perpustakaan@ums.ac.id"
+        }
+        headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
+        resp = HTTP_SESSION.get(oa_url, params=oa_params, headers=headers, timeout=(2.0, 3.5))
+        if resp.status_code == 200:
+            CIRCUIT_BREAKERS["openalex"].record_success()
+            oa_data = resp.json()
+            total = oa_data.get('meta', {}).get('count', 0)
+            for work in oa_data.get('results', []):
+                auth_str = extract_openalex_authors(work.get('authorships'))
+                clean_id = str(work.get('id', '')).split('/')[-1]
+                title_clean = clean_title(work.get('title') or 'Untitled')
+                doi_url = work.get('doi') or work.get('id') or ''
+                src_name = extract_openalex_source_name(work.get('primary_location'), venue_title_hint or 'International Journal')
+                oa_info = work.get('open_access') or {}
+                is_oa = bool(oa_info.get('is_oa', False)) or bool(oa_info.get('oa_url')) or bool(work.get('doi'))
+                raw_type = work.get('type') or 'journal-article'
+
+                items.append({
+                    "id": f"{badge_source.lower()[:3]}-{clean_id}",
+                    "title": title_clean,
+                    "authors": auth_str,
+                    "contentType": str(raw_type).replace('-', ' ').title(),
+                    "publicationName": src_name,
+                    "publicationType": f"{badge_source} Indexed",
+                    "date": work.get('publication_date', ''),
+                    "year": work.get('publication_year', 0),
+                    "doi": doi_url,
+                    "url": doi_url or f"https://openalex.org/{clean_id}",
+                    "abstract": reconstruct_openalex_abstract(work.get('abstract_inverted_index')),
+                    "openAccess": is_oa,
+                    "source": badge_source
+                })
+        else:
+            CIRCUIT_BREAKERS["openalex"].record_failure()
+    except Exception:
+        CIRCUIT_BREAKERS["openalex"].record_failure()
+
+    return items, total
+
+
+# ── SINGLE SOURCE FETCHER WITH CIRCUIT BREAKERS & RETRY ──
 def _fetch_single_source(source, query, page, rows):
-    # 1. SPRINGER LINK (via Crossref publisher filter or OpenAlex)
+    # Normalized cache check for single source
+    cache_key = f"src:{source.lower().strip()}:{query.lower().strip()}:{page}:{rows}"
+    cached_data = QUERY_CACHE.get(cache_key)
+    if cached_data is not None:
+        return cached_data
+
+    # 1. SPRINGER LINK (via Crossref publisher filter with OpenAlex Fallback)
     if source == 'springer':
-        url = 'https://api.crossref.org/works'
-        offset = (page - 1) * rows
-        params = {
-            'query': query,
-            'query.publisher-name': 'Springer',
-            'rows': rows,
-            'offset': offset
-        }
-        headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
-        try:
-            resp = requests.get(url, params=params, headers=headers, timeout=12)
-            resp.raise_for_status()
-            data = resp.json()
-            message = data.get('message', {})
-            total = message.get('total-results', 0)
-            items_raw = message.get('items', [])
-            
-            items = []
-            for it in items_raw:
-                # Authors
-                authors_list = []
-                for a in it.get('author', []):
-                    name_parts = [a.get('family', ''), a.get('given', '')]
-                    name = ", ".join([p for p in name_parts if p])
-                    if not name:
-                        name = a.get('name', '')
-                    if name:
-                        authors_list.append(name)
-                authors_str = "; ".join(authors_list) if authors_list else "Unknown"
-
-                # Title
-                titles = it.get('title', [])
-                title_str = titles[0] if titles else "Untitled"
-
-                # Pub date
-                pub_date = it.get('published', {}).get('date-parts', [[]])[0]
-                year = pub_date[0] if len(pub_date) > 0 else 0
-                date_str = "-".join([str(p).zfill(2) for p in pub_date]) if pub_date else str(year or "")
-
-                # Container / Journal
-                container = it.get('container-title', [])
-                pub_name = container[0] if container else it.get('publisher', 'Springer')
-
-                # DOI / URL
-                doi = it.get('DOI', '')
-                doi_url = f"https://doi.org/{doi}" if doi else it.get('URL', '')
-                springer_url = f"https://link.springer.com/doi/{doi}" if doi else doi_url
-
-                # Abstract
-                abstract_raw = it.get('abstract', '')
-                abstract_clean = clean_html_tags(abstract_raw)
-
-                # Content Type
-                raw_type = it.get('type', 'article')
-                type_map = {
-                    'journal-article': 'Journal Article',
-                    'book-chapter': 'Chapter ConferencePaper',
-                    'book': 'Book',
-                    'proceedings-article': 'Conference Paper',
-                    'dataset': 'Dataset',
-                    'monograph': 'Monograph'
-                }
-                content_type = type_map.get(raw_type, raw_type.replace('-', ' ').title())
-
-                is_oa = bool(it.get('license')) or 'open' in str(it.get('type', '')).lower() or any('open' in str(l).lower() for l in it.get('link', []))
-
-                items.append({
-                    "id": f"sp-{doi or it.get('URL', '')}",
-                    "title": title_str,
-                    "authors": authors_str,
-                    "contentType": content_type,
-                    "publicationName": pub_name,
-                    "publicationType": "Springer Nature",
-                    "date": date_str,
-                    "year": year,
-                    "doi": doi_url,
-                    "url": springer_url,
-                    "abstract": abstract_clean,
-                    "openAccess": is_oa,
-                    "source": "Springer"
-                })
-
-            total_pages = (total + rows - 1) // rows if total else 0
-            return {
-                "source": "Springer",
-                "sourceUrl": "https://link.springer.com",
-                "total": total,
-                "page": page,
-                "totalPages": min(total_pages, 500),
-                "items": items
+        items = []
+        total = 0
+        
+        if CIRCUIT_BREAKERS["crossref"].can_attempt():
+            url = 'https://api.crossref.org/works'
+            offset = (page - 1) * rows
+            params = {
+                'query': query,
+                'query.publisher-name': 'Springer',
+                'rows': rows,
+                'offset': offset
             }
-        except Exception as e:
-            return {"error": str(e), "source": "Springer", "total": 0, "items": []}
+            headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
+            try:
+                resp = HTTP_SESSION.get(url, params=params, headers=headers, timeout=(2.0, 3.0))
+                if resp.status_code == 200:
+                    CIRCUIT_BREAKERS["crossref"].record_success()
+                    data = resp.json()
+                    message = data.get('message', {})
+                    total = message.get('total-results', 0)
+                    items_raw = message.get('items', [])
+                    
+                    for it in items_raw:
+                        authors_list = []
+                        for a in it.get('author', []):
+                            name_parts = [a.get('family', ''), a.get('given', '')]
+                            name = ", ".join([p for p in name_parts if p])
+                            if not name:
+                                name = a.get('name', '')
+                            if name:
+                                authors_list.append(name)
+                        authors_str = "; ".join(authors_list) if authors_list else "Unknown"
 
-    # 2. EMERALD INSIGHT (via Crossref publisher filter)
+                        titles = it.get('title', [])
+                        title_str = clean_title(titles[0] if titles else "Untitled")
+
+                        pub_date = it.get('published', {}).get('date-parts', [[]])[0]
+                        year = pub_date[0] if len(pub_date) > 0 else 0
+                        date_str = "-".join([str(p).zfill(2) for p in pub_date]) if pub_date else str(year or "")
+
+                        container = it.get('container-title', [])
+                        pub_name = container[0] if container else it.get('publisher', 'Springer')
+
+                        doi = it.get('DOI', '')
+                        doi_url = f"https://doi.org/{doi}" if doi else it.get('URL', '')
+                        springer_url = f"https://link.springer.com/doi/{doi}" if doi else doi_url
+
+                        abstract_raw = it.get('abstract', '')
+                        abstract_clean = clean_html_tags(abstract_raw)
+
+                        raw_type = it.get('type', 'article')
+                        type_map = {
+                            'journal-article': 'Journal Article',
+                            'book-chapter': 'Chapter ConferencePaper',
+                            'book': 'Book',
+                            'proceedings-article': 'Conference Paper',
+                            'dataset': 'Dataset',
+                            'monograph': 'Monograph'
+                        }
+                        content_type = type_map.get(raw_type, raw_type.replace('-', ' ').title())
+                        is_oa = bool(it.get('license')) or 'open' in str(it.get('type', '')).lower() or any('open' in str(l).lower() for l in it.get('link', []))
+
+                        items.append({
+                            "id": f"sp-{doi or it.get('URL', '')}",
+                            "title": title_str,
+                            "authors": authors_str,
+                            "contentType": content_type,
+                            "publicationName": pub_name,
+                            "publicationType": "Springer Nature",
+                            "date": date_str,
+                            "year": year,
+                            "doi": doi_url,
+                            "url": springer_url,
+                            "abstract": abstract_clean,
+                            "openAccess": is_oa,
+                            "source": "Springer"
+                        })
+                else:
+                    CIRCUIT_BREAKERS["crossref"].record_failure()
+            except Exception:
+                CIRCUIT_BREAKERS["crossref"].record_failure()
+
+        # Circuit Breaker Fallback: OpenAlex with Springer Filter
+        if not items:
+            items, total = _fetch_openalex_fallback(query, page, rows, badge_source="Springer", venue_title_hint="Springer")
+
+        total_pages = (total + rows - 1) // rows if total else 0
+        res = {
+            "source": "Springer",
+            "sourceUrl": "https://link.springer.com",
+            "total": total,
+            "page": page,
+            "totalPages": min(total_pages, 500),
+            "items": items
+        }
+        QUERY_CACHE.set(cache_key, res)
+        return res
+
+    # 2. EMERALD INSIGHT (via Crossref publisher filter with OpenAlex Fallback)
     elif source == 'emerald':
-        url = 'https://api.crossref.org/works'
-        offset = (page - 1) * rows
-        params = {
-            'query': query,
-            'query.publisher-name': 'Emerald',
-            'rows': rows,
-            'offset': offset
-        }
-        headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
-        try:
-            resp = requests.get(url, params=params, headers=headers, timeout=12)
-            resp.raise_for_status()
-            data = resp.json()
-            message = data.get('message', {})
-            total = message.get('total-results', 0)
-            items_raw = message.get('items', [])
-            
-            items = []
-            for it in items_raw:
-                authors_list = []
-                for a in it.get('author', []):
-                    name_parts = [a.get('family', ''), a.get('given', '')]
-                    name = ", ".join([p for p in name_parts if p])
-                    if not name:
-                        name = a.get('name', '')
-                    if name:
-                        authors_list.append(name)
-                authors_str = "; ".join(authors_list) if authors_list else "Unknown"
+        items = []
+        total = 0
 
-                titles = it.get('title', [])
-                title_str = titles[0] if titles else "Untitled"
-
-                pub_date = it.get('published', {}).get('date-parts', [[]])[0]
-                year = pub_date[0] if len(pub_date) > 0 else 0
-                date_str = "-".join([str(p).zfill(2) for p in pub_date]) if pub_date else str(year or "")
-
-                container = it.get('container-title', [])
-                pub_name = container[0] if container else it.get('publisher', 'Emerald Insight')
-
-                doi = it.get('DOI', '')
-                doi_url = f"https://doi.org/{doi}" if doi else it.get('URL', '')
-                emerald_url = f"https://www.emerald.com/insight/content/doi/{doi}" if doi else doi_url
-
-                abstract_clean = clean_html_tags(it.get('abstract', ''))
-
-                raw_type = it.get('type', 'article')
-                type_map = {
-                    'journal-article': 'Journal Article',
-                    'book-chapter': 'Book Chapter',
-                    'book': 'eBook',
-                    'proceedings-article': 'Conference Proceeding'
-                }
-                content_type = type_map.get(raw_type, raw_type.replace('-', ' ').title())
-                is_oa = bool(it.get('license')) or any('open' in str(l).lower() for l in it.get('link', []))
-
-                items.append({
-                    "id": f"em-{doi or it.get('URL', '')}",
-                    "title": title_str,
-                    "authors": authors_str,
-                    "contentType": content_type,
-                    "publicationName": pub_name,
-                    "publicationType": "Emerald Insight",
-                    "date": date_str,
-                    "year": year,
-                    "doi": doi_url,
-                    "url": emerald_url,
-                    "abstract": abstract_clean,
-                    "openAccess": is_oa,
-                    "source": "Emerald"
-                })
-
-            total_pages = (total + rows - 1) // rows if total else 0
-            return {
-                "source": "Emerald",
-                "sourceUrl": "https://www.emerald.com",
-                "total": total,
-                "page": page,
-                "totalPages": min(total_pages, 500),
-                "items": items
+        if CIRCUIT_BREAKERS["crossref"].can_attempt():
+            url = 'https://api.crossref.org/works'
+            offset = (page - 1) * rows
+            params = {
+                'query': query,
+                'query.publisher-name': 'Emerald',
+                'rows': rows,
+                'offset': offset
             }
-        except Exception as e:
-            return {"error": str(e), "source": "Emerald", "total": 0, "items": []}
+            headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
+            try:
+                resp = HTTP_SESSION.get(url, params=params, headers=headers, timeout=(2.0, 3.0))
+                if resp.status_code == 200:
+                    CIRCUIT_BREAKERS["crossref"].record_success()
+                    data = resp.json()
+                    message = data.get('message', {})
+                    total = message.get('total-results', 0)
+                    items_raw = message.get('items', [])
+                    
+                    for it in items_raw:
+                        authors_list = []
+                        for a in it.get('author', []):
+                            name_parts = [a.get('family', ''), a.get('given', '')]
+                            name = ", ".join([p for p in name_parts if p])
+                            if not name:
+                                name = a.get('name', '')
+                            if name:
+                                authors_list.append(name)
+                        authors_str = "; ".join(authors_list) if authors_list else "Unknown"
+
+                        titles = it.get('title', [])
+                        title_str = clean_title(titles[0] if titles else "Untitled")
+
+                        pub_date = it.get('published', {}).get('date-parts', [[]])[0]
+                        year = pub_date[0] if len(pub_date) > 0 else 0
+                        date_str = "-".join([str(p).zfill(2) for p in pub_date]) if pub_date else str(year or "")
+
+                        container = it.get('container-title', [])
+                        pub_name = container[0] if container else it.get('publisher', 'Emerald Insight')
+
+                        doi = it.get('DOI', '')
+                        doi_url = f"https://doi.org/{doi}" if doi else it.get('URL', '')
+                        emerald_url = f"https://www.emerald.com/insight/content/doi/{doi}" if doi else doi_url
+
+                        abstract_clean = clean_html_tags(it.get('abstract', ''))
+
+                        raw_type = it.get('type', 'article')
+                        type_map = {
+                            'journal-article': 'Journal Article',
+                            'book-chapter': 'Book Chapter',
+                            'book': 'eBook',
+                            'proceedings-article': 'Conference Proceeding'
+                        }
+                        content_type = type_map.get(raw_type, raw_type.replace('-', ' ').title())
+                        is_oa = bool(it.get('license')) or any('open' in str(l).lower() for l in it.get('link', []))
+
+                        items.append({
+                            "id": f"em-{doi or it.get('URL', '')}",
+                            "title": title_str,
+                            "authors": authors_str,
+                            "contentType": content_type,
+                            "publicationName": pub_name,
+                            "publicationType": "Emerald Insight",
+                            "date": date_str,
+                            "year": year,
+                            "doi": doi_url,
+                            "url": emerald_url,
+                            "abstract": abstract_clean,
+                            "openAccess": is_oa,
+                            "source": "Emerald"
+                        })
+                else:
+                    CIRCUIT_BREAKERS["crossref"].record_failure()
+            except Exception:
+                CIRCUIT_BREAKERS["crossref"].record_failure()
+
+        # Circuit Breaker Fallback: OpenAlex with Emerald Filter
+        if not items:
+            items, total = _fetch_openalex_fallback(query, page, rows, badge_source="Emerald", venue_title_hint="Emerald")
+
+        total_pages = (total + rows - 1) // rows if total else 0
+        res = {
+            "source": "Emerald",
+            "sourceUrl": "https://www.emerald.com",
+            "total": total,
+            "page": page,
+            "totalPages": min(total_pages, 500),
+            "items": items
+        }
+        QUERY_CACHE.set(cache_key, res)
+        return res
 
     # 3. OPENALEX (Global Open Access & Indexed Scientific Literature)
     elif source == 'openalex':
-        url = 'https://api.openalex.org/works'
-        params = {
-            'filter': f'title.search:{query}',
-            'page': page,
-            'per-page': rows
-        }
-        headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
-        try:
-            resp = requests.get(url, params=params, headers=headers, timeout=10)
-            if resp.status_code != 200:
-                # Fallback to general search
-                resp = requests.get(url, params={'search': query, 'page': page, 'per-page': rows}, headers=headers, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-            meta = data.get('meta', {})
-            total = meta.get('count', 0)
-            items_raw = data.get('results', [])
-            
-            items = []
-            for it in items_raw:
-                # Authors
-                authors_list = [a.get('author', {}).get('display_name', '') for a in it.get('authorships', []) if a.get('author', {}).get('display_name')]
-                authors_str = "; ".join(authors_list) if authors_list else "Unknown"
+        items = []
+        total = 0
 
-                title_str = it.get('title', 'Untitled') or 'Untitled'
-                year = it.get('publication_year', 0)
-                date_str = it.get('publication_date', str(year or ""))
+        if CIRCUIT_BREAKERS["openalex"].can_attempt():
+            url = 'https://api.openalex.org/works'
+            params = {
+                'filter': f'title.search:{query}',
+                'page': page,
+                'per-page': rows
+            }
+            headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
+            try:
+                resp = HTTP_SESSION.get(url, params=params, headers=headers, timeout=(2.0, 3.5))
+                if resp.status_code != 200:
+                    resp = HTTP_SESSION.get(url, params={'search': query, 'page': page, 'per-page': rows}, headers=headers, timeout=(2.0, 3.5))
+                
+                if resp.status_code == 200:
+                    CIRCUIT_BREAKERS["openalex"].record_success()
+                    data = resp.json()
+                    meta = data.get('meta', {})
+                    total = meta.get('count', 0)
+                    items_raw = data.get('results', [])
+                    
+                    for it in items_raw:
+                        authors_list = [a.get('author', {}).get('display_name', '') for a in it.get('authorships', []) if a.get('author', {}).get('display_name')]
+                        authors_str = "; ".join(authors_list) if authors_list else "Unknown"
 
-                # Source venue
-                primary_loc = it.get('primary_location') or {}
-                source_obj = primary_loc.get('source') or {}
-                pub_name = source_obj.get('display_name', '') or it.get('host_venue', {}).get('name', 'Open Access Repository')
+                        title_str = clean_title(it.get('title', 'Untitled') or 'Untitled')
+                        year = it.get('publication_year', 0)
+                        date_str = it.get('publication_date', str(year or ""))
 
-                doi = it.get('doi', '')
-                oa_info = it.get('open_access') or {}
-                oa_url = oa_info.get('oa_url', '')
-                is_oa = bool(oa_info.get('is_oa', False)) or bool(oa_url)
+                        primary_loc = it.get('primary_location') or {}
+                        source_obj = primary_loc.get('source') or {}
+                        pub_name = source_obj.get('display_name', '') or it.get('host_venue', {}).get('name', 'Open Access Repository')
 
-                raw_id = str(it.get('id', '') or '').strip()
-                clean_id = raw_id.split('/')[-1] if raw_id else ''
-                if raw_id.startswith('http://') or raw_id.startswith('https://'):
-                    oa_page_url = raw_id
-                elif clean_id:
-                    oa_page_url = f"https://openalex.org/{clean_id}"
+                        doi = it.get('doi', '')
+                        oa_info = it.get('open_access') or {}
+                        oa_url = oa_info.get('oa_url', '')
+                        is_oa = bool(oa_info.get('is_oa', False)) or bool(oa_url)
+
+                        raw_id = str(it.get('id', '') or '').strip()
+                        clean_id = raw_id.split('/')[-1] if raw_id else ''
+                        if raw_id.startswith('http://') or raw_id.startswith('https://'):
+                            oa_page_url = raw_id
+                        elif clean_id:
+                            oa_page_url = f"https://openalex.org/{clean_id}"
+                        else:
+                            oa_page_url = "https://openalex.org"
+
+                        direct_url = oa_url or doi or oa_page_url
+                        abstract_clean = reconstruct_openalex_abstract(it.get('abstract_inverted_index'))
+                        doc_type = it.get('type', 'article').replace('-', ' ').title()
+
+                        items.append({
+                            "id": f"oa-{clean_id or raw_id}",
+                            "title": title_str,
+                            "authors": authors_str,
+                            "contentType": doc_type,
+                            "publicationName": pub_name,
+                            "publicationType": "Open Access / International",
+                            "date": date_str,
+                            "year": year,
+                            "doi": doi,
+                            "url": direct_url,
+                            "abstract": abstract_clean,
+                            "openAccess": is_oa,
+                            "source": "OpenAlex"
+                        })
                 else:
-                    oa_page_url = "https://openalex.org"
+                    CIRCUIT_BREAKERS["openalex"].record_failure()
+            except Exception:
+                CIRCUIT_BREAKERS["openalex"].record_failure()
 
-                direct_url = oa_url or doi or oa_page_url
-
-                abstract_clean = reconstruct_openalex_abstract(it.get('abstract_inverted_index'))
-
-                doc_type = it.get('type', 'article').replace('-', ' ').title()
-
-                items.append({
-                    "id": f"oa-{clean_id or raw_id}",
-                    "title": title_str,
-                    "authors": authors_str,
-                    "contentType": doc_type,
-                    "publicationName": pub_name,
-                    "publicationType": "Open Access / International",
-                    "date": date_str,
-                    "year": year,
-                    "doi": doi,
-                    "url": direct_url,
-                    "abstract": abstract_clean,
-                    "openAccess": is_oa,
-                    "source": "OpenAlex"
-                })
-
-            total_pages = (total + rows - 1) // rows if total else 0
-            return {
-                "source": "OpenAlex",
-                "sourceUrl": "https://openalex.org",
-                "total": total,
-                "page": page,
-                "totalPages": min(total_pages, 500),
-                "items": items
-            }
-        except Exception as e:
-            return {"error": str(e), "source": "OpenAlex", "total": 0, "items": []}
-
-    # 4. CROSSREF (Global Multi-Publisher Registry)
-    elif source == 'crossref':
-        url = 'https://api.crossref.org/works'
-        offset = (page - 1) * rows
-        params = {
-            'query.bibliographic': query,
-            'rows': rows,
-            'offset': offset
+        total_pages = (total + rows - 1) // rows if total else 0
+        res = {
+            "source": "OpenAlex",
+            "sourceUrl": "https://openalex.org",
+            "total": total,
+            "page": page,
+            "totalPages": min(total_pages, 500),
+            "items": items
         }
-        headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
-        try:
-            resp = requests.get(url, params=params, headers=headers, timeout=12)
-            resp.raise_for_status()
-            data = resp.json()
-            message = data.get('message', {})
-            total = message.get('total-results', 0)
-            items_raw = message.get('items', [])
-            
-            items = []
-            for it in items_raw:
-                authors_list = []
-                for a in it.get('author', []):
-                    name_parts = [a.get('family', ''), a.get('given', '')]
-                    name = ", ".join([p for p in name_parts if p])
-                    if not name:
-                        name = a.get('name', '')
-                    if name:
-                        authors_list.append(name)
-                authors_str = "; ".join(authors_list) if authors_list else "Unknown"
+        QUERY_CACHE.set(cache_key, res)
+        return res
 
-                titles = it.get('title', [])
-                title_str = clean_title(titles[0] if titles else "Untitled")
+    # 4. CROSSREF (Global Multi-Publisher Registry with OpenAlex Fallback)
+    elif source == 'crossref':
+        items = []
+        total = 0
 
-                pub_date = it.get('published', {}).get('date-parts', [[]])[0]
-                year = pub_date[0] if len(pub_date) > 0 else 0
-                date_str = "-".join([str(p).zfill(2) for p in pub_date]) if pub_date else str(year or "")
-
-                container = it.get('container-title', [])
-                pub_name = container[0] if container else it.get('publisher', 'Crossref Registry')
-
-                doi = it.get('DOI', '')
-                doi_url = f"https://doi.org/{doi}" if doi else it.get('URL', '')
-
-                abstract_clean = clean_html_tags(it.get('abstract', ''))
-
-                raw_type = it.get('type', 'article')
-                content_type = raw_type.replace('-', ' ').title()
-                is_oa = bool(it.get('license')) or any('open' in str(l).lower() for l in it.get('link', []))
-
-                items.append({
-                    "id": f"cr-{doi or it.get('URL', '')}",
-                    "title": title_str,
-                    "authors": authors_str,
-                    "contentType": content_type,
-                    "publicationName": pub_name,
-                    "publicationType": it.get('publisher', 'Academic Publisher'),
-                    "date": date_str,
-                    "year": year,
-                    "doi": doi_url,
-                    "url": doi_url,
-                    "abstract": abstract_clean,
-                    "openAccess": is_oa,
-                    "source": "Crossref"
-                })
-
-            total_pages = (total + rows - 1) // rows if total else 0
-            return {
-                "source": "Crossref",
-                "sourceUrl": "https://www.crossref.org",
-                "total": total,
-                "page": page,
-                "totalPages": min(total_pages, 500),
-                "items": items
+        if CIRCUIT_BREAKERS["crossref"].can_attempt():
+            url = 'https://api.crossref.org/works'
+            offset = (page - 1) * rows
+            params = {
+                'query.bibliographic': query,
+                'rows': rows,
+                'offset': offset
             }
-        except Exception as e:
-            return {"error": str(e), "source": "Crossref", "total": 0, "items": []}
+            headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
+            try:
+                resp = HTTP_SESSION.get(url, params=params, headers=headers, timeout=(2.0, 3.0))
+                if resp.status_code == 200:
+                    CIRCUIT_BREAKERS["crossref"].record_success()
+                    data = resp.json()
+                    message = data.get('message', {})
+                    total = message.get('total-results', 0)
+                    items_raw = message.get('items', [])
+                    
+                    for it in items_raw:
+                        authors_list = []
+                        for a in it.get('author', []):
+                            name_parts = [a.get('family', ''), a.get('given', '')]
+                            name = ", ".join([p for p in name_parts if p])
+                            if not name:
+                                name = a.get('name', '')
+                            if name:
+                                authors_list.append(name)
+                        authors_str = "; ".join(authors_list) if authors_list else "Unknown"
 
-    # 5. SCOPUS (Live with Elsevier ScienceDirect & Global Journal Fallback)
+                        titles = it.get('title', [])
+                        title_str = clean_title(titles[0] if titles else "Untitled")
+
+                        pub_date = it.get('published', {}).get('date-parts', [[]])[0]
+                        year = pub_date[0] if len(pub_date) > 0 else 0
+                        date_str = "-".join([str(p).zfill(2) for p in pub_date]) if pub_date else str(year or "")
+
+                        container = it.get('container-title', [])
+                        pub_name = container[0] if container else it.get('publisher', 'Crossref Registry')
+
+                        doi = it.get('DOI', '')
+                        doi_url = f"https://doi.org/{doi}" if doi else it.get('URL', '')
+
+                        abstract_clean = clean_html_tags(it.get('abstract', ''))
+                        raw_type = it.get('type', 'article')
+                        content_type = raw_type.replace('-', ' ').title()
+                        is_oa = bool(it.get('license')) or any('open' in str(l).lower() for l in it.get('link', []))
+
+                        items.append({
+                            "id": f"cr-{doi or it.get('URL', '')}",
+                            "title": title_str,
+                            "authors": authors_str,
+                            "contentType": content_type,
+                            "publicationName": pub_name,
+                            "publicationType": "Academic Publisher",
+                            "date": date_str,
+                            "year": year,
+                            "doi": doi_url,
+                            "url": doi_url,
+                            "abstract": abstract_clean,
+                            "openAccess": is_oa,
+                            "source": "Crossref"
+                        })
+                else:
+                    CIRCUIT_BREAKERS["crossref"].record_failure()
+            except Exception:
+                CIRCUIT_BREAKERS["crossref"].record_failure()
+
+        # Fallback to OpenAlex if Crossref is rate-limited or in maintenance
+        if not items:
+            items, total = _fetch_openalex_fallback(query, page, rows, badge_source="Crossref")
+
+        total_pages = (total + rows - 1) // rows if total else 0
+        res = {
+            "source": "Crossref",
+            "sourceUrl": "https://www.crossref.org",
+            "total": total,
+            "page": page,
+            "totalPages": min(total_pages, 500),
+            "items": items
+        }
+        QUERY_CACHE.set(cache_key, res)
+        return res
+
+    # 5. SCOPUS (Live Elsevier Scopus -> ScienceDirect -> OpenAlex Fallback Chain)
     elif source == 'scopus':
         scopus_url = "https://api.elsevier.com/content/search/scopus"
         headers = {
@@ -442,50 +686,55 @@ def _fetch_single_source(source, query, page, rows):
         total = 0
         
         # Level 1: Try Elsevier Scopus Official Search
-        try:
-            resp = requests.get(scopus_url, headers=headers, params=scopus_params, timeout=8)
-            if resp.status_code == 200:
-                data = resp.json()
-                s_results = data.get('search-results', {})
-                total = int(s_results.get('opensearch:totalResults', 0))
-                entries = s_results.get('entry', [])
-                for item in entries:
-                    if 'error' in item:
-                        continue
-                    item_url = ""
-                    for link in item.get('link', []):
-                        if link.get('@ref') == 'scopus':
-                            item_url = link.get('@href', '')
-                            break
-                    if not item_url:
-                        doi_val = item.get('prism:doi', '')
-                        if doi_val:
-                            item_url = "https://doi.org/" + doi_val
+        if SCOPUS_API_KEY and CIRCUIT_BREAKERS["scopus"].can_attempt():
+            try:
+                resp = HTTP_SESSION.get(scopus_url, headers=headers, params=scopus_params, timeout=(2.0, 2.5))
+                if resp.status_code == 200:
+                    data = resp.json()
+                    s_results = data.get('search-results', {})
+                    total = int(s_results.get('opensearch:totalResults', 0))
+                    entries = s_results.get('entry', [])
+                    for item in entries:
+                        if 'error' in item:
+                            continue
+                        item_url = ""
+                        for link in item.get('link', []):
+                            if link.get('@ref') == 'scopus':
+                                item_url = link.get('@href', '')
+                                break
+                        if not item_url:
+                            doi_val = item.get('prism:doi', '')
+                            if doi_val:
+                                item_url = "https://doi.org/" + doi_val
 
-                    cover_date = item.get('prism:coverDate', '')
-                    yr = int(cover_date[:4]) if cover_date else 0
-                    is_oa = str(item.get('openaccess', '0')) == '1' or item.get('openaccessFlag') is True
-                    
-                    items.append({
-                        "id": "sco-" + item.get('dc:identifier', '').replace('SCOPUS_ID:', ''),
-                        "title": clean_title(item.get('dc:title', '')),
-                        "authors": item.get('dc:creator', 'Unknown'),
-                        "contentType": item.get('subtypeDescription', 'Article'),
-                        "publicationName": item.get('prism:publicationName', 'Scopus Indexed Journal'),
-                        "publicationType": "Scopus",
-                        "date": cover_date,
-                        "year": yr,
-                        "doi": item_url,
-                        "url": item_url or "https://www.scopus.com",
-                        "abstract": item.get('dc:description', ''),
-                        "openAccess": is_oa,
-                        "source": "Scopus"
-                    })
-        except Exception:
-            pass
+                        cover_date = item.get('prism:coverDate', '')
+                        yr = int(cover_date[:4]) if cover_date else 0
+                        is_oa = str(item.get('openaccess', '0')) == '1' or item.get('openaccessFlag') is True
+                        
+                        items.append({
+                            "id": "sco-" + item.get('dc:identifier', '').replace('SCOPUS_ID:', ''),
+                            "title": clean_title(item.get('dc:title', '')),
+                            "authors": item.get('dc:creator', 'Unknown'),
+                            "contentType": item.get('subtypeDescription', 'Article'),
+                            "publicationName": item.get('prism:publicationName', 'Scopus Indexed Journal'),
+                            "publicationType": "Scopus",
+                            "date": cover_date,
+                            "year": yr,
+                            "doi": item_url,
+                            "url": item_url or "https://www.scopus.com",
+                            "abstract": item.get('dc:description', ''),
+                            "openAccess": is_oa,
+                            "source": "Scopus"
+                        })
+                    if items:
+                        CIRCUIT_BREAKERS["scopus"].record_success()
+                else:
+                    CIRCUIT_BREAKERS["scopus"].record_failure()
+            except Exception:
+                CIRCUIT_BREAKERS["scopus"].record_failure()
 
-        # Level 2: If Scopus requires Institutional IP (returns 0/400/403), fallback to Elsevier ScienceDirect
-        if not items:
+        # Level 2: Fallback to Elsevier ScienceDirect
+        if not items and SCOPUS_API_KEY and CIRCUIT_BREAKERS["sciencedirect"].can_attempt():
             try:
                 sd_url = "https://api.elsevier.com/content/search/sciencedirect"
                 sd_params = {
@@ -493,7 +742,7 @@ def _fetch_single_source(source, query, page, rows):
                     "count": rows,
                     "start": start
                 }
-                sd_resp = requests.get(sd_url, headers=headers, params=sd_params, timeout=8)
+                sd_resp = HTTP_SESSION.get(sd_url, headers=headers, params=sd_params, timeout=(2.0, 2.5))
                 if sd_resp.status_code == 200:
                     sd_data = sd_resp.json()
                     sd_results = sd_data.get('search-results', {})
@@ -528,52 +777,19 @@ def _fetch_single_source(source, query, page, rows):
                             "openAccess": is_oa,
                             "source": "Scopus"
                         })
+                    if items:
+                        CIRCUIT_BREAKERS["sciencedirect"].record_success()
+                else:
+                    CIRCUIT_BREAKERS["sciencedirect"].record_failure()
             except Exception:
-                pass
+                CIRCUIT_BREAKERS["sciencedirect"].record_failure()
 
-        # Level 3: Fallback to OpenAlex Scopus-indexed peer-reviewed literature if still empty
+        # Level 3: Fallback to OpenAlex Scopus-indexed peer-reviewed literature
         if not items:
-            try:
-                oa_url = "https://api.openalex.org/works"
-                oa_params = {
-                    "search": query,
-                    "filter": "primary_location.source.type:journal",
-                    "per-page": rows,
-                    "page": page,
-                    "mailto": "perpustakaan@ums.ac.id"
-                }
-                oa_resp = requests.get(oa_url, params=oa_params, timeout=8)
-                if oa_resp.status_code == 200:
-                    oa_data = oa_resp.json()
-                    total = oa_data.get('meta', {}).get('count', 0)
-                    for work in oa_data.get('results', []):
-                        authors = [a.get('author', {}).get('display_name') for a in work.get('authorships', []) if a.get('author', {}).get('display_name')]
-                        auth_str = ", ".join(authors[:3]) + (" et al." if len(authors) > 3 else "")
-                        doi_url = work.get('doi') or work.get('id') or 'https://www.scopus.com'
-                        src_name = work.get('primary_location', {}).get('source', {}).get('display_name') or 'Scopus Indexed Journal'
-                        oa_info = work.get('open_access') or {}
-                        is_oa = bool(oa_info.get('is_oa', False)) or bool(work.get('doi'))
-                        
-                        items.append({
-                            "id": "sco-" + work.get('id', '').split('/')[-1],
-                            "title": clean_title(work.get('title', 'Untitled')),
-                            "authors": auth_str or "Unknown",
-                            "contentType": "Journal Article",
-                            "publicationName": src_name,
-                            "publicationType": "Scopus",
-                            "date": work.get('publication_date', ''),
-                            "year": work.get('publication_year', 0),
-                            "doi": doi_url,
-                            "url": doi_url,
-                            "abstract": reconstruct_openalex_abstract(work.get('abstract_inverted_index')),
-                            "openAccess": is_oa,
-                            "source": "Scopus"
-                        })
-            except Exception:
-                pass
+            items, total = _fetch_openalex_fallback(query, page, rows, badge_source="Scopus", venue_title_hint="")
 
         total_pages = (total + rows - 1) // rows if total else 0
-        return {
+        res = {
             "source": "Scopus",
             "sourceUrl": "https://www.scopus.com",
             "total": total,
@@ -581,117 +797,83 @@ def _fetch_single_source(source, query, page, rows):
             "totalPages": min(total_pages, 500),
             "items": items
         }
+        QUERY_CACHE.set(cache_key, res)
+        return res
 
-    # 6. SEMANTIC SCHOLAR (AI-Powered Academic Graph Search)
+    # 6. SEMANTIC SCHOLAR (AI-Powered Academic Graph Search with OpenAlex Fallback)
     elif source in ('semanticscholar', 'semantic_scholar', 's2'):
-        s2_url = "https://api.semanticscholar.org/graph/v1/paper/search"
-        offset = (page - 1) * rows
-        s2_params = {
-            "query": query,
-            "offset": offset,
-            "limit": rows,
-            "fields": "title,authors,year,publicationDate,abstract,venue,publicationTypes,openAccessPdf,externalIds,url,citationCount"
-        }
-        headers = {
-            "User-Agent": "UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)"
-        }
-        if SEMANTIC_SCHOLAR_API_KEY:
-            headers["x-api-key"] = SEMANTIC_SCHOLAR_API_KEY
-
         items = []
         total = 0
-        try:
-            resp = requests.get(s2_url, headers=headers, params=s2_params, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                total = data.get('total', 0)
-                for it in data.get('data', []):
-                    authors_list = [a.get('name') for a in it.get('authors', []) if a.get('name')]
-                    authors_str = "; ".join(authors_list) if authors_list else "Unknown"
 
-                    title_str = clean_title(it.get('title', 'Untitled'))
-                    year = it.get('year', 0)
-                    date_str = it.get('publicationDate') or str(year or "")
-                    venue = it.get('venue') or 'Semantic Scholar'
-                    ext_ids = it.get('externalIds') or {}
-                    doi = ext_ids.get('DOI', '')
-                    doi_url = f"https://doi.org/{doi}" if doi else ""
-                    oa_pdf = (it.get('openAccessPdf') or {}).get('url', '')
-                    paper_id = it.get('paperId', '')
-                    s2_page = it.get('url') or (f"https://www.semanticscholar.org/paper/{paper_id}" if paper_id else "https://www.semanticscholar.org")
+        if CIRCUIT_BREAKERS["semanticscholar"].can_attempt():
+            s2_url = "https://api.semanticscholar.org/graph/v1/paper/search"
+            offset = (page - 1) * rows
+            s2_params = {
+                "query": query,
+                "offset": offset,
+                "limit": rows,
+                "fields": "title,authors,year,publicationDate,abstract,venue,publicationTypes,openAccessPdf,externalIds,url,citationCount"
+            }
+            headers = {"User-Agent": "UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)"}
+            if SEMANTIC_SCHOLAR_API_KEY:
+                headers["x-api-key"] = SEMANTIC_SCHOLAR_API_KEY
 
-                    direct_url = oa_pdf or doi_url or s2_page
-                    is_oa = bool(oa_pdf)
+            try:
+                resp = HTTP_SESSION.get(s2_url, headers=headers, params=s2_params, timeout=(2.0, 3.0))
+                if resp.status_code == 200:
+                    CIRCUIT_BREAKERS["semanticscholar"].record_success()
+                    data = resp.json()
+                    total = data.get('total', 0)
+                    for it in data.get('data', []):
+                        authors_list = [a.get('name') for a in it.get('authors', []) if a.get('name')]
+                        authors_str = "; ".join(authors_list) if authors_list else "Unknown"
 
-                    pub_types = it.get('publicationTypes') or []
-                    content_type = pub_types[0] if pub_types else "Journal Article"
-                    if isinstance(content_type, str):
-                        content_type = content_type.replace('JournalArticle', 'Journal Article').replace('Conference', 'Conference Paper')
+                        title_str = clean_title(it.get('title', 'Untitled'))
+                        year = it.get('year', 0)
+                        date_str = it.get('publicationDate') or str(year or "")
+                        venue = it.get('venue') or 'Semantic Scholar'
+                        ext_ids = it.get('externalIds') or {}
+                        doi = ext_ids.get('DOI', '')
+                        doi_url = f"https://doi.org/{doi}" if doi else ""
+                        oa_pdf = (it.get('openAccessPdf') or {}).get('url', '')
+                        paper_id = it.get('paperId', '')
+                        s2_page = it.get('url') or (f"https://www.semanticscholar.org/paper/{paper_id}" if paper_id else "https://www.semanticscholar.org")
 
-                    items.append({
-                        "id": f"s2-{paper_id or doi or str(hash(title_str))}",
-                        "title": title_str,
-                        "authors": authors_str,
-                        "contentType": content_type,
-                        "publicationName": venue,
-                        "publicationType": "Semantic Scholar AI",
-                        "date": date_str,
-                        "year": year,
-                        "doi": doi_url or doi,
-                        "url": direct_url,
-                        "abstract": it.get('abstract', '') or '',
-                        "openAccess": is_oa,
-                        "source": "Semantic Scholar",
-                        "citationCount": it.get('citationCount', 0)
-                    })
-        except Exception:
-            pass
+                        direct_url = oa_pdf or doi_url or s2_page
+                        is_oa = bool(oa_pdf)
+
+                        pub_types = it.get('publicationTypes') or []
+                        content_type = pub_types[0] if pub_types else "Journal Article"
+                        if isinstance(content_type, str):
+                            content_type = content_type.replace('JournalArticle', 'Journal Article').replace('Conference', 'Conference Paper')
+
+                        items.append({
+                            "id": f"s2-{paper_id or doi or str(hash(title_str))}",
+                            "title": title_str,
+                            "authors": authors_str,
+                            "contentType": content_type,
+                            "publicationName": venue,
+                            "publicationType": "Semantic Scholar AI",
+                            "date": date_str,
+                            "year": year,
+                            "doi": doi_url or doi,
+                            "url": direct_url,
+                            "abstract": it.get('abstract', '') or '',
+                            "openAccess": is_oa,
+                            "source": "Semantic Scholar",
+                            "citationCount": it.get('citationCount', 0)
+                        })
+                else:
+                    CIRCUIT_BREAKERS["semanticscholar"].record_failure()
+            except Exception:
+                CIRCUIT_BREAKERS["semanticscholar"].record_failure()
 
         # Fallback to OpenAlex if Semantic Scholar API was rate-limited or unavailable
         if not items:
-            try:
-                oa_url = "https://api.openalex.org/works"
-                oa_params = {
-                    "search": query,
-                    "per-page": rows,
-                    "page": page,
-                    "mailto": "perpustakaan@ums.ac.id"
-                }
-                oa_resp = requests.get(oa_url, params=oa_params, timeout=10)
-                if oa_resp.status_code == 200:
-                    oa_data = oa_resp.json()
-                    total = oa_data.get('meta', {}).get('count', 0)
-                    for work in oa_data.get('results', []):
-                        authors = [a.get('author', {}).get('display_name') for a in work.get('authorships', []) if a.get('author', {}).get('display_name')]
-                        auth_str = "; ".join(authors[:5]) if authors else "Unknown"
-                        clean_id = str(work.get('id', '')).split('/')[-1]
-                        s2_search_url = f"https://www.semanticscholar.org/search?q={requests.utils.quote(clean_title(work.get('title', '')))}"
-                        doi_url = work.get('doi') or s2_search_url
-                        src_name = (work.get('primary_location') or {}).get('source', {}).get('display_name') or 'International Journal'
-                        oa_info = work.get('open_access') or {}
-                        is_oa = bool(oa_info.get('is_oa', False)) or bool(oa_info.get('oa_url'))
-
-                        items.append({
-                            "id": f"s2-{clean_id}",
-                            "title": clean_title(work.get('title', 'Untitled')),
-                            "authors": auth_str,
-                            "contentType": "Journal Article",
-                            "publicationName": src_name,
-                            "publicationType": "Semantic Scholar AI",
-                            "date": work.get('publication_date', ''),
-                            "year": work.get('publication_year', 0),
-                            "doi": doi_url,
-                            "url": doi_url,
-                            "abstract": reconstruct_openalex_abstract(work.get('abstract_inverted_index')),
-                            "openAccess": is_oa,
-                            "source": "Semantic Scholar",
-                            "citationCount": work.get('cited_by_count', 0)
-                        })
-            except Exception:
-                pass
+            items, total = _fetch_openalex_fallback(query, page, rows, badge_source="Semantic Scholar")
 
         total_pages = (total + rows - 1) // rows if total else 0
-        return {
+        res = {
             "source": "Semantic Scholar",
             "sourceUrl": "https://www.semanticscholar.org",
             "total": total,
@@ -699,14 +881,16 @@ def _fetch_single_source(source, query, page, rows):
             "totalPages": min(total_pages, 500),
             "items": items
         }
+        QUERY_CACHE.set(cache_key, res)
+        return res
 
-    # 7. THE LENS (Lens.org - Open Global Scholarly & Patent Search)
+    # 7. THE LENS (Lens.org - Open Global Scholarly & Patent Search with Fallback)
     elif source in ('lens', 'lensorg', 'lens.org'):
         items = []
         total = 0
 
-        # Level 1: If LENS_API_KEY is configured, query official Lens API
-        if LENS_API_KEY:
+        # Level 1: If LENS_API_KEY is configured and circuit is clear
+        if LENS_API_KEY and CIRCUIT_BREAKERS["lens"].can_attempt():
             try:
                 lens_api_url = "https://api.lens.org/scholarly/search"
                 offset = (page - 1) * rows
@@ -725,8 +909,9 @@ def _fetch_single_source(source, query, page, rows):
                     "Content-Type": "application/json",
                     "User-Agent": "UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)"
                 }
-                resp = requests.post(lens_api_url, json=payload, headers=headers, timeout=12)
+                resp = HTTP_SESSION.post(lens_api_url, json=payload, headers=headers, timeout=(2.0, 3.0))
                 if resp.status_code == 200:
+                    CIRCUIT_BREAKERS["lens"].record_success()
                     data = resp.json()
                     total = data.get('total', 0)
                     for work in data.get('data', []):
@@ -770,54 +955,17 @@ def _fetch_single_source(source, query, page, rows):
                             "openAccess": is_oa,
                             "source": "The Lens"
                         })
+                else:
+                    CIRCUIT_BREAKERS["lens"].record_failure()
             except Exception:
-                pass
+                CIRCUIT_BREAKERS["lens"].record_failure()
 
-        # Level 2: Fallback to global scholarly discovery with Lens deep links
+        # Level 2: Fallback to OpenAlex with Lens deep links
         if not items:
-            try:
-                oa_url = "https://api.openalex.org/works"
-                oa_params = {
-                    "search": query,
-                    "per-page": rows,
-                    "page": page,
-                    "mailto": "perpustakaan@ums.ac.id"
-                }
-                oa_resp = requests.get(oa_url, params=oa_params, timeout=10)
-                if oa_resp.status_code == 200:
-                    oa_data = oa_resp.json()
-                    total = oa_data.get('meta', {}).get('count', 0)
-                    for work in oa_data.get('results', []):
-                        auth_str = extract_openalex_authors(work.get('authorships'))
-                        clean_id = str(work.get('id', '')).split('/')[-1]
-                        title_clean = clean_title(work.get('title') or 'Untitled')
-                        lens_search_url = f"https://www.lens.org/lens/search/scholar/list?q={requests.utils.quote(title_clean)}"
-                        doi_url = work.get('doi') or lens_search_url
-                        src_name = extract_openalex_source_name(work.get('primary_location'), 'Scholarly Journal / Repository')
-                        oa_info = work.get('open_access') or {}
-                        is_oa = bool(oa_info.get('is_oa', False)) or bool(oa_info.get('oa_url'))
-                        raw_type = work.get('type') or 'journal-article'
-
-                        items.append({
-                            "id": f"lens-{clean_id}",
-                            "title": title_clean,
-                            "authors": auth_str,
-                            "contentType": str(raw_type).replace('-', ' ').title(),
-                            "publicationName": src_name,
-                            "publicationType": "The Lens / Open Discovery",
-                            "date": work.get('publication_date', ''),
-                            "year": work.get('publication_year', 0),
-                            "doi": doi_url,
-                            "url": doi_url,
-                            "abstract": reconstruct_openalex_abstract(work.get('abstract_inverted_index')),
-                            "openAccess": is_oa,
-                            "source": "The Lens"
-                        })
-            except Exception:
-                pass
+            items, total = _fetch_openalex_fallback(query, page, rows, badge_source="The Lens")
 
         total_pages = (total + rows - 1) // rows if total else 0
-        return {
+        res = {
             "source": "The Lens",
             "sourceUrl": "https://www.lens.org",
             "total": total,
@@ -825,11 +973,14 @@ def _fetch_single_source(source, query, page, rows):
             "totalPages": min(total_pages, 500),
             "items": items
         }
+        QUERY_CACHE.set(cache_key, res)
+        return res
 
     else:
         return {"error": f"Unknown source {source}", "source": source, "total": 0, "items": []}
 
 
+# ── FEDERATED SEARCH ENDPOINT (AGGREGATION + CACHING) ──
 @app.route('/api/federated')
 def federated_search():
     source = request.args.get('source', 'scopus').lower()
@@ -842,6 +993,11 @@ def federated_search():
 
     # Multi-database aggregated search across all global sources
     if source in ('all', 'all_global', 'global', 'multi', 'federated_all'):
+        cache_key = f"all_global:{query.lower().strip()}:{page}:{rows}"
+        cached_res = QUERY_CACHE.get(cache_key)
+        if cached_res is not None:
+            return jsonify({**cached_res, "cached": True})
+
         sub_sources = ['scopus', 'semanticscholar', 'lens', 'openalex', 'crossref', 'springer']
         per_source_rows = max(4, rows // len(sub_sources) + 2)
         
@@ -884,20 +1040,24 @@ def federated_search():
                     combined_items.append(item)
 
         total_pages = min((total_combined + rows - 1) // rows if total_combined else 1, 500)
-        return jsonify({
+        res_payload = {
             "source": "Seluruh Jurnal Internasional",
             "sourceUrl": "Scopus, Semantic Scholar, The Lens, OpenAlex, Crossref, Springer",
             "total": total_combined,
             "page": page,
             "totalPages": total_pages,
-            "items": combined_items[:rows]
-        })
+            "items": combined_items[:rows],
+            "cached": False
+        }
+        QUERY_CACHE.set(cache_key, res_payload)
+        return jsonify(res_payload)
 
     # Single source search
     result = _fetch_single_source(source, query, page, rows)
     if isinstance(result, dict) and "error" in result and result.get("total", 0) == 0 and "Unknown source" in result.get("error", ""):
         return jsonify(result), 400
     return jsonify(result)
+
 
 @app.route('/api/scopus')
 def scopus_search():
@@ -919,6 +1079,11 @@ def get_academic_topics():
     clean_q = re.sub(r'["\']', '', query).strip()
     clean_q = re.sub(r'\b(AND|OR|NOT)\b', ' ', clean_q, flags=re.IGNORECASE).strip()
 
+    cache_key = f"topic:{clean_q.lower()}"
+    cached_topics = TOPICS_CACHE.get(cache_key)
+    if cached_topics is not None:
+        return jsonify(cached_topics)
+
     topics = []
     seen = set()
     seen.add(clean_q.lower())
@@ -931,7 +1096,7 @@ def get_academic_topics():
             "mailto": "perpustakaan@ums.ac.id"
         }
         headers = {"User-Agent": "UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)"}
-        resp = requests.get(url, params=params, headers=headers, timeout=6)
+        resp = HTTP_SESSION.get(url, params=params, headers=headers, timeout=6)
         if resp.status_code == 200:
             data = resp.json()
             for c in data.get('results', []):
@@ -947,7 +1112,30 @@ def get_academic_topics():
     except Exception:
         pass
 
-    return jsonify({"topics": topics[:8]})
+    result_payload = {"topics": topics[:8]}
+    TOPICS_CACHE.set(cache_key, result_payload, ttl=3600)
+    return jsonify(result_payload)
+
+
+# ── CACHE & CIRCUIT BREAKER MONITORING / ADMIN ENDPOINTS ──
+@app.route('/api/cache/stats')
+def cache_stats():
+    """Return cache statistics and circuit breaker health statuses."""
+    cb_statuses = {name: cb.status() for name, cb in CIRCUIT_BREAKERS.items()}
+    return jsonify({
+        "query_cache": QUERY_CACHE.stats(),
+        "topics_cache": TOPICS_CACHE.stats(),
+        "circuit_breakers": cb_statuses
+    })
+
+
+@app.route('/api/cache/clear', methods=['POST'])
+def cache_clear():
+    """Clear memory caches on-demand."""
+    QUERY_CACHE.clear()
+    TOPICS_CACHE.clear()
+    return jsonify({"status": "SUCCESS", "message": "In-memory query and topics caches cleared successfully."})
+
 
 
 # ── ADMIN HARVEST & SCHEDULER MONITORING ──
