@@ -4,6 +4,7 @@ import json
 import re
 import html
 import requests
+from datetime import datetime
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
@@ -142,6 +143,8 @@ def federated_search():
                 }
                 content_type = type_map.get(raw_type, raw_type.replace('-', ' ').title())
 
+                is_oa = bool(it.get('license')) or 'open' in str(it.get('type', '')).lower() or any('open' in str(l).lower() for l in it.get('link', []))
+
                 items.append({
                     "id": f"sp-{doi or it.get('URL', '')}",
                     "title": title_str,
@@ -154,6 +157,7 @@ def federated_search():
                     "doi": doi_url,
                     "url": springer_url,
                     "abstract": abstract_clean,
+                    "openAccess": is_oa,
                     "source": "Springer"
                 })
 
@@ -224,6 +228,7 @@ def federated_search():
                     'proceedings-article': 'Conference Proceeding'
                 }
                 content_type = type_map.get(raw_type, raw_type.replace('-', ' ').title())
+                is_oa = bool(it.get('license')) or any('open' in str(l).lower() for l in it.get('link', []))
 
                 items.append({
                     "id": f"em-{doi or it.get('URL', '')}",
@@ -237,6 +242,7 @@ def federated_search():
                     "doi": doi_url,
                     "url": emerald_url,
                     "abstract": abstract_clean,
+                    "openAccess": is_oa,
                     "source": "Emerald"
                 })
 
@@ -288,15 +294,27 @@ def federated_search():
                 pub_name = source_obj.get('display_name', '') or it.get('host_venue', {}).get('name', 'Open Access Repository')
 
                 doi = it.get('doi', '')
-                oa_url = it.get('open_access', {}).get('oa_url', '')
-                direct_url = oa_url or doi or f"https://openalex.org/{it.get('id', '')}"
+                oa_info = it.get('open_access') or {}
+                oa_url = oa_info.get('oa_url', '')
+                is_oa = bool(oa_info.get('is_oa', False)) or bool(oa_url)
+
+                raw_id = str(it.get('id', '') or '').strip()
+                clean_id = raw_id.split('/')[-1] if raw_id else ''
+                if raw_id.startswith('http://') or raw_id.startswith('https://'):
+                    oa_page_url = raw_id
+                elif clean_id:
+                    oa_page_url = f"https://openalex.org/{clean_id}"
+                else:
+                    oa_page_url = "https://openalex.org"
+
+                direct_url = oa_url or doi or oa_page_url
 
                 abstract_clean = reconstruct_openalex_abstract(it.get('abstract_inverted_index'))
 
                 doc_type = it.get('type', 'article').replace('-', ' ').title()
 
                 items.append({
-                    "id": f"oa-{it.get('id', '')}",
+                    "id": f"oa-{clean_id or raw_id}",
                     "title": title_str,
                     "authors": authors_str,
                     "contentType": doc_type,
@@ -307,6 +325,7 @@ def federated_search():
                     "doi": doi,
                     "url": direct_url,
                     "abstract": abstract_clean,
+                    "openAccess": is_oa,
                     "source": "OpenAlex"
                 })
 
@@ -369,6 +388,7 @@ def federated_search():
 
                 raw_type = it.get('type', 'article')
                 content_type = raw_type.replace('-', ' ').title()
+                is_oa = bool(it.get('license')) or any('open' in str(l).lower() for l in it.get('link', []))
 
                 items.append({
                     "id": f"cr-{doi or it.get('URL', '')}",
@@ -382,6 +402,7 @@ def federated_search():
                     "doi": doi_url,
                     "url": doi_url,
                     "abstract": abstract_clean,
+                    "openAccess": is_oa,
                     "source": "Crossref"
                 })
 
@@ -437,6 +458,7 @@ def federated_search():
 
                     cover_date = item.get('prism:coverDate', '')
                     yr = int(cover_date[:4]) if cover_date else 0
+                    is_oa = str(item.get('openaccess', '0')) == '1' or item.get('openaccessFlag') is True
                     
                     items.append({
                         "id": "sco-" + item.get('dc:identifier', '').replace('SCOPUS_ID:', ''),
@@ -450,6 +472,7 @@ def federated_search():
                         "doi": item_url,
                         "url": item_url or "https://www.scopus.com",
                         "abstract": item.get('dc:description', ''),
+                        "openAccess": is_oa,
                         "source": "Scopus"
                     })
         except Exception:
@@ -482,6 +505,7 @@ def federated_search():
                                     break
                         cover_date = item.get('prism:coverDate', '')
                         yr = int(cover_date[:4]) if cover_date else 0
+                        is_oa = str(item.get('openaccess', '0')) == '1' or item.get('openaccessFlag') is True
                         
                         items.append({
                             "id": "sco-" + item.get('pii', doi_val or str(hash(item.get('dc:title', '')))),
@@ -495,6 +519,7 @@ def federated_search():
                             "doi": item_url,
                             "url": item_url or "https://www.scopus.com",
                             "abstract": item.get('dc:description', ''),
+                            "openAccess": is_oa,
                             "source": "Scopus"
                         })
             except Exception:
@@ -520,6 +545,8 @@ def federated_search():
                         auth_str = ", ".join(authors[:3]) + (" et al." if len(authors) > 3 else "")
                         doi_url = work.get('doi') or work.get('id') or 'https://www.scopus.com'
                         src_name = work.get('primary_location', {}).get('source', {}).get('display_name') or 'Scopus Indexed Journal'
+                        oa_info = work.get('open_access') or {}
+                        is_oa = bool(oa_info.get('is_oa', False)) or bool(work.get('doi'))
                         
                         items.append({
                             "id": "sco-" + work.get('id', '').split('/')[-1],
@@ -533,6 +560,7 @@ def federated_search():
                             "doi": doi_url,
                             "url": doi_url,
                             "abstract": "",
+                            "openAccess": is_oa,
                             "source": "Scopus"
                         })
             except Exception:
@@ -563,7 +591,34 @@ def scopus_search():
 
 # ── ADMIN HARVEST & SCHEDULER MONITORING ──
 ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'ums-onesearch-secret-key').strip('"\'')
-STATE_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'scheduler_state.json')
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+LOGS_DIR = os.path.join(BASE_DIR, 'logs', 'harvest')
+STATE_FILE = os.path.join(DATA_DIR, 'scheduler_state.json')
+
+
+def _check_admin_auth():
+    """Verify admin secret key from header or query param or JSON body."""
+    auth_header = request.headers.get('X-Admin-Key', '')
+    query_key = request.args.get('key', '')
+    body_key = ''
+    try:
+        json_body = request.get_json(silent=True)
+        if isinstance(json_body, dict):
+            body_key = json_body.get('key', '')
+    except Exception:
+        pass
+    provided = auth_header or query_key or body_key
+    return provided == ADMIN_SECRET_KEY
+
+
+@app.route('/api/admin/auth/verify', methods=['GET', 'POST'])
+def admin_auth_verify():
+    """Verify provided admin secret key."""
+    if _check_admin_auth():
+        return jsonify({"valid": True, "message": "Authentication successful."})
+    return jsonify({"valid": False, "error": "Invalid admin secret key."}), 401
+
 
 @app.route('/api/admin/harvest/status')
 def harvest_status():
@@ -577,7 +632,8 @@ def harvest_status():
         "last_log_file": None,
         "total_runs": 0,
         "scheduler_enabled": os.environ.get('HARVEST_AUTO_ENABLED', 'true').lower() in ('1', 'true', 'yes'),
-        "schedule_time": os.environ.get('HARVEST_SCHEDULE_TIME', '02:00')
+        "schedule_time": os.environ.get('HARVEST_SCHEDULE_TIME', '02:00'),
+        "incremental_days": int(os.environ.get('HARVEST_INCREMENTAL_DAYS', '3'))
     }
     if os.path.exists(STATE_FILE):
         try:
@@ -589,27 +645,78 @@ def harvest_status():
     return jsonify(state)
 
 
+@app.route('/api/admin/harvest/logs')
+def harvest_logs():
+    """List recent harvest log files and view content of the latest or specified log file."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    req_file = request.args.get('file', '')
+    max_lines = int(request.args.get('lines', 300))
+
+    log_files_list = []
+    if os.path.exists(LOGS_DIR):
+        for fname in sorted(os.listdir(LOGS_DIR), reverse=True):
+            if fname.endswith('.log'):
+                fpath = os.path.join(LOGS_DIR, fname)
+                try:
+                    fstat = os.stat(fpath)
+                    log_files_list.append({
+                        "name": fname,
+                        "size": fstat.st_size,
+                        "modified": datetime.fromtimestamp(fstat.st_mtime).isoformat()
+                    })
+                except Exception:
+                    pass
+
+    target_path = None
+    if req_file:
+        # Sanitize filename to prevent directory traversal
+        safe_name = os.path.basename(req_file)
+        cand_path = os.path.join(LOGS_DIR, safe_name)
+        if os.path.exists(cand_path):
+            target_path = cand_path
+    elif log_files_list:
+        target_path = os.path.join(LOGS_DIR, log_files_list[0]['name'])
+
+    content = ""
+    target_name = ""
+    if target_path and os.path.exists(target_path):
+        target_name = os.path.basename(target_path)
+        try:
+            with open(target_path, 'r', encoding='utf-8', errors='replace') as f:
+                lines = f.readlines()
+                content = "".join(lines[-max_lines:])
+        except Exception as e:
+            content = f"Error reading log file: {e}"
+
+    return jsonify({
+        "files": log_files_list[:30],
+        "active_file": target_name,
+        "content": content
+    })
+
+
 @app.route('/api/admin/harvest/run', methods=['GET', 'POST'])
 def harvest_trigger():
     """Trigger harvest on-demand (protected with ADMIN_SECRET_KEY)."""
     import threading
     import subprocess
-    import json
 
-    provided_key = request.headers.get('X-Admin-Key') or request.args.get('key')
-    if provided_key != ADMIN_SECRET_KEY:
+    if not _check_admin_auth():
         return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
 
-    mode = request.args.get('mode', 'incremental').lower()
-    days = int(request.args.get('days', 3))
+    data = request.get_json(silent=True) or {}
+    mode = (request.args.get('mode') or data.get('mode') or 'incremental').lower()
+    days = int(request.args.get('days') or data.get('days') or 3)
 
-    scripts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scripts')
+    scripts_dir = os.path.join(BASE_DIR, 'scripts')
     scheduler_script = os.path.join(scripts_dir, 'scheduler.py')
 
     def worker():
         cmd = [sys.executable, scheduler_script, '--run-full' if mode == 'full' else '--run-now', '--days', str(days)]
         try:
-            subprocess.run(cmd, cwd=os.path.dirname(scripts_dir))
+            subprocess.run(cmd, cwd=BASE_DIR)
         except Exception as e:
             print(f"[Admin Trigger] Error executing harvest: {e}", file=sys.stderr)
 
@@ -622,6 +729,209 @@ def harvest_trigger():
         "mode": mode,
         "days": days
     })
+
+
+@app.route('/api/admin/harvest/unlock', methods=['POST'])
+def harvest_unlock():
+    """Force reset stuck RUNNING lock."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, 'r', encoding='utf-8') as f:
+                state = json.load(f)
+            state["status"] = "IDLE"
+            state["last_error"] = "Lock reset manually by administrator"
+            state.pop("current_run_start", None)
+            state.pop("current_mode", None)
+            state["updated_at"] = datetime.now().isoformat()
+            with open(STATE_FILE, 'w', encoding='utf-8') as f:
+                json.dump(state, f, indent=2)
+            return jsonify({"status": "SUCCESS", "message": "Scheduler lock successfully reset to IDLE."})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    return jsonify({"status": "SUCCESS", "message": "No state file found. Already IDLE."})
+
+
+@app.route('/api/admin/stats')
+def admin_stats():
+    """Return summary statistics of local datasets and repositories."""
+    books_path = os.path.join(DATA_DIR, 'books.json')
+    facets_path = os.path.join(DATA_DIR, 'facets.json')
+
+    total_books = 0
+    src_counts = {}
+    file_info = {}
+
+    if os.path.exists(books_path):
+        try:
+            bstat = os.stat(books_path)
+            file_info["books_size_mb"] = round(bstat.st_size / (1024 * 1024), 2)
+            file_info["books_modified"] = datetime.fromtimestamp(bstat.st_mtime).isoformat()
+            with open(books_path, 'r', encoding='utf-8') as f:
+                books_data = json.load(f)
+                total_books = len(books_data)
+                for b in books_data:
+                    src = b.get('src', 'Other')
+                    src_counts[src] = src_counts.get(src, 0) + 1
+        except Exception as e:
+            file_info["books_error"] = str(e)
+
+    if os.path.exists(facets_path):
+        try:
+            fstat = os.stat(facets_path)
+            file_info["facets_size_kb"] = round(fstat.st_size / 1024, 2)
+            file_info["facets_modified"] = datetime.fromtimestamp(fstat.st_mtime).isoformat()
+        except Exception:
+            pass
+
+    return jsonify({
+        "total_records": total_books,
+        "sources": src_counts,
+        "files": file_info
+    })
+
+
+INSTITUTIONS_FILE = os.path.join(DATA_DIR, 'institutions.json')
+
+
+def _load_institutions_data():
+    if os.path.exists(INSTITUTIONS_FILE):
+        try:
+            with open(INSTITUTIONS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return []
+
+
+def _save_institutions_data(items):
+    with open(INSTITUTIONS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(items, f, indent=2)
+
+
+@app.route('/api/admin/institutions', methods=['GET', 'POST'])
+def admin_institutions():
+    """List or Add/Update partner institution endpoints."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    if request.method == 'GET':
+        return jsonify(_load_institutions_data())
+
+    # POST: Add or update institution
+    data = request.get_json(silent=True) or {}
+    inst_id = str(data.get('id', '')).strip().upper()
+    name = str(data.get('name', '')).strip()
+    url = str(data.get('url', '')).strip()
+    source = str(data.get('source', '')).strip() or inst_id
+    inst_type = str(data.get('type', 'koha')).strip().lower()
+    active = bool(data.get('active', True))
+
+    if not inst_id or not url:
+        return jsonify({"error": "ID dan URL endpoint OAI-PMH wajib diisi."}), 400
+
+    items = _load_institutions_data()
+    existing_idx = next((i for i, item in enumerate(items) if item.get('id', '').upper() == inst_id), -1)
+
+    new_obj = {
+        "id": inst_id,
+        "name": name or inst_id,
+        "url": url,
+        "source": source,
+        "type": inst_type,
+        "active": active
+    }
+
+    if existing_idx >= 0:
+        items[existing_idx] = new_obj
+        msg = f"Mitra {inst_id} berhasil diperbarui."
+    else:
+        items.append(new_obj)
+        msg = f"Mitra {inst_id} berhasil ditambahkan."
+
+    _save_institutions_data(items)
+    return jsonify({"status": "SUCCESS", "message": msg, "item": new_obj, "items": items})
+
+
+@app.route('/api/admin/institutions/<inst_id>', methods=['DELETE'])
+def admin_delete_institution(inst_id):
+    """Delete a partner institution."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    inst_id = inst_id.strip().upper()
+    items = _load_institutions_data()
+    new_items = [it for it in items if it.get('id', '').upper() != inst_id]
+
+    if len(new_items) == len(items):
+        return jsonify({"error": f"Institusi {inst_id} tidak ditemukan."}), 404
+
+    _save_institutions_data(new_items)
+    return jsonify({"status": "SUCCESS", "message": f"Mitra {inst_id} berhasil dihapus.", "items": new_items})
+
+
+@app.route('/api/admin/institutions/toggle', methods=['POST'])
+def admin_toggle_institution():
+    """Toggle active state of an institution."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    data = request.get_json(silent=True) or {}
+    inst_id = str(data.get('id', '')).strip().upper()
+    items = _load_institutions_data()
+
+    for it in items:
+        if it.get('id', '').upper() == inst_id:
+            it['active'] = not it.get('active', True)
+            _save_institutions_data(items)
+            return jsonify({
+                "status": "SUCCESS",
+                "message": f"Status {inst_id} diubah menjadi {'Aktif' if it['active'] else 'Nonaktif'}.",
+                "active": it['active'],
+                "items": items
+            })
+
+    return jsonify({"error": f"Institusi {inst_id} tidak ditemukan."}), 404
+
+
+@app.route('/api/admin/institutions/test', methods=['GET', 'POST'])
+def admin_test_institution_oai():
+    """Ping & Validate OAI-PMH endpoint using Identify verb."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    data = request.get_json(silent=True) or {}
+    url = str(data.get('url') or request.args.get('url') or request.form.get('url') or '').strip()
+
+    if not url:
+        return jsonify({"ok": False, "error": "URL endpoint kosong."}), 400
+
+    try:
+        test_url = f"{url}?verb=Identify" if '?' not in url else f"{url}&verb=Identify"
+        resp = requests.get(test_url, timeout=7, headers={'User-Agent': 'UMSLibraryOneSearchHarvester/1.0'})
+        if resp.status_code == 200 and ('<OAI-PMH' in resp.text or '<Identify>' in resp.text or 'repositoryName' in resp.text):
+            # Extract repository name if possible
+            repo_match = re.search(r'<repositoryName>([^<]+)</repositoryName>', resp.text, re.IGNORECASE)
+            repo_name = repo_match.group(1).strip() if repo_match else "OAI-PMH Compliant Server"
+            return jsonify({
+                "ok": True,
+                "status_code": resp.status_code,
+                "repository_name": repo_name,
+                "message": f"✓ Endpoint OAI-PMH Valid ({repo_name})"
+            })
+        else:
+            return jsonify({
+                "ok": False,
+                "status_code": resp.status_code,
+                "message": f"Server merespon HTTP {resp.status_code} tapi respon bukan XML OAI-PMH yang valid."
+            })
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "message": f"Gagal menghubungi endpoint: {str(e)}"
+        })
 
 
 if __name__ == '__main__':

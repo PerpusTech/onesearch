@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UMS OneSearch — Harvester & Repository Management</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', Consolas, monospace;
+
+            /* Light theme */
+            --bg-page: #f9fafb;
+            --bg-surface: #ffffff;
+            --bg-muted: #f3f4f6;
+            --bg-subtle: #f9fafb;
+            
+            --border-main: #e5e7eb;
+            --border-subtle: #f3f4f6;
+            --border-focus: #2563eb;
+
+            --text-main: #111827;
+            --text-secondary: #4b5563;
+            --text-muted: #6b7280;
+            --text-inverted: #ffffff;
+
+            --accent: #1d4ed8;
+            --accent-hover: #1e40af;
+            --accent-soft: #eff6ff;
+            --accent-border: #bfdbfe;
+
+            --status-idle-bg: #f0fdf4;
+            --status-idle-text: #15803d;
+            --status-idle-border: #bbf7d0;
+
+            --status-run-bg: #fffbeb;
+            --status-run-text: #b45309;
+            --status-run-border: #fde68a;
+
+            --status-err-bg: #fef2f2;
+            --status-err-text: #b91c1c;
+            --status-err-border: #fecaca;
+
+            --radius-xs: 4px;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        [data-theme="dark"] {
+            --bg-page: #0b0f17;
+            --bg-surface: #111827;
+            --bg-muted: #1f2937;
+            --bg-subtle: #161f30;
+            
+            --border-main: #1f2937;
+            --border-subtle: #27354a;
+            --border-focus: #3b82f6;
+
+            --text-main: #f9fafb;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --text-inverted: #0f172a;
+
+            --accent: #3b82f6;
+            --accent-hover: #60a5fa;
+            --accent-soft: rgba(59, 130, 246, 0.12);
+            --accent-border: rgba(59, 130, 246, 0.3);
+
+            --status-idle-bg: rgba(22, 163, 74, 0.12);
+            --status-idle-text: #4ade80;
+            --status-idle-border: rgba(34, 197, 94, 0.25);
+
+            --status-run-bg: rgba(217, 119, 6, 0.12);
+            --status-run-text: #fbbf24;
+            --status-run-border: rgba(245, 158, 11, 0.25);
+
+            --status-err-bg: rgba(220, 38, 38, 0.12);
+            --status-err-text: #f87171;
+            --status-err-border: rgba(239, 68, 68, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-sans);
+        }
+
+        body {
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Top Header */
+        .app-header {
+            background-color: var(--bg-surface);
+            border-bottom: 1px solid var(--border-main);
+            padding: 0 1.5rem;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 40;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .header-brand img {
+            width: 28px;
+            height: 28px;
+            object-fit: contain;
+        }
+
+        .header-brand-title {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-main);
+            letter-spacing: -0.01em;
+        }
+
+        .header-tag {
+            font-size: 0.7rem;
+            font-weight: 500;
+            background: var(--bg-muted);
+            color: var(--text-muted);
+            padding: 2px 6px;
+            border-radius: var(--radius-xs);
+            border: 1px solid var(--border-main);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 0.42rem 0.8rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-main);
+            background: var(--bg-surface);
+            color: var(--text-main);
+            cursor: pointer;
+            transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+            text-decoration: none;
+            white-space: nowrap;
+            line-height: 1;
+        }
+
+        .btn:hover {
+            background-color: var(--bg-muted);
+            border-color: var(--border-main);
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+            border-color: var(--accent-hover);
+            color: #ffffff;
+        }
+
+        .btn-destructive {
+            color: var(--status-err-text);
+            background-color: var(--status-err-bg);
+            border-color: var(--status-err-border);
+        }
+        .btn-destructive:hover {
+            background-color: #ef4444;
+            color: #ffffff;
+            border-color: #ef4444;
+        }
+
+        .btn-xs {
+            padding: 0.28rem 0.55rem;
+            font-size: 0.73rem;
+            border-radius: var(--radius-xs);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Main Container */
+        .main-content {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 1.5rem 1rem 3rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        /* Status & Header Bar */
+        .page-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding-bottom: 0.25rem;
+        }
+
+        .page-bar-left h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-main);
+        }
+
+        .page-bar-left p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Status Badge */
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.3rem 0.65rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border-main);
+            background: var(--bg-surface);
+        }
+
+        .status-pill.idle {
+            background: var(--status-idle-bg);
+            color: var(--status-idle-text);
+            border-color: var(--status-idle-border);
+        }
+        .status-pill.running {
+            background: var(--status-run-bg);
+            color: var(--status-run-text);
+            border-color: var(--status-run-border);
+        }
+        .status-pill.error {
+            background: var(--status-err-bg);
+            color: var(--status-err-text);
+            border-color: var(--status-err-border);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: currentColor;
+        }
+
+        /* Grid Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 0.85rem;
+        }
+
+        .card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-main);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.15rem;
+        }
+
+        .card-label {
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .card-value {
+            font-size: 1.45rem;
+            font-weight: 600;
+            color: var(--text-main);
+            letter-spacing: -0.02em;
+            margin: 0.3rem 0 0.2rem;
+            font-feature-settings: "tnum";
+        }
+
+        .card-sub {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Section Layout */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .section-heading {
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .section-heading svg {
+            color: var(--text-muted);
+        }
+
+        /* Action Panel */
+        .action-row-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            .action-row-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .action-box {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-main);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.15rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 0.85rem;
+        }
+
+        .action-box-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .action-box-desc {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+            line-height: 1.45;
+        }
+
+        .action-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            padding-top: 0.65rem;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .select {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-main);
+            color: var(--text-main);
+            font-size: 0.78rem;
+            padding: 0.38rem 0.65rem;
+            border-radius: var(--radius-sm);
+            outline: none;
+            cursor: pointer;
+        }
+        .select:focus {
+            border-color: var(--border-focus);
+        }
+
+        /* Table */
+        .table-container {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-main);
+            border-radius: var(--radius-md);
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.8rem;
+        }
+
+        .data-table th {
+            background-color: var(--bg-subtle);
+            color: var(--text-muted);
+            font-weight: 500;
+            padding: 0.65rem 0.85rem;
+            border-bottom: 1px solid var(--border-main);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .data-table td {
+            padding: 0.75rem 0.85rem;
+            border-bottom: 1px solid var(--border-main);
+            color: var(--text-main);
+            vertical-align: middle;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tr:hover td {
+            background-color: var(--bg-subtle);
+        }
+
+        .code-tag {
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            background: var(--bg-muted);
+            color: var(--text-secondary);
+            padding: 2px 5px;
+            border-radius: var(--radius-xs);
+            border: 1px solid var(--border-main);
+        }
+
+        .type-badge {
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 1px 5px;
+            border-radius: var(--radius-xs);
+            background: var(--bg-muted);
+            color: var(--text-muted);
+            border: 1px solid var(--border-main);
+            text-transform: uppercase;
+        }
+
+        /* Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 32px;
+            height: 18px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .switch-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background-color: #cbd5e1;
+            transition: .15s;
+            border-radius: 9999px;
+        }
+        .switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .15s;
+            border-radius: 50%;
+        }
+        input:checked + .switch-slider {
+            background-color: #10b981;
+        }
+        input:checked + .switch-slider:before {
+            transform: translateX(14px);
+        }
+
+        /* Log Viewer */
+        .terminal-wrap {
+            background-color: #0d1117;
+            border: 1px solid #1f2937;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            background: #161b22;
+            padding: 0.5rem 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #21262d;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .terminal-title {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: #8b949e;
+        }
+
+        .terminal-body {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            line-height: 1.55;
+            color: #c9d1d9;
+            padding: 0.85rem;
+            height: 320px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .terminal-body::-webkit-scrollbar {
+            width: 6px;
+        }
+        .terminal-body::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 3px;
+        }
+
+        /* Modal */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 1rem;
+        }
+
+        .modal-dialog {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-main);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 440px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .modal-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin: 0.2rem 0 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .form-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .input {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-main);
+            color: var(--text-main);
+            font-size: 0.82rem;
+            padding: 0.45rem 0.65rem;
+            border-radius: var(--radius-sm);
+            outline: none;
+            width: 100%;
+        }
+        .input:focus {
+            border-color: var(--border-focus);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 1.25rem;
+            right: 1.25rem;
+            background-color: #111827;
+            color: #f9fafb;
+            font-size: 0.78rem;
+            font-weight: 500;
+            padding: 0.55rem 0.9rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid #374151;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+            z-index: 200;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Navigation -->
+    <header class="app-header">
+        <a href="/" class="header-brand">
+            <img src="img/logo4.png" alt="UMS Logo">
+            <span class="header-brand-title">UMS OneSearch</span>
+            <span class="header-tag">Console</span>
+        </a>
+        <div class="header-actions">
+            <a href="/" class="btn btn-xs">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                Portal Pencarian
+            </a>
+            <button type="button" class="btn btn-xs" id="theme-btn" onclick="toggleTheme()" title="Ganti Tema">
+                Mode
+            </button>
+            <button type="button" class="btn btn-xs" onclick="logoutAdmin()" title="Ganti Secret Key">
+                Kunci Akses
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="main-content">
+
+        <!-- Page Top Bar -->
+        <div class="page-bar">
+            <div class="page-bar-left">
+                <h1>Harvester & Repository Management</h1>
+                <p>Monitoring sinkronisasi otomatis OAI-PMH katalog Koha, EPrints, Jurnal, dan institusi mitra.</p>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div class="status-pill idle" id="status-badge">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Memuat status...</span>
+                </div>
+                <button type="button" class="btn btn-xs" onclick="refreshDashboard(true)" title="Perbarui data">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6"></path>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Metrics Overview -->
+        <div class="metrics-grid">
+            <div class="card">
+                <div class="card-label">Jadwal Harian</div>
+                <div class="card-value" id="metric-schedule">02:00 WIB</div>
+                <div class="card-sub">Inkremental otomatis (N hari)</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Eksekusi Terakhir</div>
+                <div class="card-value" id="metric-last-run" style="font-size:1.15rem;">-</div>
+                <div class="card-sub" id="metric-last-meta">Durasi: -</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Total Rekord Katalog</div>
+                <div class="card-value" id="metric-total-books">-</div>
+                <div class="card-sub" id="metric-src-breakdown">Koha, ETD, Jurnal, Mitra</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Ukuran Indeks Lokal</div>
+                <div class="card-value" id="metric-file-size">-</div>
+                <div class="card-sub" id="metric-file-mod">data/books.json</div>
+            </div>
+        </div>
+
+        <!-- Action Panel -->
+        <div>
+            <div class="section-header">
+                <span class="section-heading">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    Pemicu Eksekusi Harvesting
+                </span>
+            </div>
+            <div class="action-row-grid">
+                
+                <!-- Incremental -->
+                <div class="action-box">
+                    <div>
+                        <div class="action-box-title">Inkremental Sync & Fast Rebuild</div>
+                        <div class="action-box-desc">Menarik metadata baru yang diperbarui dalam rentang hari terakhir dari seluruh institusi aktif, lalu membangun ulang file indeks pencarian.</div>
+                    </div>
+                    <div class="action-bar">
+                        <select id="inc-days" class="select">
+                            <option value="1">1 Hari Terakhir</option>
+                            <option value="3" selected>3 Hari Terakhir (Default)</option>
+                            <option value="7">7 Hari Terakhir (1 Minggu)</option>
+                            <option value="14">14 Hari Terakhir (2 Minggu)</option>
+                            <option value="30">30 Hari Terakhir (1 Bulan)</option>
+                        </select>
+                        <button type="button" class="btn btn-primary btn-xs" id="btn-run-inc" onclick="triggerHarvest('incremental')">
+                            Jalankan Inkremental Sync
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Full Sync & Lock Reset -->
+                <div class="action-box">
+                    <div>
+                        <div class="action-box-title">Full Harvest & Pemeliharaan</div>
+                        <div class="action-box-desc">Dump ulang seluruh record OAI-PMH dari awal, atau buka paksa kunci status jika eksekusi scheduler sebelumnya terhenti mendadak.</div>
+                    </div>
+                    <div class="action-bar">
+                        <button type="button" class="btn btn-xs" id="btn-run-full" onclick="confirmFullSync()">
+                            Jalankan Full Sync
+                        </button>
+                        <button type="button" class="btn btn-destructive btn-xs" onclick="resetLock()">
+                            Buka Kunci (Reset ke Idle)
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Partner Institutions Table -->
+        <div>
+            <div class="section-header">
+                <span class="section-heading">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    Daftar Mitra & Endpoint OAI-PMH
+                </span>
+                <button type="button" class="btn btn-primary btn-xs" onclick="openAddMitraModal()">
+                    + Tambah Endpoint Mitra
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Institusi / Sumber</th>
+                            <th>Tipe</th>
+                            <th>Endpoint URL</th>
+                            <th>Aktif</th>
+                            <th style="text-align:right;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mitra-tbody">
+                        <tr>
+                            <td colspan="5" style="text-align:center; padding:1.25rem; color:var(--text-muted);">
+                                Memuat data institusi...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Terminal Log Viewer -->
+        <div>
+            <div class="section-header">
+                <span class="section-heading">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 17 10 11 4 5"></polyline>
+                        <line x1="12" y1="19" x2="20" y2="19"></line>
+                    </svg>
+                    Log Eksekusi Harvester
+                </span>
+                <div style="display:flex; align-items:center; gap:0.4rem;">
+                    <select id="log-file-select" class="select" onchange="loadLogContent(this.value)" style="max-width:240px;">
+                        <option value="">(Pilih file log...)</option>
+                    </select>
+                    <button type="button" class="btn btn-xs" onclick="loadLogContent()" title="Refresh log">
+                        Refresh Log
+                    </button>
+                    <button type="button" class="btn btn-xs" onclick="copyLogToClipboard()" title="Salin log">
+                        Salin
+                    </button>
+                </div>
+            </div>
+            <div class="terminal-wrap">
+                <div class="terminal-header">
+                    <span class="terminal-title" id="terminal-filename">console.log</span>
+                </div>
+                <div class="terminal-body" id="log-box">Masukkan Admin Secret Key untuk memuat output log eksekusi.</div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal: Hasil Uji OAI-PMH -->
+    <div class="modal-backdrop" id="oai-result-modal" style="display:none;">
+        <div class="modal-dialog">
+            <h2 class="modal-title">Hasil Uji Endpoint OAI-PMH</h2>
+            <p class="modal-desc" id="oai-res-subtitle">Informasi respon dari server OAI-PMH.</p>
+            
+            <div id="oai-res-body" style="display:flex; flex-direction:column; gap:0.6rem; margin-bottom:1.25rem;">
+                <!-- Filled dynamically -->
+            </div>
+
+            <div style="display:flex; justify-content:flex-end;">
+                <button type="button" class="btn btn-xs" onclick="closeOaiResultModal()">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Konfirmasi Aksi (Ganti confirm dialog) -->
+    <div class="modal-backdrop" id="action-confirm-modal" style="display:none;">
+        <div class="modal-dialog" style="max-width:380px;">
+            <h2 class="modal-title" id="confirm-modal-title">Konfirmasi Aksi</h2>
+            <p class="modal-desc" id="confirm-modal-desc" style="margin-bottom:1.25rem; line-height:1.45;"></p>
+            
+            <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+                <button type="button" class="btn btn-xs" onclick="closeConfirmModal()">Batal</button>
+                <button type="button" class="btn btn-xs" id="confirm-modal-btn">Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Tambah/Edit Mitra -->
+    <div class="modal-backdrop" id="mitra-modal" style="display:none;">
+        <div class="modal-dialog">
+            <h2 class="modal-title" id="modal-mitra-title">Tambah Endpoint Mitra</h2>
+            <p class="modal-desc">Daftarkan URL endpoint OAI-PMH institusi mitra untuk disertakan dalam harvest.</p>
+            
+            <form id="mitra-form" onsubmit="event.preventDefault(); saveMitra();">
+                <div class="form-group">
+                    <label class="form-label" for="mitra-id">ID Institusi (Karakter Unik):</label>
+                    <input type="text" id="mitra-id" class="input" placeholder="UNISRI" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="mitra-name">Nama Institusi / Perpustakaan:</label>
+                    <input type="text" id="mitra-name" class="input" placeholder="Universitas Slamet Riyadi" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="mitra-url">URL Endpoint OAI-PMH:</label>
+                    <input type="url" id="mitra-url" class="input" placeholder="https://lib.unisri.ac.id/oai2.php" required>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.6rem; margin-bottom:0.85rem;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label" for="mitra-type">Sistem Katalog:</label>
+                        <select id="mitra-type" class="select" style="width:100%;">
+                            <option value="slims">SLiMS</option>
+                            <option value="koha">Koha ILS</option>
+                            <option value="eprints">EPrints</option>
+                            <option value="ojs">OJS Journal</option>
+                            <option value="other">Generic OAI</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label" for="mitra-source">Nama Label Facet:</label>
+                        <input type="text" id="mitra-source" class="input" placeholder="UNISRI">
+                    </div>
+                </div>
+
+                <div id="test-result-box" style="display:none; padding:0.5rem 0.65rem; border-radius:var(--radius-sm); font-size:0.75rem; margin-bottom:0.85rem; border:1px solid transparent;"></div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1.25rem;">
+                    <button type="button" class="btn btn-xs" onclick="testMitraUrl()">
+                        Uji Endpoint
+                    </button>
+                    <div style="display:flex; gap:0.4rem;">
+                        <button type="button" class="btn btn-xs" onclick="closeAddMitraModal()">Batal</button>
+                        <button type="submit" class="btn btn-primary btn-xs">Simpan</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Auth -->
+    <div class="modal-backdrop" id="auth-modal" style="display:none;">
+        <div class="modal-dialog" style="max-width:380px;">
+            <h2 class="modal-title">Otentikasi Administrator</h2>
+            <p class="modal-desc">Masukkan Admin Secret Key untuk mengelola konfigurasi harvester.</p>
+            <input type="password" id="admin-key-input" class="input" placeholder="Admin Secret Key..." autofocus onkeyup="if(event.key==='Enter') submitAdminKey()" style="font-family:var(--font-mono); text-align:center; margin-bottom:0.75rem;">
+            <button type="button" class="btn btn-primary" style="width:100%;" onclick="submitAdminKey()">
+                Verifikasi & Masuk
+            </button>
+            <p id="auth-err" style="color:var(--status-err-text); font-size:0.75rem; margin-top:0.6rem; text-align:center; display:none;">Secret key tidak valid.</p>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">Notifikasi</div>
+
+    <script>
+        // ── State ──
+        let adminKey = sessionStorage.getItem('ums_admin_key') || '';
+        let institutionsList = [];
+        let isPolling = false;
+        let confirmActionCallback = null;
+
+        // ── Toast ──
+        function showToast(msg, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, duration);
+        }
+
+        // ── Theme ──
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        }
+        const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // ── Auth ──
+        async function verifyKey(key) {
+            if (!key) return false;
+            try {
+                const res = await fetch('/api/admin/auth/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
+                    body: JSON.stringify({ key })
+                });
+                return res.status === 200;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        async function checkAuth() {
+            if (!adminKey) {
+                document.getElementById('auth-modal').style.display = 'flex';
+                return false;
+            }
+            const isValid = await verifyKey(adminKey);
+            if (!isValid) {
+                sessionStorage.removeItem('ums_admin_key');
+                adminKey = '';
+                document.getElementById('auth-modal').style.display = 'flex';
+                return false;
+            }
+            document.getElementById('auth-modal').style.display = 'none';
+            return true;
+        }
+
+        async function submitAdminKey() {
+            const input = document.getElementById('admin-key-input').value.trim();
+            const errEl = document.getElementById('auth-err');
+            if (!input) return;
+
+            const isValid = await verifyKey(input);
+            if (isValid) {
+                adminKey = input;
+                sessionStorage.setItem('ums_admin_key', input);
+                document.getElementById('auth-modal').style.display = 'none';
+                errEl.style.display = 'none';
+                showToast('Akses berhasil.');
+                refreshDashboard(true);
+            } else {
+                errEl.style.display = 'block';
+            }
+        }
+
+        function logoutAdmin() {
+            sessionStorage.removeItem('ums_admin_key');
+            adminKey = '';
+            document.getElementById('admin-key-input').value = '';
+            document.getElementById('auth-modal').style.display = 'flex';
+        }
+
+        // ── Custom Confirm Modal ──
+        function openConfirmModal(title, desc, btnText, isDestructive, onConfirm) {
+            document.getElementById('confirm-modal-title').textContent = title;
+            document.getElementById('confirm-modal-desc').textContent = desc;
+            const btn = document.getElementById('confirm-modal-btn');
+            btn.textContent = btnText;
+            btn.className = isDestructive ? 'btn btn-destructive btn-xs' : 'btn btn-primary btn-xs';
+            confirmActionCallback = onConfirm;
+            btn.onclick = () => {
+                closeConfirmModal();
+                if (confirmActionCallback) confirmActionCallback();
+            };
+            document.getElementById('action-confirm-modal').style.display = 'flex';
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('action-confirm-modal').style.display = 'none';
+            confirmActionCallback = null;
+        }
+
+        // ── Custom OAI Result Modal ──
+        function showOaiResultModal(url, data) {
+            const modal = document.getElementById('oai-result-modal');
+            const body = document.getElementById('oai-res-body');
+            const sub = document.getElementById('oai-res-subtitle');
+
+            sub.textContent = 'Pengecekan respon Identify untuk endpoint:';
+
+            if (data.ok) {
+                body.innerHTML = `
+                    <div style="background:var(--status-idle-bg); border:1px solid var(--status-idle-border); color:var(--status-idle-text); padding:0.75rem; border-radius:var(--radius-sm);">
+                        <div style="font-weight:600; font-size:0.85rem; margin-bottom:0.25rem;">✓ Endpoint Terhubung (HTTP ${data.status_code})</div>
+                        <div style="font-size:0.75rem;">${esc(data.message)}</div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <span class="form-label">Nama Repositori:</span>
+                        <div style="font-weight:600; font-size:0.82rem;">${esc(data.repository_name || '-')}</div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <span class="form-label">Endpoint Target:</span>
+                        <code class="code-tag" style="word-break:break-all;">${esc(url)}</code>
+                    </div>
+                `;
+            } else {
+                body.innerHTML = `
+                    <div style="background:var(--status-err-bg); border:1px solid var(--status-err-border); color:var(--status-err-text); padding:0.75rem; border-radius:var(--radius-sm);">
+                        <div style="font-weight:600; font-size:0.85rem; margin-bottom:0.25rem;">⚠️ Respon Endpoint Gagal</div>
+                        <div style="font-size:0.75rem;">${esc(data.message)}</div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <span class="form-label">Endpoint Target:</span>
+                        <code class="code-tag" style="word-break:break-all;">${esc(url)}</code>
+                    </div>
+                `;
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeOaiResultModal() {
+            document.getElementById('oai-result-modal').style.display = 'none';
+        }
+
+        // ── Dashboard Refresh ──
+        async function refreshDashboard(manual = false) {
+            if (isPolling && !manual) return;
+            isPolling = true;
+
+            try {
+                const statusRes = await fetch('/api/admin/harvest/status');
+                if (statusRes.ok) {
+                    const statusData = await statusRes.json();
+                    renderStatus(statusData);
+                }
+
+                const statsRes = await fetch('/api/admin/stats');
+                if (statsRes.ok) {
+                    const statsData = await statsRes.json();
+                    renderStats(statsData);
+                }
+
+                if (adminKey) {
+                    loadInstitutions();
+                    loadLogContent();
+                }
+            } catch (e) {
+                console.error('Refresh error:', e);
+            } finally {
+                isPolling = false;
+            }
+        }
+
+        function renderStatus(data) {
+            const badge = document.getElementById('status-badge');
+            const statusText = document.getElementById('status-text');
+            const btnInc = document.getElementById('btn-run-inc');
+            const btnFull = document.getElementById('btn-run-full');
+
+            const status = (data.status || 'IDLE').toUpperCase();
+            const scheduleTime = data.schedule_time || '02:00';
+
+            document.getElementById('metric-schedule').textContent = `${scheduleTime} WIB`;
+
+            if (status === 'RUNNING') {
+                badge.className = 'status-pill running';
+                statusText.textContent = `Sedang Sync (${(data.current_mode || 'inkremental').toUpperCase()})`;
+                btnInc.disabled = true;
+                btnFull.disabled = true;
+            } else if (status === 'ERROR') {
+                badge.className = 'status-pill error';
+                statusText.textContent = 'Eksekusi Mengalami Kendala';
+                btnInc.disabled = false;
+                btnFull.disabled = false;
+            } else {
+                badge.className = 'status-pill idle';
+                statusText.textContent = 'Scheduler Siap';
+                btnInc.disabled = false;
+                btnFull.disabled = false;
+            }
+
+            if (data.last_run) {
+                document.getElementById('metric-last-run').textContent = formatRelative(data.last_run);
+                document.getElementById('metric-last-meta').textContent = `Mode: ${(data.last_mode || 'inc').toUpperCase()} • ${data.last_duration_seconds || 0}s`;
+            } else {
+                document.getElementById('metric-last-run').textContent = 'Belum Ada';
+                document.getElementById('metric-last-meta').textContent = 'Menunggu siklus';
+            }
+        }
+
+        function renderStats(data) {
+            const total = data.total_records || 0;
+            document.getElementById('metric-total-books').textContent = total.toLocaleString('id-ID');
+
+            const src = data.sources || {};
+            const koha = src['Koha UMS'] || src['Koha'] || src['UMS'] || 0;
+            const etd = src['UMS (ETD)'] || src['UMS (eprints)'] || 0;
+            const jrn = src['UMS (Journal)'] || 0;
+            const sibi = src['SIBI (Buku Kemdikbud)'] || 0;
+
+            document.getElementById('metric-src-breakdown').textContent = 
+                `${koha.toLocaleString()} Koha • ${etd.toLocaleString()} ETD • ${jrn.toLocaleString()} Jurnal • ${sibi.toLocaleString()} SIBI`;
+
+            const files = data.files || {};
+            if (files.books_size_mb) {
+                document.getElementById('metric-file-size').textContent = `${files.books_size_mb} MB`;
+                document.getElementById('metric-file-mod').textContent = `Update: ${formatRelative(files.books_modified)}`;
+            }
+        }
+
+        // ── Institutions Management ──
+        async function loadInstitutions() {
+            if (!adminKey) return;
+            try {
+                const res = await fetch('/api/admin/institutions', {
+                    headers: { 'X-Admin-Key': adminKey }
+                });
+                if (res.ok) {
+                    institutionsList = await res.json();
+                    renderMitraTable(institutionsList);
+                }
+            } catch (e) {
+                console.error('Error institutions:', e);
+            }
+        }
+
+        function renderMitraTable(list) {
+            const tbody = document.getElementById('mitra-tbody');
+            if (!list || list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:1.25rem; color:var(--text-muted);">Belum ada endpoint mitra.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = list.map(it => {
+                const isActive = it.active !== false;
+                return `
+                <tr>
+                    <td>
+                        <div style="font-weight:600;">${esc(it.name || it.id)}</div>
+                        <div style="font-size:0.72rem; color:var(--text-muted); font-family:var(--font-mono);">ID: ${esc(it.id)} • Facet: ${esc(it.source || it.id)}</div>
+                    </td>
+                    <td>
+                        <span class="type-badge">${esc(it.type || 'oai')}</span>
+                    </td>
+                    <td>
+                        <span class="code-tag">${esc(it.url)}</span>
+                    </td>
+                    <td>
+                        <label class="switch" title="Aktifkan/Nonaktifkan">
+                            <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleMitraActive('${esc(it.id)}')">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </td>
+                    <td style="text-align:right;">
+                        <button type="button" class="btn btn-xs" onclick="testOaiEndpoint('${esc(it.url)}')" title="Ping endpoint">
+                            Test OAI
+                        </button>
+                        <button type="button" class="btn btn-xs" onclick="editMitra('${esc(it.id)}')" title="Edit">
+                            Edit
+                        </button>
+                        <button type="button" class="btn btn-destructive btn-xs" onclick="deleteMitra('${esc(it.id)}')" title="Hapus">
+                            Hapus
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function openAddMitraModal(editItem = null) {
+            const modal = document.getElementById('mitra-modal');
+            const titleEl = document.getElementById('modal-mitra-title');
+            const testBox = document.getElementById('test-result-box');
+            testBox.style.display = 'none';
+
+            if (editItem) {
+                titleEl.textContent = 'Edit Data Mitra';
+                document.getElementById('mitra-id').value = editItem.id;
+                document.getElementById('mitra-id').readOnly = true;
+                document.getElementById('mitra-name').value = editItem.name || editItem.id;
+                document.getElementById('mitra-url').value = editItem.url;
+                document.getElementById('mitra-type').value = editItem.type || 'slims';
+                document.getElementById('mitra-source').value = editItem.source || editItem.id;
+            } else {
+                titleEl.textContent = 'Tambah Endpoint Mitra';
+                document.getElementById('mitra-form').reset();
+                document.getElementById('mitra-id').readOnly = false;
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeAddMitraModal() {
+            document.getElementById('mitra-modal').style.display = 'none';
+        }
+
+        function editMitra(id) {
+            const item = institutionsList.find(it => it.id === id);
+            if (item) openAddMitraModal(item);
+        }
+
+        async function saveMitra() {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
+            const id = document.getElementById('mitra-id').value.trim();
+            const name = document.getElementById('mitra-name').value.trim();
+            const url = document.getElementById('mitra-url').value.trim();
+            const type = document.getElementById('mitra-type').value;
+            const source = document.getElementById('mitra-source').value.trim() || id;
+
+            if (!id || !url) {
+                showToast('ID dan URL wajib diisi');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/institutions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+                    body: JSON.stringify({ id, name, url, type, source, active: true })
+                });
+                const resData = await res.json();
+                if (res.ok) {
+                    showToast(resData.message);
+                    closeAddMitraModal();
+                    loadInstitutions();
+                } else {
+                    showToast(`Gagal: ${resData.error}`);
+                }
+            } catch (err) {
+                showToast(`Error: ${err.message}`);
+            }
+        }
+
+        async function toggleMitraActive(id) {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
+            try {
+                const res = await fetch('/api/admin/institutions/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+                    body: JSON.stringify({ id })
+                });
+                const resData = await res.json();
+                if (res.ok) {
+                    showToast(resData.message);
+                    loadInstitutions();
+                } else {
+                    showToast(`Gagal: ${resData.error}`);
+                }
+            } catch (e) {
+                showToast(`Error: ${e.message}`);
+            }
+        }
+
+        async function deleteMitra(id) {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
+            openConfirmModal(
+                'Hapus Endpoint Mitra',
+                `Apakah Anda yakin ingin menghapus mitra "${id}" dari daftar sinkronisasi harvester?`,
+                'Hapus Mitra',
+                true,
+                async () => {
+                    try {
+                        const res = await fetch(`/api/admin/institutions/${encodeURIComponent(id)}`, {
+                            method: 'DELETE',
+                            headers: { 'X-Admin-Key': adminKey }
+                        });
+                        const resData = await res.json();
+                        if (res.ok) {
+                            showToast(resData.message);
+                            loadInstitutions();
+                        } else {
+                            showToast(`Gagal: ${resData.error}`);
+                        }
+                    } catch (e) {
+                        showToast(`Error: ${e.message}`);
+                    }
+                }
+            );
+        }
+
+        async function testMitraUrl() {
+            const url = document.getElementById('mitra-url').value.trim();
+            const testBox = document.getElementById('test-result-box');
+            if (!url) {
+                showToast('Masukkan URL terlebih dahulu');
+                return;
+            }
+
+            testBox.style.display = 'block';
+            testBox.style.background = 'var(--bg-muted)';
+            testBox.style.color = 'var(--text-muted)';
+            testBox.style.borderColor = 'var(--border-main)';
+            testBox.textContent = 'Menghubungkan ke endpoint OAI-PMH...';
+
+            try {
+                const res = await fetch(`/api/admin/institutions/test?url=${encodeURIComponent(url)}`, {
+                    headers: { 'X-Admin-Key': adminKey }
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    testBox.style.background = 'var(--status-idle-bg)';
+                    testBox.style.color = 'var(--status-idle-text)';
+                    testBox.style.borderColor = 'var(--status-idle-border)';
+                    testBox.textContent = `Valid: ${data.repository_name || 'Server OAI-PMH'} (HTTP ${data.status_code})`;
+                } else {
+                    testBox.style.background = 'var(--status-err-bg)';
+                    testBox.style.color = 'var(--status-err-text)';
+                    testBox.style.borderColor = 'var(--status-err-border)';
+                    testBox.textContent = `Gagal: ${data.message}`;
+                }
+            } catch (err) {
+                testBox.style.background = 'var(--status-err-bg)';
+                testBox.style.color = 'var(--status-err-text)';
+                testBox.style.borderColor = 'var(--status-err-border)';
+                testBox.textContent = `Error: ${err.message}`;
+            }
+        }
+
+        async function testOaiEndpoint(url) {
+            showToast('Menghubungkan OAI-PMH...');
+            try {
+                const res = await fetch(`/api/admin/institutions/test?url=${encodeURIComponent(url)}`, {
+                    headers: { 'X-Admin-Key': adminKey }
+                });
+                const data = await res.json();
+                showOaiResultModal(url, data);
+            } catch (e) {
+                showOaiResultModal(url, { ok: false, message: e.message });
+            }
+        }
+
+        // ── Logs ──
+        async function loadLogContent(specificFile = '') {
+            if (!adminKey) return;
+            const logBox = document.getElementById('log-box');
+            const selectEl = document.getElementById('log-file-select');
+            const filenameEl = document.getElementById('terminal-filename');
+
+            try {
+                const url = specificFile ? 
+                    `/api/admin/harvest/logs?file=${encodeURIComponent(specificFile)}` : 
+                    `/api/admin/harvest/logs`;
+
+                const res = await fetch(url, { headers: { 'X-Admin-Key': adminKey } });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.files && data.files.length > 0) {
+                        const curSelected = specificFile || data.active_file;
+                        selectEl.innerHTML = data.files.map(f => `
+                            <option value="${f.name}" ${f.name === curSelected ? 'selected' : ''}>
+                                ${f.name} (${Math.round(f.size/1024)} KB)
+                            </option>
+                        `).join('');
+                    } else {
+                        selectEl.innerHTML = '<option value="">(Belum ada file log)</option>';
+                    }
+
+                    filenameEl.textContent = data.active_file || 'console.log';
+                    if (data.content) {
+                        logBox.textContent = data.content;
+                        logBox.scrollTop = logBox.scrollHeight;
+                    } else {
+                        logBox.textContent = '(File log kosong)';
+                    }
+                }
+            } catch (err) {
+                console.error('Error log:', err);
+            }
+        }
+
+        function copyLogToClipboard() {
+            const content = document.getElementById('log-box').textContent;
+            navigator.clipboard.writeText(content).then(() => {
+                showToast('Log disalin ke clipboard');
+            });
+        }
+
+        // ── Execution Triggers ──
+        async function triggerHarvest(mode = 'incremental') {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
+            const days = document.getElementById('inc-days').value || 3;
+            try {
+                showToast(`Memulai ${mode.toUpperCase()} sync...`);
+                const res = await fetch(`/api/admin/harvest/run?mode=${mode}&days=${days}`, {
+                    method: 'POST',
+                    headers: { 'X-Admin-Key': adminKey }
+                });
+                const resData = await res.json();
+                if (res.ok) {
+                    showToast(resData.message);
+                    refreshDashboard(true);
+                } else {
+                    showToast(`Gagal: ${resData.error || 'Terjadi kesalahan'}`);
+                }
+            } catch (err) {
+                showToast(`Error: ${err.message}`);
+            }
+        }
+
+        function confirmFullSync() {
+            openConfirmModal(
+                'Konfirmasi Full Re-Harvest & Reindex',
+                'Jalankan Full Sync dari awal untuk seluruh repository? Proses ini akan mengunduh ulang seluruh metadata dan membutuhkan waktu beberapa menit.',
+                'Jalankan Full Sync',
+                false,
+                () => { triggerHarvest('full'); }
+            );
+        }
+
+        async function resetLock() {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
+            openConfirmModal(
+                'Buka Paksa Kunci Scheduler',
+                'Status scheduler akan di-reset paksa kembali ke IDLE. Lakukan ini hanya jika proses sebelumnya terhenti mendadak.',
+                'Buka Kunci',
+                true,
+                async () => {
+                    try {
+                        const res = await fetch('/api/admin/harvest/unlock', {
+                            method: 'POST',
+                            headers: { 'X-Admin-Key': adminKey }
+                        });
+                        const resData = await res.json();
+                        if (res.ok) {
+                            showToast(resData.message);
+                            refreshDashboard(true);
+                        } else {
+                            showToast(`Gagal: ${resData.error}`);
+                        }
+                    } catch (e) {
+                        showToast(`Error: ${e.message}`);
+                    }
+                }
+            );
+        }
+
+        function esc(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function formatRelative(isoStr) {
+            if (!isoStr) return '-';
+            try {
+                const d = new Date(isoStr);
+                const now = new Date();
+                const diffSec = Math.floor((now - d) / 1000);
+                if (diffSec < 60) return `${diffSec} detik lalu`;
+                const diffMin = Math.floor(diffSec / 60);
+                if (diffMin < 60) return `${diffMin} menit lalu`;
+                const diffHr = Math.floor(diffMin / 60);
+                if (diffHr < 24) return `${diffHr} jam lalu`;
+                return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                return isoStr;
+            }
+        }
+
+        // ── Init ──
+        window.addEventListener('DOMContentLoaded', () => {
+            refreshDashboard(true);
+            setInterval(() => { refreshDashboard(false); }, 4000);
+        });
+    </script>
+</body>
+
+</html>

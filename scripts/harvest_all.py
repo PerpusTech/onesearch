@@ -18,121 +18,92 @@ import subprocess
 import sys
 import os
 import time
+import json
 import argparse
 from datetime import datetime
-
-if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
-    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
 # Resolve project root (parent of scripts/)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(PROJECT_ROOT)
 SCRIPTS_DIR = os.path.join(PROJECT_ROOT, 'scripts')
+INSTITUTIONS_FILE = os.path.join(PROJECT_ROOT, 'data', 'institutions.json')
 
-
-# ╔══════════════════════════════════════════════════════════════╗
-# ║  DAFTAR INSTITUSI — Edit di sini untuk menambah/menghapus   ║
-# ╠══════════════════════════════════════════════════════════════╣
-# ║  Setiap entry:                                              ║
-# ║    url    : URL endpoint OAI-PMH                            ║
-# ║    source : Nama institusi (opsional, auto-detect jika None)║
-# ║    format : Format metadata (opsional, default 'auto')      ║
-# ║    set    : OAI set spec (opsional, default None)           ║
-# ║    active : True/False — skip jika False                    ║
-# ╚══════════════════════════════════════════════════════════════╝
-
-INSTITUTIONS = [
-    # ── Koha ──────────────────────────────────────────────────
+# Default fallback list of institutions
+DEFAULT_INSTITUTIONS = [
     {
         'id': 'UMS',
+        'name': 'Koha ILS Perpustakaan UMS',
         'url': 'http://172.16.10.43/cgi-bin/koha/oai.pl',
         'source': 'UMS',
         'active': True,
     },
-
-    # ── EPrints ───────────────────────────────────────────────
     {
         'id': 'UMS-EPRINTS',
+        'name': 'EPrints Repository UMS (ETD)',
         'url': 'https://eprints.ums.ac.id/cgi/oai2',
-        'source': 'UMS (eprints)',
+        'source': 'UMS (ETD)',
         'active': True,
     },
-
-    # ── OJS: Jurnal Ilmiah UMS (Server 1) ─────────────────────
     {
         'id': 'UMS-JOURNALS',
+        'name': 'Jurnal Ilmiah UMS (Server 1)',
         'url': 'https://journals.ums.ac.id/index.php/index/oai',
         'source': 'UMS (Journal)',
         'active': True,
     },
-
-    # ── OJS: Jurnal Ilmiah UMS (Server 2) ─────────────────────
     {
         'id': 'UMS-JOURNALS2',
+        'name': 'Jurnal Ilmiah UMS (Server 2)',
         'url': 'https://journals2.ums.ac.id/index.php/index/oai',
         'source': 'UMS (Journal)',
         'active': True,
     },
-
-    # ── SLiMS: Universitas Muhammadiyah Madiun ─────────────────────
     {
         'id': 'UMMAD',
+        'name': 'Universitas Muhammadiyah Madiun',
         'url': 'https://perpus.ummad.ac.id/oai2.php',
         'source': 'UMMAD',
         'active': True,
     },
-
-    # ── SLiMS: SMA Muhammadiyah PK Solo ───────────────────────
     {
         'id': 'SMAMUHPKSOLO',
+        'name': 'SMA Muhammadiyah PK Solo',
         'url': 'https://lib-smamuhpksolo.edutrend.id/oai2.php',
         'source': 'SMAMUHPKSOLO',
         'active': True,
     },
-
-    # ── SLiMS: SMA Basa Solo ──────────────────────────────────
     {
         'id': 'SMABASASOLO',
+        'name': 'SMA Basa Solo',
         'url': 'https://lib-smabasasolo.edutrend.id/oai2.php',
         'source': 'SMABASASOLO',
         'active': True,
     },
-
-    # ── AISKA University ──────────────────────────────────────
     {
         'id': 'AISKA',
+        'name': 'AISKA University Solo',
         'url': 'https://perpus.aiska-university.ac.id/oai2.php',
         'source': 'AISKA-UNIVERSITY',
-        'active': False,
-    },
-
-    # ── UMS Journals ──────────────────────────────────────────
-    # {
-    #     'id': 'UMS-JOURNALS',
-    #     'url': 'https://journals.ums.ac.id/index.php/index/oai',
-    #     'source': 'UMS',
-    #     'active': True,
-    # },
-    # {
-    #     'id': 'UMS-JOURNALS-2',
-    #     'url': 'https://journals2.ums.ac.id/index.php/index/oai',
-    #     'source': 'UMS',
-    #     'active': True,
-    # },
-
-    # ┌─────────────────────────────────────────────────────────┐
-    # │ Tambah institusi baru di sini! Contoh:                  │
-    # │                                                         │
-    # │  {                                                      │
-    # │      'id': 'UNISRI',                                    │
-    # │      'url': 'https://lib.unisri.ac.id/oai2.php',        │
-    # │      'source': 'UNISRI',                                │
-    # │      'active': True,                                    │
-    # │  },                                                     │
-    # └─────────────────────────────────────────────────────────┘
+        'active': True,
+    }
 ]
+
+
+def get_institutions():
+    """Load institutions dynamically from data/institutions.json or fallback to defaults."""
+    if os.path.exists(INSTITUTIONS_FILE):
+        try:
+            with open(INSTITUTIONS_FILE, 'r', encoding='utf-8') as f:
+                items = json.load(f)
+                if isinstance(items, list) and len(items) > 0:
+                    return items
+        except Exception as e:
+            print(f"[Warning] Failed to read {INSTITUTIONS_FILE}: {e}")
+    return DEFAULT_INSTITUTIONS
+
+
+INSTITUTIONS = get_institutions()
+
 
 
 def print_banner():

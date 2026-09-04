@@ -645,6 +645,17 @@ const app = {
                 }
             }, { passive: true });
         }
+
+        // Close mobile menu on outside click
+        document.addEventListener('click', e => {
+            const mobMenu = document.getElementById('mob-menu');
+            const mobBtn = document.querySelector('.mob-btn');
+            if (mobMenu && mobMenu.classList.contains('open')) {
+                if (!mobMenu.contains(e.target) && !mobBtn.contains(e.target)) {
+                    mobMenu.classList.remove('open');
+                }
+            }
+        });
     },
 
     // ──── Theme ────
@@ -666,6 +677,12 @@ const app = {
         document.querySelectorAll('.nav-mid a').forEach(a => a.classList.remove('on'));
         const link = document.querySelector(`.nav-mid a[data-page="${p}"]`);
         if (link) link.classList.add('on');
+
+        // Sync active state in mobile menu
+        document.querySelectorAll('.mob-menu a').forEach(a => a.classList.remove('on'));
+        const mobLink = document.querySelector(`.mob-menu a[data-page="${p}"]`);
+        if (mobLink) mobLink.classList.add('on');
+
         this.currentPage = p;
         window.scrollTo(0, 0);
     },
@@ -720,7 +737,15 @@ const app = {
         this.renderBookmarks();
     },
     showStats() { this.showPage('stats'); this.renderStats(); },
-    toggleMobileMenu() { document.getElementById('mob-menu').classList.toggle('open'); },
+    toggleMobileMenu(forceClose) {
+        const m = document.getElementById('mob-menu');
+        if (!m) return;
+        if (forceClose === true) {
+            m.classList.remove('open');
+        } else {
+            m.classList.toggle('open');
+        }
+    },
 
     // ──── Bookmarks Logic ────
     _bmSort: 'az', // current sort mode for bookmarks page
@@ -851,10 +876,19 @@ const app = {
                 savedBooks.map(b => this.bookCard(b)).join('');
         } else {
             grid.style.display = 'block';
-            grid.innerHTML = `<div style="text-align:center; padding:4rem 1rem; color:var(--ink-3);">
-                <div style="font-size:3rem; margin-bottom:1rem; opacity:0.5">⭐</div>
-                <p>${this.t('no_bookmarks')}</p>
-            </div>`;
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon-wrap">
+                        ${this.getEmptyStateSvg('bookmarks')}
+                    </div>
+                    <div class="empty-state-title">Belum Ada Koleksi Disimpan</div>
+                    <div class="empty-state-desc">Simpan buku, skripsi, atau artikel penting dengan menekan tombol bintang (⭐) pada kartu koleksi agar tersimpan di sini.</div>
+                    <div class="empty-state-actions">
+                        <button type="button" class="btn btn-brand" onclick="app.showBrowse()">🧭 Jelajahi Koleksi</button>
+                        <button type="button" class="btn btn-ghost" onclick="app.showHome()">Kembali ke Beranda</button>
+                    </div>
+                </div>
+            `;
         }
     },
 
@@ -1020,16 +1054,28 @@ const app = {
         document.getElementById('results-wrap').scrollIntoView({ behavior: 'smooth' });
     },
 
+    // ──── Federated International Journal Discovery & Filtering ────
+    _fedRawItems: [],
+    _fedCurrentSrcObj: null,
+    _fedFilters: {
+        openAccessOnly: false,
+        contentType: 'all',
+        yearRange: 'all',
+        sort: 'default'
+    },
+
     fetchFederatedDiscovery(srcObj, query, page = 1) {
         if (!query || !query.trim()) return;
         query = query.trim();
         this._fedCurrentQuery = query;
         this._fedCurrentPage = page;
+        this._fedCurrentSrcObj = srcObj;
 
         const fedWrap = document.getElementById('fed-results-wrap');
         const locWrap = document.getElementById('results-wrap');
         const headerEl = document.getElementById('fed-header');
         const listEl = document.getElementById('fed-items-list');
+        const filterBarEl = document.getElementById('fed-filter-bar');
         const pagTop = document.getElementById('fed-pagination-top');
         const pagBottom = document.getElementById('fed-pagination-bottom');
 
@@ -1047,9 +1093,10 @@ const app = {
             </div>
             <div class="fed-header-count">Memuat data pencarian "${this.esc(query)}"...</div>
         `;
+        if (filterBarEl) filterBarEl.style.display = 'none';
         listEl.innerHTML = `<div style="text-align:center; padding:3rem 1rem; color:var(--ink-3);">
             <div class="ld-spinner" style="margin:0 auto 1rem; width:28px; height:28px;"></div>
-            <p>Menghubungkan ke ${this.esc(srcObj.name)}...</p>
+            <p>Menghubungkan ke basis data ${this.esc(srcObj.name)}...</p>
         </div>`;
         pagTop.innerHTML = '';
         pagBottom.innerHTML = '';
@@ -1069,6 +1116,7 @@ const app = {
                     listEl.innerHTML = `<div style="text-align:center; padding:2rem 1rem; color:var(--ink-3);">
                         <p>${data.note || 'Layanan sedang tidak dapat diakses atau membutuhkan koneksi institusi.'}</p>
                     </div>`;
+                    if (filterBarEl) filterBarEl.style.display = 'none';
                     return;
                 }
 
@@ -1077,6 +1125,7 @@ const app = {
                 const totalPages = data.totalPages || (Math.ceil(total / 15) || 1);
                 this._fedCurrentTotal = total;
                 this._fedTotalPages = totalPages;
+                this._fedRawItems = items;
 
                 // Render Header
                 headerEl.innerHTML = `
@@ -1089,46 +1138,26 @@ const app = {
 
                 // Render Items
                 if (items.length === 0) {
-                    listEl.innerHTML = `<div style="text-align:center; padding:3rem 1rem; color:var(--ink-3);">
-                        <p>Tidak ada artikel ditemukan untuk kata kunci "${this.esc(query)}".</p>
-                    </div>`;
+                    listEl.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon-wrap">
+                                ${this.getEmptyStateSvg('search')}
+                            </div>
+                            <div class="empty-state-title">Artikel Tidak Ditemukan</div>
+                            <div class="empty-state-desc">Tidak ada artikel ilmiah yang ditemukan di <strong>${this.esc(srcObj.name)}</strong> untuk kata kunci <strong>"${this.esc(query)}"</strong>.</div>
+                            <div class="empty-state-actions">
+                                <button type="button" class="btn btn-brand" onclick="document.getElementById('search-input').focus(); document.getElementById('search-input').select();">Coba Kata Kunci Lain</button>
+                                <button type="button" class="btn btn-ghost" onclick="app.showHome()">Kembali ke Beranda</button>
+                            </div>
+                        </div>
+                    `;
+                    if (filterBarEl) filterBarEl.style.display = 'none';
                     return;
                 }
 
-                const startNum = (page - 1) * 15 + 1;
-                listEl.innerHTML = items.map((it, idx) => {
-                    const itemNum = startNum + idx;
-                    const safeTitle = this.esc(it.title || 'Untitled');
-                    const safeAuthors = this.esc(it.authors || 'Unknown');
-                    const safePub = this.esc(it.publicationName || '-');
-                    const safeType = this.esc(it.contentType || 'Article');
-                    const safePubType = this.esc(it.publicationType || srcObj.name);
-                    const safeDate = it.date ? this.esc(it.date) : (it.year ? this.esc(String(it.year)) : '');
-                    const linkUrl = it.url || it.doi || '#';
-                    const abstractText = it.abstract ? this.esc(it.abstract) : '';
-
-                    return `
-                    <div class="fed-item">
-                        <div class="fed-item-num-title">
-                            ${itemNum}. <a href="${linkUrl}" target="_blank" rel="noopener noreferrer">${safeTitle}</a>
-                        </div>
-                        <ul class="fed-meta-list">
-                            <li><span class="fed-meta-label">Creator :</span> ${safeAuthors}</li>
-                            <li><span class="fed-meta-label">Content Type :</span> ${safeType}</li>
-                            <li><span class="fed-meta-label">Publication Name :</span> ${safePub}</li>
-                            <li><span class="fed-meta-label">Publication Type :</span> ${safePubType}${safeDate ? ` | ${safeDate}` : ''}</li>
-                            ${abstractText ? `<li><span class="fed-meta-label">Abstract :</span> <div class="fed-item-abstract">${abstractText}</div></li>` : ''}
-                        </ul>
-                        <div class="fed-actions-row">
-                            <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="font-size:0.75rem; padding:0.32rem 0.75rem">
-                                Buka Sumber / DOI ↗
-                            </a>
-                            <button class="btn btn-ghost" onclick="app.copyCitation('${safeTitle.replace(/'/g, "\\'")}', '${safeAuthors.replace(/'/g, "\\'")}', '${it.year || ''}', '${safePub.replace(/'/g, "\\'")}')" style="font-size:0.75rem; padding:0.32rem 0.75rem">
-                                Salin Sitasi
-                            </button>
-                        </div>
-                    </div>`;
-                }).join('');
+                // Render Filter Bar & Filtered Items
+                this.renderFedFilterBar(srcObj, page);
+                this.applyFedFiltersAndRender(page);
 
                 // Render Pagination
                 const pagHtml = this.renderFedPaginationHtml(page, totalPages, srcObj);
@@ -1138,7 +1167,256 @@ const app = {
             .catch(err => {
                 headerEl.innerHTML = `<div class="fed-header-count" style="color:var(--rose)">Terjadi kesalahan koneksi: ${this.esc(err.message)}</div>`;
                 listEl.innerHTML = `<div style="text-align:center; padding:2rem 1rem; color:var(--ink-3);"><p>Silakan coba kembali.</p></div>`;
+                if (filterBarEl) filterBarEl.style.display = 'none';
             });
+    },
+
+    renderFedFilterBar(srcObj, page) {
+        const filterBarEl = document.getElementById('fed-filter-bar');
+        if (!filterBarEl) return;
+
+        // Extract available content types dynamically from current raw items
+        const typesSet = new Set();
+        const yearsSet = new Set();
+        let oaCount = 0;
+
+        (this._fedRawItems || []).forEach(it => {
+            if (it.contentType) typesSet.add(it.contentType);
+            if (it.year && it.year > 1900) yearsSet.add(it.year);
+            if (it.openAccess || it.isOpenAccess || it.is_oa || it.openaccess) oaCount++;
+        });
+
+        const typesList = Array.from(typesSet).sort();
+        const yearsList = Array.from(yearsSet).sort((a, b) => b - a);
+
+        const isOaActive = this._fedFilters.openAccessOnly;
+        const curType = this._fedFilters.contentType;
+        const curYear = this._fedFilters.yearRange;
+        const curSort = this._fedFilters.sort;
+        const hasActiveFilters = isOaActive || curType !== 'all' || curYear !== 'all' || curSort !== 'default';
+
+        filterBarEl.style.display = 'block';
+        filterBarEl.innerHTML = `
+            <div class="fed-filter-inner">
+                <div class="fed-filter-left">
+                    <span class="fed-filter-label">Filter Hasil:</span>
+
+                    <!-- Open Access Toggle Button -->
+                    <button type="button" class="fed-filter-oa-btn ${isOaActive ? 'active' : ''}" onclick="app.toggleFedOpenAccess()" title="Tampilkan hanya artikel Open Access">
+                        <span class="fed-oa-icon">${isOaActive ? '🔓' : '🔓'}</span>
+                        <span>Open Access Only</span>
+                        ${oaCount > 0 ? `<span class="fed-oa-badge">${oaCount}</span>` : ''}
+                    </button>
+
+                    <!-- Content Type Dropdown -->
+                    <div class="fed-filter-select-wrap">
+                        <label for="fed-sel-type" class="fed-filter-sublabel">Tipe:</label>
+                        <select id="fed-sel-type" class="fed-filter-select" onchange="app.setFedContentType(this.value)">
+                            <option value="all" ${curType === 'all' ? 'selected' : ''}>Semua Tipe</option>
+                            ${typesList.map(t => `<option value="${this.esc(t)}" ${curType === t ? 'selected' : ''}>${this.esc(t)}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <!-- Publication Year Dropdown -->
+                    <div class="fed-filter-select-wrap">
+                        <label for="fed-sel-year" class="fed-filter-sublabel">Tahun:</label>
+                        <select id="fed-sel-year" class="fed-filter-select" onchange="app.setFedYearRange(this.value)">
+                            <option value="all" ${curYear === 'all' ? 'selected' : ''}>Semua Tahun</option>
+                            <option value="last3" ${curYear === 'last3' ? 'selected' : ''}>3 Tahun Terakhir (2023-2026)</option>
+                            <option value="last5" ${curYear === 'last5' ? 'selected' : ''}>5 Tahun Terakhir (2021-2026)</option>
+                            <option value="last10" ${curYear === 'last10' ? 'selected' : ''}>10 Tahun Terakhir (2016-2026)</option>
+                            ${yearsList.map(y => `<option value="${y}" ${curYear === String(y) ? 'selected' : ''}>Tahun ${y}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="fed-filter-right">
+                    <!-- Sort Dropdown -->
+                    <div class="fed-filter-select-wrap">
+                        <label for="fed-sel-sort" class="fed-filter-sublabel">Urutkan:</label>
+                        <select id="fed-sel-sort" class="fed-filter-select" onchange="app.setFedSort(this.value)">
+                            <option value="default" ${curSort === 'default' ? 'selected' : ''}>Relevansi / Default</option>
+                            <option value="year-desc" ${curSort === 'year-desc' ? 'selected' : ''}>Tahun Terbaru</option>
+                            <option value="year-asc" ${curSort === 'year-asc' ? 'selected' : ''}>Tahun Terlama</option>
+                            <option value="title" ${curSort === 'title' ? 'selected' : ''}>Judul A-Z</option>
+                        </select>
+                    </div>
+
+                    <!-- Reset Filters Button -->
+                    ${hasActiveFilters ? `
+                        <button type="button" class="fed-filter-reset-btn" onclick="app.resetFedFilters()" title="Reset semua filter">
+                            ✕ Reset Filter
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+            <div id="fed-filter-status" class="fed-filter-status-bar"></div>
+        `;
+    },
+
+    toggleFedOpenAccess() {
+        this._fedFilters.openAccessOnly = !this._fedFilters.openAccessOnly;
+        this.renderFedFilterBar(this._fedCurrentSrcObj, this._fedCurrentPage);
+        this.applyFedFiltersAndRender(this._fedCurrentPage);
+    },
+
+    setFedContentType(val) {
+        this._fedFilters.contentType = val;
+        this.renderFedFilterBar(this._fedCurrentSrcObj, this._fedCurrentPage);
+        this.applyFedFiltersAndRender(this._fedCurrentPage);
+    },
+
+    setFedYearRange(val) {
+        this._fedFilters.yearRange = val;
+        this.renderFedFilterBar(this._fedCurrentSrcObj, this._fedCurrentPage);
+        this.applyFedFiltersAndRender(this._fedCurrentPage);
+    },
+
+    setFedSort(val) {
+        this._fedFilters.sort = val;
+        this.renderFedFilterBar(this._fedCurrentSrcObj, this._fedCurrentPage);
+        this.applyFedFiltersAndRender(this._fedCurrentPage);
+    },
+
+    resetFedFilters() {
+        this._fedFilters = {
+            openAccessOnly: false,
+            contentType: 'all',
+            yearRange: 'all',
+            sort: 'default'
+        };
+        this.renderFedFilterBar(this._fedCurrentSrcObj, this._fedCurrentPage);
+        this.applyFedFiltersAndRender(this._fedCurrentPage);
+    },
+
+    applyFedFiltersAndRender(page = 1) {
+        const listEl = document.getElementById('fed-items-list');
+        const statusEl = document.getElementById('fed-filter-status');
+        if (!listEl) return;
+
+        let filtered = [...(this._fedRawItems || [])];
+        const totalRaw = filtered.length;
+
+        // 1. Filter Open Access
+        if (this._fedFilters.openAccessOnly) {
+            filtered = filtered.filter(it => it.openAccess || it.isOpenAccess || it.is_oa || it.openaccess);
+        }
+
+        // 2. Filter Content Type
+        if (this._fedFilters.contentType !== 'all') {
+            filtered = filtered.filter(it => (it.contentType || 'Article') === this._fedFilters.contentType);
+        }
+
+        // 3. Filter Year Range
+        if (this._fedFilters.yearRange !== 'all') {
+            const yrChoice = this._fedFilters.yearRange;
+            if (yrChoice === 'last3') {
+                filtered = filtered.filter(it => it.year && it.year >= 2023);
+            } else if (yrChoice === 'last5') {
+                filtered = filtered.filter(it => it.year && it.year >= 2021);
+            } else if (yrChoice === 'last10') {
+                filtered = filtered.filter(it => it.year && it.year >= 2016);
+            } else {
+                const targetYr = parseInt(yrChoice, 10);
+                if (targetYr) {
+                    filtered = filtered.filter(it => it.year === targetYr);
+                }
+            }
+        }
+
+        // 4. Sort
+        if (this._fedFilters.sort === 'year-desc') {
+            filtered.sort((a, b) => (b.year || 0) - (a.year || 0));
+        } else if (this._fedFilters.sort === 'year-asc') {
+            filtered.sort((a, b) => (a.year || 0) - (b.year || 0));
+        } else if (this._fedFilters.sort === 'title') {
+            filtered.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+        }
+
+        // Update Filter Status Info
+        if (statusEl) {
+            const hasActiveFilters = this._fedFilters.openAccessOnly || this._fedFilters.contentType !== 'all' || this._fedFilters.yearRange !== 'all' || this._fedFilters.sort !== 'default';
+            if (hasActiveFilters) {
+                statusEl.innerHTML = `<span>Menampilkan <strong>${filtered.length}</strong> dari <strong>${totalRaw}</strong> artikel pada halaman ini</span>`;
+                statusEl.style.display = 'block';
+            } else {
+                statusEl.style.display = 'none';
+            }
+        }
+
+        // Empty state when filtered out
+        if (filtered.length === 0) {
+            listEl.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon-wrap">
+                        ${this.getEmptyStateSvg('filter')}
+                    </div>
+                    <div class="empty-state-title">Tidak Ada Artikel yang Cocok</div>
+                    <div class="empty-state-desc">Tidak ada artikel pada halaman ini yang sesuai dengan filter yang dipilih. Coba hilangkan centang Open Access atau ubah pilihan tipe/tahun.</div>
+                    <div class="empty-state-actions">
+                        <button type="button" class="btn btn-brand" onclick="app.resetFedFilters()">✕ Reset Filter</button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const srcObj = this._fedCurrentSrcObj || { name: 'International Source' };
+        const startNum = (page - 1) * 15 + 1;
+
+        listEl.innerHTML = filtered.map((it, idx) => {
+            const itemNum = startNum + idx;
+            const safeTitle = this.esc(it.title || 'Untitled');
+            const safeAuthors = this.esc(it.authors || 'Unknown');
+            const safePub = this.esc(it.publicationName || '-');
+            const safeType = this.esc(it.contentType || 'Article');
+            const safePubType = this.esc(it.publicationType || srcObj.name);
+            const safeDate = it.date ? this.esc(it.date) : (it.year ? this.esc(String(it.year)) : '');
+            let linkUrl = (it.url || it.doi || '#').trim();
+            if (linkUrl.startsWith('https://openalex.org/https://openalex.org/')) {
+                linkUrl = linkUrl.replace('https://openalex.org/https://openalex.org/', 'https://openalex.org/');
+            } else if (linkUrl.startsWith('https://openalex.org/http://') || linkUrl.startsWith('https://openalex.org/https://')) {
+                linkUrl = linkUrl.replace('https://openalex.org/', '');
+            } else if (linkUrl.startsWith('https://doi.org/https://doi.org/')) {
+                linkUrl = linkUrl.replace('https://doi.org/https://doi.org/', 'https://doi.org/');
+            }
+            const abstractText = it.abstract ? this.esc(it.abstract) : '';
+            const isOa = it.openAccess || it.isOpenAccess || it.is_oa || it.openaccess;
+
+            return `
+            <div class="fed-item">
+                <div class="fed-item-header-row">
+                    <div class="fed-item-num-title">
+                        <span class="fed-item-idx">${itemNum}.</span>
+                        <a href="${linkUrl}" target="_blank" rel="noopener noreferrer">${safeTitle}</a>
+                    </div>
+                    <div class="fed-item-badges">
+                        ${isOa ? `<span class="fed-badge-oa" title="Artikel dapat diakses terbuka secara gratis">🔓 Open Access</span>` : `<span class="fed-badge-sub" title="Diperlukan langganan institusi atau akses via DOI">🔒 Subscription / DOI</span>`}
+                        <span class="fed-badge-type">${safeType}</span>
+                        ${safeDate ? `<span class="fed-badge-year">${safeDate}</span>` : ''}
+                    </div>
+                </div>
+                <ul class="fed-meta-list">
+                    <li><span class="fed-meta-label">Creator :</span> ${safeAuthors}</li>
+                    <li><span class="fed-meta-label">Content Type :</span> ${safeType}</li>
+                    <li><span class="fed-meta-label">Publication Name :</span> ${safePub}</li>
+                    <li><span class="fed-meta-label">Publication Type :</span> ${safePubType}${safeDate ? ` | ${safeDate}` : ''}</li>
+                </ul>
+                ${abstractText ? `
+                    <div class="fed-item-abstract">
+                        <span class="fed-meta-label">Abstract:</span> ${abstractText}
+                    </div>` : ''}
+                <div class="fed-actions-row">
+                    <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="font-size:0.75rem; padding:0.32rem 0.75rem">
+                        Buka Dokumen / DOI ↗
+                    </a>
+                    <button type="button" class="btn btn-ghost" onclick="app.copyCitation('${safeTitle.replace(/'/g, "\\'")}', '${safeAuthors.replace(/'/g, "\\'")}', '${it.year || ''}', '${safePub.replace(/'/g, "\\'")}')" style="font-size:0.75rem; padding:0.32rem 0.75rem">
+                        Salin Sitasi
+                    </button>
+                    ${isOa ? `<span style="font-size:0.75rem; color:#10b981; font-weight:600; display:inline-flex; align-items:center; gap:3px;">✓ Teks Lengkap Bebas Akses</span>` : ''}
+                </div>
+            </div>`;
+        }).join('');
     },
 
     renderFedPaginationHtml(curPage, totalPages, srcObj) {
@@ -1483,6 +1761,49 @@ const app = {
             `;
         });
     },
+    // ──── Empty State SVG Illustrations ────
+    getEmptyStateSvg(type) {
+        if (type === 'search') {
+            return `
+            <svg class="empty-state-svg" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="60" cy="60" r="50" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" stroke-opacity="0.3"/>
+                <path d="M35 75C35 68.3726 40.3726 63 47 63H73C79.6274 63 85 68.3726 85 75V78H35V75Z" fill="var(--bg-3)" stroke="currentColor" stroke-width="2"/>
+                <rect x="38" y="42" width="44" height="26" rx="4" fill="var(--bg-2)" stroke="currentColor" stroke-width="2"/>
+                <line x1="46" y1="50" x2="66" y2="50" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.6"/>
+                <line x1="46" y1="56" x2="74" y2="56" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.4"/>
+                <circle cx="68" cy="46" r="18" fill="var(--bg-1)" stroke="var(--brand)" stroke-width="2.5"/>
+                <circle cx="68" cy="46" r="11" fill="none" stroke="var(--brand)" stroke-width="1.5" stroke-dasharray="2 2"/>
+                <line x1="81" y1="59" x2="94" y2="72" stroke="var(--brand)" stroke-width="3.5" stroke-linecap="round"/>
+                <circle cx="34" cy="40" r="2" fill="var(--brand)"/>
+                <circle cx="88" cy="30" r="3" fill="var(--amber)"/>
+                <circle cx="28" cy="66" r="2.5" fill="var(--teal)"/>
+            </svg>`;
+        } else if (type === 'filter') {
+            return `
+            <svg class="empty-state-svg" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="60" cy="60" r="50" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" stroke-opacity="0.3"/>
+                <path d="M34 38H86L68 60V82L52 74V60L34 38Z" fill="var(--bg-2)" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <line x1="42" y1="46" x2="78" y2="46" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.4"/>
+                <circle cx="78" cy="74" r="14" fill="var(--bg-1)" stroke="var(--rose)" stroke-width="2.5"/>
+                <line x1="72" y1="68" x2="84" y2="80" stroke="var(--rose)" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="84" y1="68" x2="72" y2="80" stroke="var(--rose)" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>`;
+        } else if (type === 'bookmarks') {
+            return `
+            <svg class="empty-state-svg" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="60" cy="60" r="50" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" stroke-opacity="0.3"/>
+                <rect x="36" y="32" width="48" height="60" rx="6" fill="var(--bg-2)" stroke="currentColor" stroke-width="2"/>
+                <path d="M52 32V62L62 54L72 62V32H52Z" fill="var(--amber)" fill-opacity="0.2" stroke="var(--amber)" stroke-width="2" stroke-linejoin="round"/>
+                <polygon points="62,40 64,45 69,45 65,48 67,53 62,50 57,53 59,48 55,45 60,45" fill="var(--amber)"/>
+                <line x1="44" y1="74" x2="76" y2="74" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.4"/>
+                <line x1="44" y1="80" x2="68" y2="80" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.3"/>
+                <circle cx="90" cy="42" r="2.5" fill="var(--brand)"/>
+                <circle cx="30" cy="54" r="2" fill="var(--purple)"/>
+            </svg>`;
+        }
+        return '';
+    },
+
     // ──── Skeleton Loading ────
     _skeletonCard() {
         return `<div class="sk-card">
@@ -1504,10 +1825,62 @@ const app = {
     },
 
     renderResults() {
+        const grid = document.getElementById('results-grid');
+        const moreWrap = document.getElementById('more-wrap');
+        if (!grid) return;
+
+        if (this.currentResults.length === 0) {
+            if (moreWrap) moreWrap.style.display = 'none';
+            if (this.baseResults && this.baseResults.length > 0) {
+                // Filter returned 0 results
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1;">
+                        <div class="empty-state">
+                            <div class="empty-state-icon-wrap">
+                                ${this.getEmptyStateSvg('filter')}
+                            </div>
+                            <div class="empty-state-title">Tidak Ada Hasil yang Cocok</div>
+                            <div class="empty-state-desc">Kombinasi filter yang Anda pilih tidak menghasilkan koleksi apapun dari ${this.fmt(this.baseResults.length)} hasil awal.</div>
+                            <div class="empty-state-actions">
+                                <button type="button" class="btn btn-brand" onclick="app.clearFilters()">✕ Hapus Semua Filter</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Search returned 0 results
+                const curQuery = (document.getElementById('search-input') || {}).value || '';
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1;">
+                        <div class="empty-state">
+                            <div class="empty-state-icon-wrap">
+                                ${this.getEmptyStateSvg('search')}
+                            </div>
+                            <div class="empty-state-title">Koleksi Belum Ditemukan</div>
+                            <div class="empty-state-desc">Tidak ditemukan buku atau dokumen di katalog lokal perpustakaan untuk kata kunci <strong>"${this.esc(curQuery)}"</strong>.</div>
+                            <div class="empty-state-actions">
+                                <button type="button" class="btn btn-brand" onclick="app.selectFedSource('openalex')">🌐 Cari di Basis Data Internasional →</button>
+                                <button type="button" class="btn btn-ghost" onclick="document.getElementById('search-input').focus(); document.getElementById('search-input').select();">Ubah Kata Kunci</button>
+                            </div>
+                            <div class="empty-state-tips">
+                                <strong>💡 Tips Pencarian:</strong>
+                                <ul>
+                                    <li>Periksa kembali ejaan kata kunci pencarian Anda.</li>
+                                    <li>Gunakan kata yang lebih umum atau sinonim (misal: <em>"pemasaran"</em> daripada kalimat panjang).</li>
+                                    <li>Cari dalam istilah bahasa Inggris untuk menjangkau artikel jurnal internasional.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            return;
+        }
+
         const end = (this.resultsPage + 1) * this.perPage;
         const show = this.currentResults.slice(0, end);
-        document.getElementById('results-grid').innerHTML = show.map(b => this.bookCard(b)).join('');
-        document.getElementById('more-wrap').style.display = end < this.currentResults.length ? 'block' : 'none';
+        grid.innerHTML = show.map(b => this.bookCard(b)).join('');
+        if (moreWrap) moreWrap.style.display = end < this.currentResults.length ? 'block' : 'none';
     },
     loadMore() { this.resultsPage++; this.renderResults(); },
     sortResults() {
@@ -2228,10 +2601,20 @@ const app = {
         const show = this.prodiBooks.slice(0, end);
 
         if (show.length === 0) {
-            booksGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:4rem;color:var(--ink-3)">
-                <div style="font-size:3rem;margin-bottom:1rem;display:none;"></div>
-                <h3>${this.t('no_results')}</h3>
-            </div>`;
+            booksGrid.innerHTML = `
+                <div style="grid-column:1/-1;">
+                    <div class="empty-state">
+                        <div class="empty-state-icon-wrap">
+                            ${this.getEmptyStateSvg('search')}
+                        </div>
+                        <div class="empty-state-title">Belum Ada Koleksi untuk Prodi Ini</div>
+                        <div class="empty-state-desc">Koleksi buku atau tugas akhir untuk program studi ini belum tersedia di basis data.</div>
+                        <div class="empty-state-actions">
+                            <button type="button" class="btn btn-brand" onclick="app.closeProdiBooks()">Pilih Program Studi Lain</button>
+                        </div>
+                    </div>
+                </div>
+            `;
         } else {
             booksGrid.innerHTML = `<div style="grid-column:1/-1;color:var(--ink-2);font-size:.82rem;margin-bottom:.25rem">
                 ${this.fmt(this.prodiBooks.length)} ${this.t('prodi_books_count')}</div>` +
