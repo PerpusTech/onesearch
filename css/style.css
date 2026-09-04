@@ -2928,6 +2928,12 @@ h6 {
     border: 1px solid rgba(14, 165, 233, .25);
 }
 
+.badge-semanticscholar {
+    background: rgba(30, 64, 175, .12);
+    color: #1d4ed8;
+    border: 1px solid rgba(30, 64, 175, .25);
+}
+
 .fed-card-title {
     font-size: .95rem;
     font-weight: 700;
@@ -3772,3 +3778,23 @@ h6 {
     margin-bottom: 0.3rem;
     line-height: 1.45;
 }
+
+/* ──── Search Keyword Yellow Highlight ──── */
+mark.kw-highlight,
+.kw-highlight,
+.sug-text strong {
+    background-color: #fef08a !important;
+    color: #713f12 !important;
+    padding: 1px 3px;
+    border-radius: 3px;
+    font-weight: 600;
+    box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.25);
+}
+
+[data-theme="dark"] mark.kw-highlight,
+[data-theme="dark"] .kw-highlight,
+[data-theme="dark"] .sug-text strong {
+    background-color: rgba(234, 179, 8, 0.32) !important;
+    color: #fef08a !important;
+    box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.4);
+}

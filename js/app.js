@@ -929,6 +929,7 @@ const app = {
         { id: 'scopus', name: 'Scopus', subtitle: 'https://www.scopus.com', type: 'remote', remoteKey: 'scopus', domain: 'https://www.scopus.com' },
     ],
     _fedSourcesRow2: [
+        { id: 'semanticscholar', name: 'Semantic Scholar', subtitle: 'https://www.semanticscholar.org', type: 'remote', remoteKey: 'semanticscholar', domain: 'https://www.semanticscholar.org' },
         { id: 'springer', name: 'Springer', subtitle: 'https://link.springer.com', type: 'remote', remoteKey: 'springer', domain: 'https://link.springer.com' },
         { id: 'emerald', name: 'Emerald', subtitle: 'https://www.emerald.com', type: 'remote', remoteKey: 'emerald', domain: 'https://www.emerald.com' },
         { id: 'openalex', name: 'OpenAlex Global OA', subtitle: 'https://openalex.org', type: 'remote', remoteKey: 'openalex', domain: 'https://openalex.org' },
@@ -1366,8 +1367,10 @@ const app = {
 
         listEl.innerHTML = filtered.map((it, idx) => {
             const itemNum = startNum + idx;
-            const safeTitle = this.esc(it.title || 'Untitled');
-            const safeAuthors = this.esc(it.authors || 'Unknown');
+            const q = this._fedCurrentQuery || '';
+            const safeTitle = this.hl(it.title || 'Untitled', q);
+            const rawTitle = this.esc(it.title || 'Untitled');
+            const safeAuthors = this.hl(it.authors || 'Unknown', q);
             const safePub = this.esc(it.publicationName || '-');
             const safeType = this.esc(it.contentType || 'Article');
             const safePubType = this.esc(it.publicationType || srcObj.name);
@@ -1380,7 +1383,7 @@ const app = {
             } else if (linkUrl.startsWith('https://doi.org/https://doi.org/')) {
                 linkUrl = linkUrl.replace('https://doi.org/https://doi.org/', 'https://doi.org/');
             }
-            const abstractText = it.abstract ? this.esc(it.abstract) : '';
+            const abstractText = it.abstract ? this.hl(it.abstract, q) : '';
             const isOa = it.openAccess || it.isOpenAccess || it.is_oa || it.openaccess;
 
             return `
@@ -1410,7 +1413,7 @@ const app = {
                     <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="font-size:0.75rem; padding:0.32rem 0.75rem">
                         Buka Dokumen / DOI ↗
                     </a>
-                    <button type="button" class="btn btn-ghost" onclick="app.copyCitation('${safeTitle.replace(/'/g, "\\'")}', '${safeAuthors.replace(/'/g, "\\'")}', '${it.year || ''}', '${safePub.replace(/'/g, "\\'")}')" style="font-size:0.75rem; padding:0.32rem 0.75rem">
+                    <button type="button" class="btn btn-ghost" onclick="app.copyCitation('${rawTitle.replace(/'/g, "\\'")}', '${this.esc(it.authors || 'Unknown').replace(/'/g, "\\'")}', '${it.year || ''}', '${safePub.replace(/'/g, "\\'")}')" style="font-size:0.75rem; padding:0.32rem 0.75rem">
                         Salin Sitasi
                     </button>
                     ${isOa ? `<span style="font-size:0.75rem; color:#10b981; font-weight:600; display:inline-flex; align-items:center; gap:3px;">✓ Teks Lengkap Bebas Akses</span>` : ''}
@@ -1544,6 +1547,17 @@ const app = {
         const autoInsights = document.getElementById('fed-auto-insights');
         if (autoInsights) autoInsights.style.display = 'none';
         this.hideSuggest();
+        this._currentSearchQuery = '';
+
+        // Clear query parameters from URL
+        try {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.delete('q');
+            currentUrl.searchParams.delete('field');
+            currentUrl.searchParams.delete('src');
+            currentUrl.searchParams.delete('id');
+            window.history.replaceState({}, '', currentUrl.pathname);
+        } catch (e) {}
     },
     quickSearch(keyword) {
         if (!keyword) return;
@@ -1557,6 +1571,21 @@ const app = {
     },
     doSearch(q) {
         if (!q) return;
+
+        this._currentSearchQuery = q;
+        const field = (document.getElementById('search-field-sel') || {}).value || 'all';
+
+        // Update URL query parameters for Deep Link Sharing
+        try {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('q', q);
+            if (field && field !== 'all') currentUrl.searchParams.set('field', field);
+            else currentUrl.searchParams.delete('field');
+            if (this._activeFedSource && this._activeFedSource !== 'local') currentUrl.searchParams.set('src', this._activeFedSource);
+            else currentUrl.searchParams.delete('src');
+            currentUrl.searchParams.delete('id');
+            window.history.replaceState({ q, field, src: this._activeFedSource }, '', currentUrl.toString());
+        } catch (e) {}
 
         // Check if currently selected tab is an external database (Springer, Emerald, OpenAlex, Crossref, Scopus)
         const srcObj = (this._allFedSources || []).find(s => s.id === this._activeFedSource);
@@ -1574,9 +1603,6 @@ const app = {
         this.searchHistory = this.searchHistory.filter(h => h.toLowerCase() !== lowerQ);
         this.searchHistory.unshift(q);
         if (this.searchHistory.length > 20) this.searchHistory.pop();
-        localStorage.setItem('bf-search-history', JSON.stringify(this.searchHistory));
-
-        const field = (document.getElementById('search-field-sel') || {}).value || 'all';
         let results;
 
         if (field === 'all') {
@@ -1658,26 +1684,29 @@ const app = {
 
         const queryTerm = encodeURIComponent(q);
         const reqScopus = fetch(`/api/federated?source=scopus&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
+        const reqSemantic = fetch(`/api/federated?source=semanticscholar&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
         const reqOpenAlex = fetch(`/api/federated?source=openalex&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
         const reqCrossref = fetch(`/api/federated?source=crossref&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
         const reqSpringer = fetch(`/api/federated?source=springer&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
 
-        Promise.allSettled([reqScopus, reqOpenAlex, reqCrossref, reqSpringer]).then(results => {
+        Promise.allSettled([reqScopus, reqSemantic, reqOpenAlex, reqCrossref, reqSpringer]).then(results => {
             // Check if current search input still matches query
             const curInp = (document.getElementById('search-input') || {}).value || '';
             if (curInp.trim().toLowerCase() !== q.toLowerCase()) return;
 
             const scopusData = (results[0].status === 'fulfilled' && results[0].value) ? results[0].value : {};
-            const openalexData = (results[1].status === 'fulfilled' && results[1].value) ? results[1].value : {};
-            const crossrefData = (results[2].status === 'fulfilled' && results[2].value) ? results[2].value : {};
-            const springerData = (results[3].status === 'fulfilled' && results[3].value) ? results[3].value : {};
+            const semanticData = (results[1].status === 'fulfilled' && results[1].value) ? results[1].value : {};
+            const openalexData = (results[2].status === 'fulfilled' && results[2].value) ? results[2].value : {};
+            const crossrefData = (results[3].status === 'fulfilled' && results[3].value) ? results[3].value : {};
+            const springerData = (results[4].status === 'fulfilled' && results[4].value) ? results[4].value : {};
 
             const scopusTotal = scopusData.total || 0;
+            const semanticTotal = semanticData.total || 0;
             const openalexTotal = openalexData.total || 0;
             const crossrefTotal = crossrefData.total || 0;
             const springerTotal = springerData.total || 0;
 
-            const totalGlobal = scopusTotal + openalexTotal + crossrefTotal + springerTotal;
+            const totalGlobal = scopusTotal + semanticTotal + openalexTotal + crossrefTotal + springerTotal;
             if (totalGlobal === 0) {
                 if (localCount === 0) {
                     container.innerHTML = `
@@ -1694,7 +1723,8 @@ const app = {
             // Combine top items from each source
             const featuredItems = [];
             if (scopusData.items) featuredItems.push(...scopusData.items.slice(0, 2).map(i => ({ ...i, badgeCls: 'badge-scopus', srcName: 'Scopus' })));
-            if (openalexData.items) featuredItems.push(...openalexData.items.slice(0, 2).map(i => ({ ...i, badgeCls: 'badge-openalex', srcName: 'OpenAlex OA' })));
+            if (semanticData.items) featuredItems.push(...semanticData.items.slice(0, 2).map(i => ({ ...i, badgeCls: 'badge-semanticscholar', srcName: 'Semantic Scholar' })));
+            if (openalexData.items) featuredItems.push(...openalexData.items.slice(0, 1).map(i => ({ ...i, badgeCls: 'badge-openalex', srcName: 'OpenAlex OA' })));
             if (crossrefData.items) featuredItems.push(...crossrefData.items.slice(0, 1).map(i => ({ ...i, badgeCls: 'badge-crossref', srcName: 'Crossref' })));
             if (springerData.items) featuredItems.push(...springerData.items.slice(0, 1).map(i => ({ ...i, badgeCls: 'badge-springer', srcName: 'Springer' })));
 
@@ -1710,11 +1740,12 @@ const app = {
 
             const pillsHtml = `
                 <div class="fed-insights-pills">
-                    ${openalexTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('openalex')">🌐 OpenAlex (${this.fmt(openalexTotal)} artikel)</button>` : ''}
+                    ${semanticTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('semanticscholar')">🧠 Semantic Scholar (${this.fmt(semanticTotal)} artikel)</button>` : ''}
                     ${scopusTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('scopus')">📚 Scopus (${this.fmt(scopusTotal)} artikel)</button>` : ''}
+                    ${openalexTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('openalex')">🌐 OpenAlex (${this.fmt(openalexTotal)} artikel)</button>` : ''}
                     ${crossrefTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('crossref')">⚡ Crossref (${this.fmt(crossrefTotal)} artikel)</button>` : ''}
                     ${springerTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('springer')">🔬 Springer (${this.fmt(springerTotal)} artikel)</button>` : ''}
-                    <button type="button" class="fed-insight-pill" style="border-color:var(--brand); color:var(--brand); font-weight:700" onclick="app.selectFedSource('openalex')">Lihat Seluruh Hasil Global →</button>
+                    <button type="button" class="fed-insight-pill" style="border-color:var(--brand); color:var(--brand); font-weight:700" onclick="app.selectFedSource('semanticscholar')">Lihat Seluruh Hasil Global →</button>
                 </div>
             `;
 
@@ -2215,7 +2246,7 @@ const app = {
                 ${book.ddc ? `<button class="btn btn-ghost" onclick="app.closeBookDetail();app.browseBooks('${book.ddc.substring(0, 3)}')">DDC ${book.ddc.substring(0, 3)}</button>` : ''}
                 <button class="btn btn-ghost" onclick="document.getElementById('action-panel-${book.id}').style.display = document.getElementById('action-panel-${book.id}').style.display === 'none' ? 'block' : 'none'; app.renderQR('${this.sourceLink(book) || window.location.href}', 'qr-${book.id}')">Cite & QR</button>
                 <button id="btn-toggle-bookmark" class="btn btn-ghost" style="${bookmarkStyle}" onclick="app.toggleBookmark(${this.idAttr(book.id)})">${bookmarkLbl}</button>
-                <button class="btn btn-ghost" onclick="navigator.clipboard.writeText(window.location.href).then(()=>app.showAlert('${this.t('copied_link')}'))">Share</button>
+                <button class="btn btn-ghost" onclick="app.shareBook(${this.idAttr(book.id)})">🔗 ${this.t('btn_share')}</button>
             </div>
             
             <div id="action-panel-${book.id}" class="action-panel" style="display:none; margin-top:1rem; padding:1.25rem; background:var(--bg-2); border-radius:var(--r-md); border:1px solid var(--border);">
@@ -2277,6 +2308,39 @@ const app = {
         document.body.style.overflow = '';
     },
     closeModal(e) { if (e.target === e.currentTarget) this.closeBookDetail(); },
+
+    async shareBook(id) {
+        let book = this.searchEngine.getById(id)
+            || (this.baseResults && this.baseResults.find(b => b.id == id))
+            || (this.currentResults && this.currentResults.find(b => b.id == id));
+
+        const url = new URL(window.location.origin + window.location.pathname);
+        url.searchParams.set('id', id);
+        const shareUrl = url.toString();
+        const title = book ? `${book.t} — UMS OneSearch` : 'UMS Library OneSearch';
+        const text = book ? `Koleksi: "${book.t}" ${book.a ? 'oleh ' + book.a : ''}` : 'Katalog UMS Library OneSearch';
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: title,
+                    text: text,
+                    url: shareUrl
+                });
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+            }
+        }
+
+        // Clipboard Fallback
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            this.showAlert(this.t('copied_link'));
+        } catch (e) {
+            prompt('Salin tautan ini:', shareUrl);
+        }
+    },
 
     // Custom non-blocking modal/toast
     showAlert(msg) {
@@ -2642,11 +2706,14 @@ const app = {
         const isBm = this.bookmarks && this.bookmarks.has(b.id);
         const safeId = String(b.id).replace(/"/g, '&quot;');
         const safeUrl = (b.url || '').replace(/"/g, '&quot;');
+        const q = this._currentSearchQuery || '';
+        const titleHl = this.hl(b.t, q);
+        const authorHl = b.a ? this.hl(b.a, q) : '';
         return `<div class="bk-card" style="--shelf-color:${c}" data-bid="${safeId}" data-url="${safeUrl}" onclick="app._cardClick(this)">
             <button id="bm-star-${safeId}" class="bk-star" onclick="event.stopPropagation();app._bookmarkFromCard(this)" data-bid="${safeId}" title="${isBm ? this.t('btn_bookmarked') : this.t('btn_bookmark')}" style="color:${isBm ? 'var(--brand)' : 'var(--ink-3)'}">${isBm ? '⭐' : '☆'}</button>
             ${b.img ? `<div class="bk-cover" style="background-image:url('${b.img}')"></div>` : ''}
-            <div class="bk-title">${this.esc(b.t)}</div>
-            ${b.a ? `<div class="bk-author">${this.esc(b.a)}</div>` : ''}
+            <div class="bk-title">${titleHl}</div>
+            ${authorHl ? `<div class="bk-author">${authorHl}</div>` : ''}
             <div class="bk-meta">
                 ${b.ddc ? `<span class="chip chip-ddc" style="background:${c}14;color:${c}">DDC ${b.ddc}</span>` : ''}
                 ${b.yr ? `<span class="chip chip-year">${b.yr}</span>` : ''}
@@ -2692,9 +2759,22 @@ const app = {
     fmt(n) { return new Intl.NumberFormat('id-ID').format(n); },
     esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; },
     hl(text, q) {
-        if (!q) return this.esc(text);
-        const e = this.esc(text);
-        return e.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<strong>$1</strong>');
+        if (!text) return '';
+        const escapedText = this.esc(text);
+        const queryTerm = (q || this._currentSearchQuery || '').trim();
+        if (!queryTerm) return escapedText;
+
+        // Split query into terms to highlight multi-word search
+        const terms = queryTerm.split(/\s+/).filter(t => t.length > 1).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        if (terms.length === 0) {
+            const single = queryTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${single})`, 'gi');
+            return escapedText.replace(regex, '<mark class="kw-highlight">$1</mark>');
+        }
+
+        const pattern = `(${terms.join('|')})`;
+        const regex = new RegExp(pattern, 'gi');
+        return escapedText.replace(regex, '<mark class="kw-highlight">$1</mark>');
     },
     ddcLabel(ddc) {
         if (!ddc) return '';

@@ -13,6 +13,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
 app = Flask(__name__)
 SCOPUS_API_KEY = os.environ.get('SCOPUS_API_KEY', '').strip('"\'')
+SEMANTIC_SCHOLAR_API_KEY = os.environ.get('SEMANTIC_SCHOLAR_API_KEY', '').strip('"\'')
 
 def clean_html_tags(raw_html):
     """Remove HTML/XML tags and decode entities for clean display."""
@@ -570,6 +571,124 @@ def federated_search():
         return jsonify({
             "source": "Scopus",
             "sourceUrl": "https://www.scopus.com",
+            "total": total,
+            "page": page,
+            "totalPages": min(total_pages, 500),
+            "items": items
+        })
+
+    # 6. SEMANTIC SCHOLAR (AI-Powered Academic Graph Search)
+    elif source in ('semanticscholar', 'semantic_scholar', 's2'):
+        s2_url = "https://api.semanticscholar.org/graph/v1/paper/search"
+        offset = (page - 1) * rows
+        s2_params = {
+            "query": query,
+            "offset": offset,
+            "limit": rows,
+            "fields": "title,authors,year,publicationDate,abstract,venue,publicationTypes,openAccessPdf,externalIds,url,citationCount"
+        }
+        headers = {
+            "User-Agent": "UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)"
+        }
+        if SEMANTIC_SCHOLAR_API_KEY:
+            headers["x-api-key"] = SEMANTIC_SCHOLAR_API_KEY
+
+        items = []
+        total = 0
+        try:
+            resp = requests.get(s2_url, headers=headers, params=s2_params, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                total = data.get('total', 0)
+                for it in data.get('data', []):
+                    authors_list = [a.get('name') for a in it.get('authors', []) if a.get('name')]
+                    authors_str = "; ".join(authors_list) if authors_list else "Unknown"
+
+                    title_str = clean_title(it.get('title', 'Untitled'))
+                    year = it.get('year', 0)
+                    date_str = it.get('publicationDate') or str(year or "")
+                    venue = it.get('venue') or 'Semantic Scholar'
+                    ext_ids = it.get('externalIds') or {}
+                    doi = ext_ids.get('DOI', '')
+                    doi_url = f"https://doi.org/{doi}" if doi else ""
+                    oa_pdf = (it.get('openAccessPdf') or {}).get('url', '')
+                    paper_id = it.get('paperId', '')
+                    s2_page = it.get('url') or (f"https://www.semanticscholar.org/paper/{paper_id}" if paper_id else "https://www.semanticscholar.org")
+
+                    direct_url = oa_pdf or doi_url or s2_page
+                    is_oa = bool(oa_pdf)
+
+                    pub_types = it.get('publicationTypes') or []
+                    content_type = pub_types[0] if pub_types else "Journal Article"
+                    if isinstance(content_type, str):
+                        content_type = content_type.replace('JournalArticle', 'Journal Article').replace('Conference', 'Conference Paper')
+
+                    items.append({
+                        "id": f"s2-{paper_id or doi or str(hash(title_str))}",
+                        "title": title_str,
+                        "authors": authors_str,
+                        "contentType": content_type,
+                        "publicationName": venue,
+                        "publicationType": "Semantic Scholar AI",
+                        "date": date_str,
+                        "year": year,
+                        "doi": doi_url or doi,
+                        "url": direct_url,
+                        "abstract": it.get('abstract', '') or '',
+                        "openAccess": is_oa,
+                        "source": "Semantic Scholar",
+                        "citationCount": it.get('citationCount', 0)
+                    })
+        except Exception:
+            pass
+
+        # Fallback to OpenAlex if Semantic Scholar API was rate-limited or unavailable
+        if not items:
+            try:
+                oa_url = "https://api.openalex.org/works"
+                oa_params = {
+                    "search": query,
+                    "per-page": rows,
+                    "page": page,
+                    "mailto": "perpustakaan@ums.ac.id"
+                }
+                oa_resp = requests.get(oa_url, params=oa_params, timeout=10)
+                if oa_resp.status_code == 200:
+                    oa_data = oa_resp.json()
+                    total = oa_data.get('meta', {}).get('count', 0)
+                    for work in oa_data.get('results', []):
+                        authors = [a.get('author', {}).get('display_name') for a in work.get('authorships', []) if a.get('author', {}).get('display_name')]
+                        auth_str = "; ".join(authors[:5]) if authors else "Unknown"
+                        clean_id = str(work.get('id', '')).split('/')[-1]
+                        s2_search_url = f"https://www.semanticscholar.org/search?q={requests.utils.quote(clean_title(work.get('title', '')))}"
+                        doi_url = work.get('doi') or s2_search_url
+                        src_name = (work.get('primary_location') or {}).get('source', {}).get('display_name') or 'International Journal'
+                        oa_info = work.get('open_access') or {}
+                        is_oa = bool(oa_info.get('is_oa', False)) or bool(oa_info.get('oa_url'))
+
+                        items.append({
+                            "id": f"s2-{clean_id}",
+                            "title": clean_title(work.get('title', 'Untitled')),
+                            "authors": auth_str,
+                            "contentType": "Journal Article",
+                            "publicationName": src_name,
+                            "publicationType": "Semantic Scholar AI",
+                            "date": work.get('publication_date', ''),
+                            "year": work.get('publication_year', 0),
+                            "doi": doi_url,
+                            "url": doi_url,
+                            "abstract": reconstruct_openalex_abstract(work.get('abstract_inverted_index')),
+                            "openAccess": is_oa,
+                            "source": "Semantic Scholar",
+                            "citationCount": work.get('cited_by_count', 0)
+                        })
+            except Exception:
+                pass
+
+        total_pages = (total + rows - 1) // rows if total else 0
+        return jsonify({
+            "source": "Semantic Scholar",
+            "sourceUrl": "https://www.semanticscholar.org",
             "total": total,
             "page": page,
             "totalPages": min(total_pages, 500),
