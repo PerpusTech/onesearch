@@ -25,3 +25,7 @@ desktop.ini
 # Temporary
 *.tmp
 reorganize.ps1
+
+# Environment secrets
+.env
+*.env
