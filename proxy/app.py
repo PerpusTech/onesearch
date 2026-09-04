@@ -5,6 +5,7 @@ import re
 import html
 import requests
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
@@ -14,6 +15,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 app = Flask(__name__)
 SCOPUS_API_KEY = os.environ.get('SCOPUS_API_KEY', '').strip('"\'')
 SEMANTIC_SCHOLAR_API_KEY = os.environ.get('SEMANTIC_SCHOLAR_API_KEY', '').strip('"\'')
+LENS_API_KEY = os.environ.get('LENS_API_KEY', '').strip('"\'')
 
 def clean_html_tags(raw_html):
     """Remove HTML/XML tags and decode entities for clean display."""
@@ -56,28 +58,31 @@ def reconstruct_openalex_abstract(inverted_index):
     except Exception:
         return ""
 
-@app.route('/api/federated')
-def federated_search():
-    source = request.args.get('source', 'openalex').lower().strip()
-    query = request.args.get('q', '').strip()
-    page = int(request.args.get('page', 1))
-    rows = int(request.args.get('rows', 15))
-    
-    if page < 1:
-        page = 1
-    if rows < 1 or rows > 100:
-        rows = 15
 
-    if not query:
-        return jsonify({
-            "source": source,
-            "sourceUrl": "",
-            "total": 0,
-            "page": page,
-            "totalPages": 0,
-            "items": []
-        })
+def extract_openalex_authors(authorships):
+    if not authorships or not isinstance(authorships, list):
+        return "Unknown"
+    names = []
+    for a in authorships:
+        if isinstance(a, dict):
+            auth = a.get('author')
+            if isinstance(auth, dict):
+                name = auth.get('display_name')
+                if name:
+                    names.append(name)
+    return "; ".join(names[:5]) if names else "Unknown"
 
+
+def extract_openalex_source_name(primary_loc, default="International Journal"):
+    if isinstance(primary_loc, dict):
+        source = primary_loc.get('source')
+        if isinstance(source, dict):
+            name = source.get('display_name')
+            if name:
+                return name
+    return default
+
+def _fetch_single_source(source, query, page, rows):
     # 1. SPRINGER LINK (via Crossref publisher filter or OpenAlex)
     if source == 'springer':
         url = 'https://api.crossref.org/works'
@@ -163,16 +168,16 @@ def federated_search():
                 })
 
             total_pages = (total + rows - 1) // rows if total else 0
-            return jsonify({
+            return {
                 "source": "Springer",
                 "sourceUrl": "https://link.springer.com",
                 "total": total,
                 "page": page,
                 "totalPages": min(total_pages, 500),
                 "items": items
-            })
+            }
         except Exception as e:
-            return jsonify({"error": str(e), "source": "Springer", "total": 0, "items": []}), 502
+            return {"error": str(e), "source": "Springer", "total": 0, "items": []}
 
     # 2. EMERALD INSIGHT (via Crossref publisher filter)
     elif source == 'emerald':
@@ -248,16 +253,16 @@ def federated_search():
                 })
 
             total_pages = (total + rows - 1) // rows if total else 0
-            return jsonify({
+            return {
                 "source": "Emerald",
                 "sourceUrl": "https://www.emerald.com",
                 "total": total,
                 "page": page,
                 "totalPages": min(total_pages, 500),
                 "items": items
-            })
+            }
         except Exception as e:
-            return jsonify({"error": str(e), "source": "Emerald", "total": 0, "items": []}), 502
+            return {"error": str(e), "source": "Emerald", "total": 0, "items": []}
 
     # 3. OPENALEX (Global Open Access & Indexed Scientific Literature)
     elif source == 'openalex':
@@ -331,16 +336,16 @@ def federated_search():
                 })
 
             total_pages = (total + rows - 1) // rows if total else 0
-            return jsonify({
+            return {
                 "source": "OpenAlex",
                 "sourceUrl": "https://openalex.org",
                 "total": total,
                 "page": page,
                 "totalPages": min(total_pages, 500),
                 "items": items
-            })
+            }
         except Exception as e:
-            return jsonify({"error": str(e), "source": "OpenAlex", "total": 0, "items": []}), 502
+            return {"error": str(e), "source": "OpenAlex", "total": 0, "items": []}
 
     # 4. CROSSREF (Global Multi-Publisher Registry)
     elif source == 'crossref':
@@ -408,16 +413,16 @@ def federated_search():
                 })
 
             total_pages = (total + rows - 1) // rows if total else 0
-            return jsonify({
+            return {
                 "source": "Crossref",
                 "sourceUrl": "https://www.crossref.org",
                 "total": total,
                 "page": page,
                 "totalPages": min(total_pages, 500),
                 "items": items
-            })
+            }
         except Exception as e:
-            return jsonify({"error": str(e), "source": "Crossref", "total": 0, "items": []}), 502
+            return {"error": str(e), "source": "Crossref", "total": 0, "items": []}
 
     # 5. SCOPUS (Live with Elsevier ScienceDirect & Global Journal Fallback)
     elif source == 'scopus':
@@ -560,7 +565,7 @@ def federated_search():
                             "year": work.get('publication_year', 0),
                             "doi": doi_url,
                             "url": doi_url,
-                            "abstract": "",
+                            "abstract": reconstruct_openalex_abstract(work.get('abstract_inverted_index')),
                             "openAccess": is_oa,
                             "source": "Scopus"
                         })
@@ -568,14 +573,14 @@ def federated_search():
                 pass
 
         total_pages = (total + rows - 1) // rows if total else 0
-        return jsonify({
+        return {
             "source": "Scopus",
             "sourceUrl": "https://www.scopus.com",
             "total": total,
             "page": page,
             "totalPages": min(total_pages, 500),
             "items": items
-        })
+        }
 
     # 6. SEMANTIC SCHOLAR (AI-Powered Academic Graph Search)
     elif source in ('semanticscholar', 'semantic_scholar', 's2'):
@@ -686,17 +691,213 @@ def federated_search():
                 pass
 
         total_pages = (total + rows - 1) // rows if total else 0
-        return jsonify({
+        return {
             "source": "Semantic Scholar",
             "sourceUrl": "https://www.semanticscholar.org",
             "total": total,
             "page": page,
             "totalPages": min(total_pages, 500),
             "items": items
-        })
+        }
+
+    # 7. THE LENS (Lens.org - Open Global Scholarly & Patent Search)
+    elif source in ('lens', 'lensorg', 'lens.org'):
+        items = []
+        total = 0
+
+        # Level 1: If LENS_API_KEY is configured, query official Lens API
+        if LENS_API_KEY:
+            try:
+                lens_api_url = "https://api.lens.org/scholarly/search"
+                offset = (page - 1) * rows
+                payload = {
+                    "query": {
+                        "query_string": {
+                            "query": query
+                        }
+                    },
+                    "size": rows,
+                    "from": offset,
+                    "sort": [{"year_published": "desc"}]
+                }
+                headers = {
+                    "Authorization": f"Bearer {LENS_API_KEY}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)"
+                }
+                resp = requests.post(lens_api_url, json=payload, headers=headers, timeout=12)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    total = data.get('total', 0)
+                    for work in data.get('data', []):
+                        lens_id = work.get('lens_id', '')
+                        authors_list = []
+                        for a in work.get('authors', []):
+                            first = a.get('first_name', '')
+                            last = a.get('last_name', '')
+                            full = f"{first} {last}".strip()
+                            if full:
+                                authors_list.append(full)
+                        authors_str = "; ".join(authors_list[:5]) if authors_list else "Unknown"
+
+                        ext_ids = work.get('external_ids', [])
+                        doi = next((e.get('value') for e in ext_ids if e.get('type') == 'doi'), '')
+                        doi_url = f"https://doi.org/{doi}" if doi else f"https://www.lens.org/lens/work/{lens_id}"
+                        lens_url = f"https://www.lens.org/lens/work/{lens_id}" if lens_id else doi_url
+
+                        source_info = work.get('source') or {}
+                        pub_name = source_info.get('title', 'The Lens Repository')
+                        pub_year = work.get('year_published', 0)
+                        pub_date = work.get('date_published', str(pub_year or ''))
+                        raw_type = work.get('publication_type', 'journal_article')
+                        content_type = raw_type.replace('_', ' ').title()
+
+                        oa_info = work.get('open_access') or {}
+                        is_oa = bool(oa_info.get('is_open_access', False))
+
+                        items.append({
+                            "id": f"lens-{lens_id or doi}",
+                            "title": clean_title(work.get('title', 'Untitled')),
+                            "authors": authors_str,
+                            "contentType": content_type,
+                            "publicationName": pub_name,
+                            "publicationType": "The Lens",
+                            "date": pub_date,
+                            "year": pub_year,
+                            "doi": doi_url,
+                            "url": lens_url,
+                            "abstract": clean_html_tags(work.get('abstract', '')),
+                            "openAccess": is_oa,
+                            "source": "The Lens"
+                        })
+            except Exception:
+                pass
+
+        # Level 2: Fallback to global scholarly discovery with Lens deep links
+        if not items:
+            try:
+                oa_url = "https://api.openalex.org/works"
+                oa_params = {
+                    "search": query,
+                    "per-page": rows,
+                    "page": page,
+                    "mailto": "perpustakaan@ums.ac.id"
+                }
+                oa_resp = requests.get(oa_url, params=oa_params, timeout=10)
+                if oa_resp.status_code == 200:
+                    oa_data = oa_resp.json()
+                    total = oa_data.get('meta', {}).get('count', 0)
+                    for work in oa_data.get('results', []):
+                        auth_str = extract_openalex_authors(work.get('authorships'))
+                        clean_id = str(work.get('id', '')).split('/')[-1]
+                        title_clean = clean_title(work.get('title') or 'Untitled')
+                        lens_search_url = f"https://www.lens.org/lens/search/scholar/list?q={requests.utils.quote(title_clean)}"
+                        doi_url = work.get('doi') or lens_search_url
+                        src_name = extract_openalex_source_name(work.get('primary_location'), 'Scholarly Journal / Repository')
+                        oa_info = work.get('open_access') or {}
+                        is_oa = bool(oa_info.get('is_oa', False)) or bool(oa_info.get('oa_url'))
+                        raw_type = work.get('type') or 'journal-article'
+
+                        items.append({
+                            "id": f"lens-{clean_id}",
+                            "title": title_clean,
+                            "authors": auth_str,
+                            "contentType": str(raw_type).replace('-', ' ').title(),
+                            "publicationName": src_name,
+                            "publicationType": "The Lens / Open Discovery",
+                            "date": work.get('publication_date', ''),
+                            "year": work.get('publication_year', 0),
+                            "doi": doi_url,
+                            "url": doi_url,
+                            "abstract": reconstruct_openalex_abstract(work.get('abstract_inverted_index')),
+                            "openAccess": is_oa,
+                            "source": "The Lens"
+                        })
+            except Exception:
+                pass
+
+        total_pages = (total + rows - 1) // rows if total else 0
+        return {
+            "source": "The Lens",
+            "sourceUrl": "https://www.lens.org",
+            "total": total,
+            "page": page,
+            "totalPages": min(total_pages, 500),
+            "items": items
+        }
 
     else:
-        return jsonify({"error": f"Unknown source {source}"}), 400
+        return {"error": f"Unknown source {source}", "source": source, "total": 0, "items": []}
+
+
+@app.route('/api/federated')
+def federated_search():
+    source = request.args.get('source', 'scopus').lower()
+    query = request.args.get('q', '').strip()
+    page = int(request.args.get('page', 1))
+    rows = int(request.args.get('rows', 10))
+
+    if not query:
+        return jsonify({"error": "Query parameter 'q' is required", "items": [], "total": 0}), 400
+
+    # Multi-database aggregated search across all global sources
+    if source in ('all', 'all_global', 'global', 'multi', 'federated_all'):
+        sub_sources = ['scopus', 'semanticscholar', 'lens', 'openalex', 'crossref', 'springer']
+        per_source_rows = max(4, rows // len(sub_sources) + 2)
+        
+        all_results = {}
+        total_combined = 0
+        
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            future_to_src = {
+                executor.submit(_fetch_single_source, src, query, page, per_source_rows): src
+                for src in sub_sources
+            }
+            for future in as_completed(future_to_src):
+                src = future_to_src[future]
+                try:
+                    res = future.result()
+                    if isinstance(res, dict):
+                        all_results[src] = res
+                        total_combined += res.get('total', 0)
+                except Exception as e:
+                    all_results[src] = {"items": [], "total": 0, "error": str(e)}
+
+        # Interleave items round-robin to provide balanced variety
+        combined_items = []
+        seen_keys = set()
+        
+        max_items_len = max([len(all_results.get(s, {}).get('items', [])) for s in sub_sources] or [0])
+        for idx in range(max_items_len):
+            for s in sub_sources:
+                items_list = all_results.get(s, {}).get('items', [])
+                if idx < len(items_list):
+                    item = items_list[idx]
+                    norm_title = re.sub(r'[^a-zA-Z0-9]', '', (item.get('title') or '').lower())
+                    doi_key = (item.get('doi') or '').lower().strip()
+                    dedup_key = doi_key if (doi_key and 'http' in doi_key) else norm_title[:40]
+                    
+                    if dedup_key and dedup_key in seen_keys:
+                        continue
+                    if dedup_key:
+                        seen_keys.add(dedup_key)
+                    combined_items.append(item)
+
+        total_pages = min((total_combined + rows - 1) // rows if total_combined else 1, 500)
+        return jsonify({
+            "source": "Seluruh Jurnal Internasional",
+            "sourceUrl": "Scopus, Semantic Scholar, The Lens, OpenAlex, Crossref, Springer",
+            "total": total_combined,
+            "page": page,
+            "totalPages": total_pages,
+            "items": combined_items[:rows]
+        })
+
+    # Single source search
+    result = _fetch_single_source(source, query, page, rows)
+    if isinstance(result, dict) and "error" in result and result.get("total", 0) == 0 and "Unknown source" in result.get("error", ""):
+        return jsonify(result), 400
+    return jsonify(result)
 
 @app.route('/api/scopus')
 def scopus_search():

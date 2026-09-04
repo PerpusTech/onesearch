@@ -94,7 +94,7 @@ const app = {
             classification: "Klasifikasi",
             description: "Deskripsi",
             view_at: "Lihat di",
-            cite_qr: "Kutip & 📱 QR URL",
+            cite_qr: "Kutip & QR URL",
             auto_cite: "Kutipan Otomatis",
             total_books: "Total Buku",
             with_ddc: "Dengan DDC",
@@ -882,9 +882,9 @@ const app = {
                         ${this.getEmptyStateSvg('bookmarks')}
                     </div>
                     <div class="empty-state-title">Belum Ada Koleksi Disimpan</div>
-                    <div class="empty-state-desc">Simpan buku, skripsi, atau artikel penting dengan menekan tombol bintang (⭐) pada kartu koleksi agar tersimpan di sini.</div>
+                    <div class="empty-state-desc">Simpan buku, skripsi, atau artikel penting dengan menekan tombol bintang pada kartu koleksi agar tersimpan di sini.</div>
                     <div class="empty-state-actions">
-                        <button type="button" class="btn btn-brand" onclick="app.showBrowse()">🧭 Jelajahi Koleksi</button>
+                        <button type="button" class="btn btn-brand" onclick="app.showBrowse()">Jelajahi Koleksi</button>
                         <button type="button" class="btn btn-ghost" onclick="app.showHome()">Kembali ke Beranda</button>
                     </div>
                 </div>
@@ -926,12 +926,13 @@ const app = {
         { id: 'etd', name: 'Skripsi, Tesis & Disertasi', subtitle: 'https://eprints.ums.ac.id', type: 'local_etd', label: 'Skripsi & ETD UMS' },
         { id: 'journal', name: 'Artikel Jurnal UMS', subtitle: 'https://journals.ums.ac.id', type: 'local_journal', label: 'Jurnal Ilmiah UMS' },
         { id: 'sibi', name: 'Buku Digital (SIBI)', subtitle: 'Katalog SIBI Kemdikbud', type: 'sibi_api', label: 'Buku Digital SIBI' },
-        { id: 'scopus', name: 'Scopus', subtitle: 'https://www.scopus.com', type: 'remote', remoteKey: 'scopus', domain: 'https://www.scopus.com' },
+        { id: 'all_global', name: 'Seluruh Jurnal Global', subtitle: 'Agregasi Multi-Database', type: 'remote', remoteKey: 'all_global', domain: 'Scopus, S2, Lens, Crossref, OA' },
     ],
     _fedSourcesRow2: [
+        { id: 'scopus', name: 'Scopus', subtitle: 'https://www.scopus.com', type: 'remote', remoteKey: 'scopus', domain: 'https://www.scopus.com' },
         { id: 'semanticscholar', name: 'Semantic Scholar', subtitle: 'https://www.semanticscholar.org', type: 'remote', remoteKey: 'semanticscholar', domain: 'https://www.semanticscholar.org' },
+        { id: 'lens', name: 'The Lens', subtitle: 'https://www.lens.org', type: 'remote', remoteKey: 'lens', domain: 'https://www.lens.org' },
         { id: 'springer', name: 'Springer', subtitle: 'https://link.springer.com', type: 'remote', remoteKey: 'springer', domain: 'https://link.springer.com' },
-        { id: 'emerald', name: 'Emerald', subtitle: 'https://www.emerald.com', type: 'remote', remoteKey: 'emerald', domain: 'https://www.emerald.com' },
         { id: 'openalex', name: 'OpenAlex Global OA', subtitle: 'https://openalex.org', type: 'remote', remoteKey: 'openalex', domain: 'https://openalex.org' },
         { id: 'crossref', name: 'Crossref', subtitle: 'https://www.crossref.org', type: 'remote', remoteKey: 'crossref', domain: 'https://www.crossref.org' },
     ],
@@ -1204,7 +1205,6 @@ const app = {
 
                     <!-- Open Access Toggle Button -->
                     <button type="button" class="fed-filter-oa-btn ${isOaActive ? 'active' : ''}" onclick="app.toggleFedOpenAccess()" title="Tampilkan hanya artikel Open Access">
-                        <span class="fed-oa-icon">${isOaActive ? '🔓' : '🔓'}</span>
                         <span>Open Access Only</span>
                         ${oaCount > 0 ? `<span class="fed-oa-badge">${oaCount}</span>` : ''}
                     </button>
@@ -1385,6 +1385,15 @@ const app = {
             }
             const abstractText = it.abstract ? this.hl(it.abstract, q) : '';
             const isOa = it.openAccess || it.isOpenAccess || it.is_oa || it.openaccess;
+            const itemSource = it.source || (srcObj ? srcObj.name : '');
+            let srcBadgeCls = 'fed-badge-type';
+            if (itemSource.toLowerCase().includes('scopus')) srcBadgeCls = 'badge-scopus';
+            else if (itemSource.toLowerCase().includes('semantic')) srcBadgeCls = 'badge-semanticscholar';
+            else if (itemSource.toLowerCase().includes('lens')) srcBadgeCls = 'badge-lens';
+            else if (itemSource.toLowerCase().includes('openalex')) srcBadgeCls = 'badge-openalex';
+            else if (itemSource.toLowerCase().includes('crossref')) srcBadgeCls = 'badge-crossref';
+            else if (itemSource.toLowerCase().includes('springer')) srcBadgeCls = 'badge-springer';
+            else if (itemSource.toLowerCase().includes('emerald')) srcBadgeCls = 'badge-emerald';
 
             return `
             <div class="fed-item">
@@ -1394,7 +1403,8 @@ const app = {
                         <a href="${linkUrl}" target="_blank" rel="noopener noreferrer">${safeTitle}</a>
                     </div>
                     <div class="fed-item-badges">
-                        ${isOa ? `<span class="fed-badge-oa" title="Artikel dapat diakses terbuka secara gratis">🔓 Open Access</span>` : `<span class="fed-badge-sub" title="Diperlukan langganan institusi atau akses via DOI">🔒 Subscription / DOI</span>`}
+                        ${itemSource ? `<span class="fed-card-source-badge ${srcBadgeCls}" style="font-size:0.72rem; padding:0.18rem 0.55rem; border-radius:999px;">${this.esc(itemSource)}</span>` : ''}
+                        ${isOa ? `<span class="fed-badge-oa" title="Artikel dapat diakses terbuka secara gratis">Open Access</span>` : `<span class="fed-badge-sub" title="Diperlukan langganan institusi atau akses via DOI">Subscription / DOI</span>`}
                         <span class="fed-badge-type">${safeType}</span>
                         ${safeDate ? `<span class="fed-badge-year">${safeDate}</span>` : ''}
                     </div>
@@ -1416,7 +1426,7 @@ const app = {
                     <button type="button" class="btn btn-ghost" onclick="app.copyCitation('${rawTitle.replace(/'/g, "\\'")}', '${this.esc(it.authors || 'Unknown').replace(/'/g, "\\'")}', '${it.year || ''}', '${safePub.replace(/'/g, "\\'")}')" style="font-size:0.75rem; padding:0.32rem 0.75rem">
                         Salin Sitasi
                     </button>
-                    ${isOa ? `<span style="font-size:0.75rem; color:#10b981; font-weight:600; display:inline-flex; align-items:center; gap:3px;">✓ Teks Lengkap Bebas Akses</span>` : ''}
+                    ${isOa ? `<span style="font-size:0.75rem; color:#10b981; font-weight:600; display:inline-flex; align-items:center;">Teks Lengkap Bebas Akses</span>` : ''}
                 </div>
             </div>`;
         }).join('');
@@ -1523,7 +1533,7 @@ const app = {
         if (q && q.trim().length >= 2) {
             html += `
             <div class="sug-item" style="background:var(--bg-2); border-top:1px solid var(--border); margin-top:3px;" onclick="app.selectFedSource('openalex'); app.fetchFederatedDiscovery(app._allFedSources.find(s=>s.id==='openalex'), '${this.esc(q).replace(/'/g, "\\'")}', 1); app.hideSuggest();">
-                <span class="sug-badge" style="background:rgba(37,99,235,0.12); color:var(--brand); font-weight:700">🌐 Global OA</span>
+                <span class="sug-badge" style="background:rgba(37,99,235,0.12); color:var(--brand); font-weight:700">Global OA</span>
                 <span class="sug-text">Cari <strong>"${this.esc(q)}"</strong> di Scopus, Crossref & OpenAlex →</span>
             </div>`;
         }
@@ -1666,14 +1676,14 @@ const app = {
         container.innerHTML = `
             <div class="fed-insights-header">
                 <div class="fed-insights-title-group">
-                    <h3><span style="font-size:1.3rem">🌐</span> Literatur Ilmiah Internasional Terkait "${this.esc(q)}"</h3>
+                    <h3>Literatur Ilmiah Internasional Terkait "${this.esc(q)}"</h3>
                     <p>Mencari live ke basis data Scopus, Crossref, OpenAlex Global OA, Springer & Emerald...</p>
                 </div>
             </div>
             <div class="fed-insights-pills">
-                <span class="fed-insight-pill">⏳ Memuat estimasi Scopus...</span>
-                <span class="fed-insight-pill">⏳ Memuat OpenAlex...</span>
-                <span class="fed-insight-pill">⏳ Memuat Crossref...</span>
+                <span class="fed-insight-pill">Memuat estimasi Scopus...</span>
+                <span class="fed-insight-pill">Memuat OpenAlex...</span>
+                <span class="fed-insight-pill">Memuat Crossref...</span>
             </div>
             <div class="fed-insights-grid" style="opacity:0.6">
                 <div class="fed-insight-card" style="min-height:140px; display:flex; align-items:center; justify-content:center; color:var(--ink-3)">
@@ -1685,28 +1695,31 @@ const app = {
         const queryTerm = encodeURIComponent(q);
         const reqScopus = fetch(`/api/federated?source=scopus&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
         const reqSemantic = fetch(`/api/federated?source=semanticscholar&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
+        const reqLens = fetch(`/api/federated?source=lens&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
         const reqOpenAlex = fetch(`/api/federated?source=openalex&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
         const reqCrossref = fetch(`/api/federated?source=crossref&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
         const reqSpringer = fetch(`/api/federated?source=springer&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
 
-        Promise.allSettled([reqScopus, reqSemantic, reqOpenAlex, reqCrossref, reqSpringer]).then(results => {
+        Promise.allSettled([reqScopus, reqSemantic, reqLens, reqOpenAlex, reqCrossref, reqSpringer]).then(results => {
             // Check if current search input still matches query
             const curInp = (document.getElementById('search-input') || {}).value || '';
             if (curInp.trim().toLowerCase() !== q.toLowerCase()) return;
 
             const scopusData = (results[0].status === 'fulfilled' && results[0].value) ? results[0].value : {};
             const semanticData = (results[1].status === 'fulfilled' && results[1].value) ? results[1].value : {};
-            const openalexData = (results[2].status === 'fulfilled' && results[2].value) ? results[2].value : {};
-            const crossrefData = (results[3].status === 'fulfilled' && results[3].value) ? results[3].value : {};
-            const springerData = (results[4].status === 'fulfilled' && results[4].value) ? results[4].value : {};
+            const lensData = (results[2].status === 'fulfilled' && results[2].value) ? results[2].value : {};
+            const openalexData = (results[3].status === 'fulfilled' && results[3].value) ? results[3].value : {};
+            const crossrefData = (results[4].status === 'fulfilled' && results[4].value) ? results[4].value : {};
+            const springerData = (results[5].status === 'fulfilled' && results[5].value) ? results[5].value : {};
 
             const scopusTotal = scopusData.total || 0;
             const semanticTotal = semanticData.total || 0;
+            const lensTotal = lensData.total || 0;
             const openalexTotal = openalexData.total || 0;
             const crossrefTotal = crossrefData.total || 0;
             const springerTotal = springerData.total || 0;
 
-            const totalGlobal = scopusTotal + semanticTotal + openalexTotal + crossrefTotal + springerTotal;
+            const totalGlobal = scopusTotal + semanticTotal + lensTotal + openalexTotal + crossrefTotal + springerTotal;
             if (totalGlobal === 0) {
                 if (localCount === 0) {
                     container.innerHTML = `
@@ -1724,6 +1737,7 @@ const app = {
             const featuredItems = [];
             if (scopusData.items) featuredItems.push(...scopusData.items.slice(0, 2).map(i => ({ ...i, badgeCls: 'badge-scopus', srcName: 'Scopus' })));
             if (semanticData.items) featuredItems.push(...semanticData.items.slice(0, 2).map(i => ({ ...i, badgeCls: 'badge-semanticscholar', srcName: 'Semantic Scholar' })));
+            if (lensData.items) featuredItems.push(...lensData.items.slice(0, 1).map(i => ({ ...i, badgeCls: 'badge-lens', srcName: 'The Lens' })));
             if (openalexData.items) featuredItems.push(...openalexData.items.slice(0, 1).map(i => ({ ...i, badgeCls: 'badge-openalex', srcName: 'OpenAlex OA' })));
             if (crossrefData.items) featuredItems.push(...crossrefData.items.slice(0, 1).map(i => ({ ...i, badgeCls: 'badge-crossref', srcName: 'Crossref' })));
             if (springerData.items) featuredItems.push(...springerData.items.slice(0, 1).map(i => ({ ...i, badgeCls: 'badge-springer', srcName: 'Springer' })));
@@ -1732,7 +1746,6 @@ const app = {
             if (localCount === 0) {
                 zeroBannerHtml = `
                     <div class="zero-local-alert">
-                        <span style="font-size:1.3rem">💡</span>
                         <div>Koleksi lokal belum tersedia untuk kata kunci ini. Berikut <strong>${this.fmt(totalGlobal)}+ artikel ilmiah internasional</strong> yang kami temukan secara langsung:</div>
                     </div>
                 `;
@@ -1740,12 +1753,13 @@ const app = {
 
             const pillsHtml = `
                 <div class="fed-insights-pills">
-                    ${semanticTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('semanticscholar')">🧠 Semantic Scholar (${this.fmt(semanticTotal)} artikel)</button>` : ''}
-                    ${scopusTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('scopus')">📚 Scopus (${this.fmt(scopusTotal)} artikel)</button>` : ''}
-                    ${openalexTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('openalex')">🌐 OpenAlex (${this.fmt(openalexTotal)} artikel)</button>` : ''}
-                    ${crossrefTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('crossref')">⚡ Crossref (${this.fmt(crossrefTotal)} artikel)</button>` : ''}
-                    ${springerTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('springer')">🔬 Springer (${this.fmt(springerTotal)} artikel)</button>` : ''}
-                    <button type="button" class="fed-insight-pill" style="border-color:var(--brand); color:var(--brand); font-weight:700" onclick="app.selectFedSource('semanticscholar')">Lihat Seluruh Hasil Global →</button>
+                    ${semanticTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('semanticscholar')">Semantic Scholar (${this.fmt(semanticTotal)} artikel)</button>` : ''}
+                    ${lensTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('lens')">The Lens (${this.fmt(lensTotal)} artikel)</button>` : ''}
+                    ${scopusTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('scopus')">Scopus (${this.fmt(scopusTotal)} artikel)</button>` : ''}
+                    ${openalexTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('openalex')">OpenAlex (${this.fmt(openalexTotal)} artikel)</button>` : ''}
+                    ${crossrefTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('crossref')">Crossref (${this.fmt(crossrefTotal)} artikel)</button>` : ''}
+                    ${springerTotal > 0 ? `<button type="button" class="fed-insight-pill" onclick="app.selectFedSource('springer')">Springer (${this.fmt(springerTotal)} artikel)</button>` : ''}
+                    <button type="button" class="fed-insight-pill" style="border-color:var(--brand); color:var(--brand); font-weight:700" onclick="app.selectFedSource('all_global')">Lihat Seluruh Hasil Global →</button>
                 </div>
             `;
 
@@ -1764,8 +1778,8 @@ const app = {
                                 <a href="${doiUrl}" target="_blank" rel="noopener noreferrer">${this.esc(it.title)}</a>
                             </div>
                             <div class="fed-card-meta">
-                                ${authors ? `<span>✍️ ${this.esc(authors.substring(0, 75))}${authors.length > 75 ? '...' : ''}</span>` : ''}
-                                ${journalStr ? `<div>🏛️ <em>${this.esc(journalStr)}</em> ${yearStr}</div>` : ''}
+                                ${authors ? `<span>${this.esc(authors.substring(0, 75))}${authors.length > 75 ? '...' : ''}</span>` : ''}
+                                ${journalStr ? `<div><em>${this.esc(journalStr)}</em> ${yearStr}</div>` : ''}
                             </div>
                             ${abstractStr ? `<div class="fed-card-snippet">${this.esc(abstractStr)}</div>` : ''}
                         </div>
@@ -1781,7 +1795,7 @@ const app = {
                 ${zeroBannerHtml}
                 <div class="fed-insights-header">
                     <div class="fed-insights-title-group">
-                        <h3><span style="font-size:1.3rem">🌐</span> Literatur Ilmiah Internasional Terkait "${this.esc(q)}"</h3>
+                        <h3>Literatur Ilmiah Internasional Terkait "${this.esc(q)}"</h3>
                         <p>Ditemukan <strong>${this.fmt(totalGlobal)}+ artikel</strong> di database terindeks global:</p>
                     </div>
                 </div>
@@ -1890,11 +1904,11 @@ const app = {
                             <div class="empty-state-title">Koleksi Belum Ditemukan</div>
                             <div class="empty-state-desc">Tidak ditemukan buku atau dokumen di katalog lokal perpustakaan untuk kata kunci <strong>"${this.esc(curQuery)}"</strong>.</div>
                             <div class="empty-state-actions">
-                                <button type="button" class="btn btn-brand" onclick="app.selectFedSource('openalex')">🌐 Cari di Basis Data Internasional →</button>
+                                <button type="button" class="btn btn-brand" onclick="app.selectFedSource('openalex')">Cari di Basis Data Internasional →</button>
                                 <button type="button" class="btn btn-ghost" onclick="document.getElementById('search-input').focus(); document.getElementById('search-input').select();">Ubah Kata Kunci</button>
                             </div>
                             <div class="empty-state-tips">
-                                <strong>💡 Tips Pencarian:</strong>
+                                <strong>Tips Pencarian:</strong>
                                 <ul>
                                     <li>Periksa kembali ejaan kata kunci pencarian Anda.</li>
                                     <li>Gunakan kata yang lebih umum atau sinonim (misal: <em>"pemasaran"</em> daripada kalimat panjang).</li>
@@ -2246,7 +2260,7 @@ const app = {
                 ${book.ddc ? `<button class="btn btn-ghost" onclick="app.closeBookDetail();app.browseBooks('${book.ddc.substring(0, 3)}')">DDC ${book.ddc.substring(0, 3)}</button>` : ''}
                 <button class="btn btn-ghost" onclick="document.getElementById('action-panel-${book.id}').style.display = document.getElementById('action-panel-${book.id}').style.display === 'none' ? 'block' : 'none'; app.renderQR('${this.sourceLink(book) || window.location.href}', 'qr-${book.id}')">Cite & QR</button>
                 <button id="btn-toggle-bookmark" class="btn btn-ghost" style="${bookmarkStyle}" onclick="app.toggleBookmark(${this.idAttr(book.id)})">${bookmarkLbl}</button>
-                <button class="btn btn-ghost" onclick="app.shareBook(${this.idAttr(book.id)})">🔗 ${this.t('btn_share')}</button>
+                <button class="btn btn-ghost" onclick="app.shareBook(${this.idAttr(book.id)})">${this.t('btn_share')}</button>
             </div>
             
             <div id="action-panel-${book.id}" class="action-panel" style="display:none; margin-top:1rem; padding:1.25rem; background:var(--bg-2); border-radius:var(--r-md); border:1px solid var(--border);">
