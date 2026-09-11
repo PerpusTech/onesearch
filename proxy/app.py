@@ -4,13 +4,16 @@ import json
 import re
 import html
 import time
+import io
+import csv
 import threading
 import requests
 from urllib3.util import Retry
 from requests.adapters import HTTPAdapter
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from flask import Flask, request, jsonify, Response, redirect
+import hmac
+from flask import Flask, request, jsonify, Response, redirect, send_file
 from dotenv import load_dotenv
 
 # Load env variables from root .env or proxy/.env
@@ -40,6 +43,230 @@ def _init_resilient_session():
     return session
 
 HTTP_SESSION = _init_resilient_session()
+
+# ── PATHS & GLOBAL DIRECTORIES ──
+ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'ums-onesearch-secret-key').strip('"\'')
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+LOGS_DIR = os.path.join(BASE_DIR, 'logs', 'harvest')
+STATE_FILE = os.path.join(DATA_DIR, 'scheduler_state.json')
+INTERNATIONAL_CONFIG_FILE = os.path.join(DATA_DIR, 'international_config.json')
+SUBSCRIBED_JOURNALS_FILE = os.path.join(DATA_DIR, 'subscribed_journals.json')
+
+DEFAULT_INTERNATIONAL_CONFIG = {
+    "enabled": True,
+    "sources": {
+        "scopus": True,
+        "springer": True,
+        "semanticscholar": True,
+        "lens": True,
+        "openalex": True,
+        "crossref": True,
+        "emerald": True
+    },
+    "filter_subscribed_only_default": False
+}
+
+INITIAL_SUBSCRIBED_JOURNALS = [
+    {
+        "id": "JRN-001",
+        "title": "Nature Machine Intelligence",
+        "issn": "2522-5839",
+        "eissn": "2522-5839",
+        "publisher": "Springer Nature",
+        "url": "https://www.nature.com/natmachintell/",
+        "subject": "Informatika & Kecerdasan Buatan",
+        "notes": "Langganan Resmi UMS 2026",
+        "active": True
+    },
+    {
+        "id": "JRN-002",
+        "title": "The Lancet",
+        "issn": "0140-6736",
+        "eissn": "1474-547X",
+        "publisher": "Elsevier",
+        "url": "https://www.thelancet.com/",
+        "subject": "Kedokteran & Kesehatan",
+        "notes": "Langganan Resmi UMS 2026",
+        "active": True
+    },
+    {
+        "id": "JRN-003",
+        "title": "IEEE Transactions on Education",
+        "issn": "0018-9359",
+        "eissn": "1557-9638",
+        "publisher": "IEEE",
+        "url": "https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=13",
+        "subject": "Teknik & Ilmu Pendidikan",
+        "notes": "Paket Konsorsium Kampus",
+        "active": True
+    },
+    {
+        "id": "JRN-004",
+        "title": "Journal of Islamic Marketing",
+        "issn": "1759-0833",
+        "eissn": "1759-0833",
+        "publisher": "Emerald Insight",
+        "url": "https://www.emerald.com/insight/publication/issn/1759-0833",
+        "subject": "Ekonomi & Bisnis Islam",
+        "notes": "Langganan Mandiri UMS",
+        "active": True
+    },
+    {
+        "id": "JRN-005",
+        "title": "Educational Technology Research and Development",
+        "issn": "1042-1629",
+        "eissn": "1556-6501",
+        "publisher": "Springer",
+        "url": "https://link.springer.com/journal/11423",
+        "subject": "Teknologi Pendidikan & FKIP",
+        "notes": "Langganan Resmi UMS 2026",
+        "active": True
+    }
+]
+
+
+def _check_admin_auth():
+    """Verify admin secret key from header, query param, or JSON body using timing-safe comparison."""
+    if not ADMIN_SECRET_KEY:
+        return False
+    auth_header = request.headers.get('X-Admin-Key', '').strip()
+    if not auth_header:
+        bearer = request.headers.get('Authorization', '').strip()
+        if bearer.lower().startswith('bearer '):
+            auth_header = bearer[7:].strip()
+    query_key = (request.args.get('key') or request.args.get('secret') or request.args.get('admin_key') or '').strip()
+    body_key = ''
+    try:
+        json_body = request.get_json(silent=True)
+        if isinstance(json_body, dict):
+            body_key = str(json_body.get('key') or json_body.get('secret') or json_body.get('admin_key') or '').strip()
+    except Exception:
+        pass
+    provided = auth_header or query_key or body_key
+    if not provided:
+        return False
+    return hmac.compare_digest(provided, ADMIN_SECRET_KEY)
+
+
+def _load_international_config():
+    cfg = dict(DEFAULT_INTERNATIONAL_CONFIG)
+    if os.path.exists(INTERNATIONAL_CONFIG_FILE):
+        try:
+            with open(INTERNATIONAL_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                saved = json.load(f)
+                if isinstance(saved, dict):
+                    if "enabled" in saved:
+                        cfg["enabled"] = bool(saved["enabled"])
+                    if "sources" in saved and isinstance(saved["sources"], dict):
+                        cfg["sources"] = {**DEFAULT_INTERNATIONAL_CONFIG["sources"], **saved["sources"]}
+                    if "filter_subscribed_only_default" in saved:
+                        cfg["filter_subscribed_only_default"] = bool(saved["filter_subscribed_only_default"])
+        except Exception:
+            pass
+    return cfg
+
+
+def _save_international_config(cfg):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(INTERNATIONAL_CONFIG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, indent=2)
+
+
+def _load_subscribed_journals():
+    if os.path.exists(SUBSCRIBED_JOURNALS_FILE):
+        try:
+            with open(SUBSCRIBED_JOURNALS_FILE, 'r', encoding='utf-8') as f:
+                items = json.load(f)
+                if isinstance(items, list):
+                    return items
+        except Exception:
+            pass
+    # Seed initial items if not yet created
+    _save_subscribed_journals(INITIAL_SUBSCRIBED_JOURNALS)
+    return list(INITIAL_SUBSCRIBED_JOURNALS)
+
+
+def _save_subscribed_journals(items):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(SUBSCRIBED_JOURNALS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(items, f, indent=2)
+
+
+def _norm_issn(issn_str):
+    if not issn_str:
+        return ""
+    return re.sub(r'[^0-9xX]', '', str(issn_str)).upper()
+
+
+def _norm_title_key(title_str):
+    if not title_str:
+        return ""
+    return re.sub(r'[^a-zA-Z0-9]', '', str(title_str)).lower()
+
+
+def _get_active_subscribed_lookup():
+    """Build fast lookup map for active subscribed journals by normalized ISSN and title."""
+    journals = _load_subscribed_journals()
+    issn_map = {}
+    title_map = {}
+    for j in journals:
+        if not j.get('active', True):
+            continue
+        issn1 = _norm_issn(j.get('issn', ''))
+        issn2 = _norm_issn(j.get('eissn', ''))
+        t_key = _norm_title_key(j.get('title', ''))
+        
+        if issn1:
+            issn_map[issn1] = j
+        if issn2:
+            issn_map[issn2] = j
+        if t_key:
+            title_map[t_key] = j
+            
+    return issn_map, title_map
+
+
+def _enrich_items_with_subscriptions(items):
+    """Tag articles with isSubscribed: True and campus access details if they match subscribed journals."""
+    if not items:
+        return items
+    issn_map, title_map = _get_active_subscribed_lookup()
+    if not issn_map and not title_map:
+        return items
+
+    for it in items:
+        matched = None
+        # 1. Match by ISSN if present
+        for raw_issn in [it.get('issn'), it.get('eissn'), it.get('issn_print'), it.get('issn_electronic')]:
+            if raw_issn:
+                for sub in str(raw_issn).replace(';', ',').split(','):
+                    n = _norm_issn(sub)
+                    if n and n in issn_map:
+                        matched = issn_map[n]
+                        break
+            if matched:
+                break
+
+        # 2. Match by publicationName / journal title
+        if not matched:
+            pub_name = it.get('publicationName') or it.get('journal') or it.get('pub') or ''
+            t_key = _norm_title_key(pub_name)
+            if t_key and t_key in title_map:
+                matched = title_map[t_key]
+
+        if matched:
+            it['isSubscribed'] = True
+            it['subscribedJournalId'] = matched.get('id')
+            it['subscribedJournalTitle'] = matched.get('title')
+            it['subscribedUrl'] = matched.get('url') or ''
+            it['subscribedPublisher'] = matched.get('publisher') or ''
+            it['subscribedSubject'] = matched.get('subject') or ''
+        else:
+            it['isSubscribed'] = False
+
+    return items
+
 
 
 
@@ -1035,6 +1262,19 @@ def federated_search():
     if not query:
         return jsonify({"error": "Query parameter 'q' is required", "items": [], "total": 0}), 400
 
+    cfg = _load_international_config()
+    if not cfg.get('enabled', True):
+        return jsonify({
+            "source": "Jurnal Internasional",
+            "sourceUrl": "#",
+            "total": 0,
+            "page": page,
+            "totalPages": 0,
+            "items": [],
+            "disabled": True,
+            "message": "Fitur pencarian jurnal internasional sedang dinonaktifkan oleh administrator perpustakaan."
+        })
+
     # Multi-database aggregated search across all global sources
     if source in ('all', 'all_global', 'global', 'multi', 'federated_all'):
         cache_key = f"all_global:{query.lower().strip()}:{page}:{rows}"
@@ -1042,7 +1282,22 @@ def federated_search():
         if cached_res is not None:
             return jsonify({**cached_res, "cached": True})
 
-        sub_sources = ['scopus', 'semanticscholar', 'lens', 'openalex', 'crossref', 'springer']
+        enabled_sources = cfg.get('sources', {})
+        available_sub_sources = ['scopus', 'semanticscholar', 'lens', 'openalex', 'crossref', 'springer', 'emerald']
+        sub_sources = [s for s in available_sub_sources if enabled_sources.get(s, True)]
+
+        if not sub_sources:
+            return jsonify({
+                "source": "Seluruh Jurnal Internasional",
+                "sourceUrl": "#",
+                "total": 0,
+                "page": page,
+                "totalPages": 0,
+                "items": [],
+                "disabled": True,
+                "message": "Seluruh sumber basis data jurnal internasional sedang dinonaktifkan."
+            })
+
         per_source_rows = max(4, rows // len(sub_sources) + 2)
         
         all_results = {}
@@ -1083,6 +1338,9 @@ def federated_search():
                         seen_keys.add(dedup_key)
                     combined_items.append(item)
 
+        # Enrich items with subscription status
+        combined_items = _enrich_items_with_subscriptions(combined_items)
+
         total_pages = min((total_combined + rows - 1) // rows if total_combined else 1, 500)
         res_payload = {
             "source": "Seluruh Jurnal Internasional",
@@ -1097,9 +1355,26 @@ def federated_search():
         return jsonify(res_payload)
 
     # Single source search
+    src_enabled = cfg.get('sources', {}).get(source, True)
+    if not src_enabled:
+        return jsonify({
+            "source": source.title(),
+            "sourceUrl": "#",
+            "total": 0,
+            "page": page,
+            "totalPages": 0,
+            "items": [],
+            "disabled": True,
+            "message": f"Pencarian sumber {source.title()} sedang dinonaktifkan oleh administrator perpustakaan."
+        })
+
     result = _fetch_single_source(source, query, page, rows)
     if isinstance(result, dict) and "error" in result and result.get("total", 0) == 0 and "Unknown source" in result.get("error", ""):
         return jsonify(result), 400
+        
+    if isinstance(result, dict) and "items" in result:
+        result["items"] = _enrich_items_with_subscriptions(result.get("items", []))
+
     return jsonify(result)
 
 
@@ -1165,6 +1440,8 @@ def get_academic_topics():
 @app.route('/api/cache/stats')
 def cache_stats():
     """Return cache statistics and circuit breaker health statuses."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
     cb_statuses = {name: cb.status() for name, cb in CIRCUIT_BREAKERS.items()}
     return jsonify({
         "query_cache": QUERY_CACHE.stats(),
@@ -1176,34 +1453,363 @@ def cache_stats():
 @app.route('/api/cache/clear', methods=['POST'])
 def cache_clear():
     """Clear memory caches on-demand."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
     QUERY_CACHE.clear()
     TOPICS_CACHE.clear()
     return jsonify({"status": "SUCCESS", "message": "In-memory query and topics caches cleared successfully."})
 
 
+# ── PUBLIC INTERNATIONAL DISCOVERY & E-JOURNAL CATALOG ENDPOINTS ──
+
+@app.route('/api/international/config')
+def api_international_config_public():
+    """Public endpoint to check if international discovery is enabled and which sources are active."""
+    cfg = _load_international_config()
+    journals = _load_subscribed_journals()
+    active_journals_count = sum(1 for j in journals if j.get('active', True))
+    return jsonify({
+        "enabled": cfg.get("enabled", True),
+        "sources": cfg.get("sources", {}),
+        "filter_subscribed_only_default": cfg.get("filter_subscribed_only_default", False),
+        "subscribed_journals_count": active_journals_count
+    })
+
+
+@app.route('/api/international/journals')
+def api_international_journals_public():
+    """Public A-Z listing of subscribed international journals with search & filter support."""
+    cfg = _load_international_config()
+    if not cfg.get('enabled', True):
+        return jsonify({"items": [], "total": 0, "disabled": True})
+
+    journals = _load_subscribed_journals()
+    active_only = [j for j in journals if j.get('active', True)]
+
+    q = request.args.get('q', '').strip().lower()
+    subject = request.args.get('subject', '').strip().lower()
+    publisher = request.args.get('publisher', '').strip().lower()
+
+    filtered = []
+    for j in active_only:
+        if q:
+            match_q = (
+                q in j.get('title', '').lower() or
+                q in j.get('issn', '').lower() or
+                q in j.get('eissn', '').lower() or
+                q in j.get('publisher', '').lower() or
+                q in j.get('subject', '').lower()
+            )
+            if not match_q:
+                continue
+        if subject and subject != 'all' and subject not in j.get('subject', '').lower():
+            continue
+        if publisher and publisher != 'all' and publisher not in j.get('publisher', '').lower():
+            continue
+        filtered.append(j)
+
+    filtered.sort(key=lambda x: x.get('title', '').lower())
+    return jsonify({
+        "items": filtered,
+        "total": len(filtered),
+        "total_all": len(active_only)
+    })
+
+
+# ── ADMIN INTERNATIONAL DISCOVERY & SUBSCRIBED JOURNALS MANAGEMENT ──
+
+@app.route('/api/admin/international/config', methods=['GET', 'POST'])
+def admin_international_config():
+    """Manage international discovery master and provider switches."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    if request.method == 'GET':
+        return jsonify(_load_international_config())
+
+    data = request.get_json(silent=True) or {}
+    cfg = _load_international_config()
+
+    if "enabled" in data:
+        cfg["enabled"] = bool(data["enabled"])
+    if "sources" in data and isinstance(data["sources"], dict):
+        cfg["sources"].update(data["sources"])
+    if "filter_subscribed_only_default" in data:
+        cfg["filter_subscribed_only_default"] = bool(data["filter_subscribed_only_default"])
+
+    _save_international_config(cfg)
+    return jsonify({
+        "status": "SUCCESS",
+        "message": "Konfigurasi Jurnal Internasional berhasil disimpan.",
+        "config": cfg
+    })
+
+
+@app.route('/api/admin/international/journals', methods=['GET', 'POST'])
+def admin_subscribed_journals():
+    """List or Add/Update subscribed international journals."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    if request.method == 'GET':
+        journals = _load_subscribed_journals()
+        return jsonify({
+            "items": journals,
+            "total": len(journals),
+            "active_count": sum(1 for j in journals if j.get('active', True))
+        })
+
+    data = request.get_json(silent=True) or {}
+    jrn_id = str(data.get('id', '')).strip().upper()
+    title = str(data.get('title', '')).strip()
+    issn = str(data.get('issn', '')).strip()
+    eissn = str(data.get('eissn', '')).strip()
+    publisher = str(data.get('publisher', '')).strip()
+    url = str(data.get('url', '')).strip()
+    subject = str(data.get('subject', '')).strip()
+    notes = str(data.get('notes', '')).strip()
+    active = bool(data.get('active', True))
+
+    if not title:
+        return jsonify({"error": "Judul Jurnal wajib diisi."}), 400
+
+    items = _load_subscribed_journals()
+
+    if not jrn_id:
+        jrn_id = f"JRN-{int(time.time())}"
+
+    existing_idx = next((i for i, item in enumerate(items) if item.get('id', '').upper() == jrn_id), -1)
+
+    new_obj = {
+        "id": jrn_id,
+        "title": title,
+        "issn": issn,
+        "eissn": eissn,
+        "publisher": publisher,
+        "url": url,
+        "subject": subject,
+        "notes": notes,
+        "active": active,
+        "updated_at": datetime.now().isoformat()
+    }
+
+    if existing_idx >= 0:
+        items[existing_idx] = new_obj
+        msg = f"Jurnal '{title}' berhasil diperbarui."
+    else:
+        items.insert(0, new_obj)
+        msg = f"Jurnal '{title}' berhasil ditambahkan ke daftar langganan."
+
+    _save_subscribed_journals(items)
+    return jsonify({
+        "status": "SUCCESS",
+        "message": msg,
+        "item": new_obj,
+        "items": items,
+        "total": len(items)
+    })
+
+
+@app.route('/api/admin/international/journals/<jrn_id>', methods=['DELETE'])
+def admin_delete_subscribed_journal(jrn_id):
+    """Delete a subscribed journal."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    jrn_id = jrn_id.strip().upper()
+    items = _load_subscribed_journals()
+    new_items = [it for it in items if it.get('id', '').upper() != jrn_id]
+
+    if len(new_items) == len(items):
+        return jsonify({"error": f"Jurnal dengan ID {jrn_id} tidak ditemukan."}), 404
+
+    _save_subscribed_journals(new_items)
+    return jsonify({
+        "status": "SUCCESS",
+        "message": "Jurnal berhasil dihapus dari daftar langganan.",
+        "items": new_items,
+        "total": len(new_items)
+    })
+
+
+@app.route('/api/admin/international/journals/toggle', methods=['POST'])
+def admin_toggle_subscribed_journal():
+    """Toggle active state of a subscribed journal."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    data = request.get_json(silent=True) or {}
+    jrn_id = str(data.get('id', '')).strip().upper()
+    items = _load_subscribed_journals()
+
+    for it in items:
+        if it.get('id', '').upper() == jrn_id:
+            it['active'] = not it.get('active', True)
+            it['updated_at'] = datetime.now().isoformat()
+            _save_subscribed_journals(items)
+            return jsonify({
+                "status": "SUCCESS",
+                "message": f"Status '{it.get('title')}' diubah menjadi {'Aktif' if it['active'] else 'Nonaktif'}.",
+                "active": it['active'],
+                "items": items
+            })
+
+    return jsonify({"error": f"Jurnal dengan ID {jrn_id} tidak ditemukan."}), 404
+
+
+@app.route('/api/admin/international/journals/import', methods=['POST'])
+def admin_import_subscribed_journals():
+    """Bulk import subscribed journals from CSV file or JSON payload."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    raw_csv_text = ''
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and file.filename != '':
+            try:
+                raw_csv_text = file.read().decode('utf-8-sig', errors='ignore')
+            except Exception as e:
+                return jsonify({"error": f"Gagal membaca file: {str(e)}"}), 400
+    else:
+        data = request.get_json(silent=True) or {}
+        raw_csv_text = data.get('csv', '')
+
+    if not raw_csv_text:
+        return jsonify({"error": "Tidak ada data CSV yang diunggah."}), 400
+
+    reader = csv.DictReader(io.StringIO(raw_csv_text))
+    items = _load_subscribed_journals()
+    existing_by_title_or_issn = {}
+    for it in items:
+        t_key = _norm_title_key(it.get('title', ''))
+        if t_key:
+            existing_by_title_or_issn[t_key] = it
+        issn1 = _norm_issn(it.get('issn', ''))
+        if issn1:
+            existing_by_title_or_issn[issn1] = it
+        issn2 = _norm_issn(it.get('eissn', ''))
+        if issn2:
+            existing_by_title_or_issn[issn2] = it
+
+    imported_count = 0
+    updated_count = 0
+    now_str = datetime.now().isoformat()
+
+    for idx, row in enumerate(reader):
+        title = (row.get('Title') or row.get('Judul') or row.get('title') or row.get('judul') or '').strip()
+        issn = (row.get('ISSN') or row.get('issn') or row.get('Print ISSN') or row.get('p_issn') or '').strip()
+        eissn = (row.get('E-ISSN') or row.get('eissn') or row.get('e_issn') or row.get('Online ISSN') or '').strip()
+        publisher = (row.get('Publisher') or row.get('Penerbit') or row.get('publisher') or row.get('Database') or '').strip()
+        url = (row.get('URL') or row.get('Url') or row.get('Link') or row.get('Akses') or row.get('url') or '').strip()
+        subject = (row.get('Subject') or row.get('Subjek') or row.get('Fakultas') or row.get('subject') or '').strip()
+        notes = (row.get('Notes') or row.get('Catatan') or row.get('notes') or '').strip()
+
+        if not title and not issn:
+            continue
+
+        match_key = _norm_issn(issn) or _norm_issn(eissn) or _norm_title_key(title)
+        existing = existing_by_title_or_issn.get(match_key)
+
+        if existing:
+            existing['title'] = title or existing['title']
+            if issn: existing['issn'] = issn
+            if eissn: existing['eissn'] = eissn
+            if publisher: existing['publisher'] = publisher
+            if url: existing['url'] = url
+            if subject: existing['subject'] = subject
+            if notes: existing['notes'] = notes
+            existing['updated_at'] = now_str
+            updated_count += 1
+        else:
+            new_id = f"JRN-{int(time.time())}-{idx+1}"
+            new_j = {
+                "id": new_id,
+                "title": title or f"Journal {issn}",
+                "issn": issn,
+                "eissn": eissn,
+                "publisher": publisher or "Other",
+                "url": url,
+                "subject": subject,
+                "notes": notes or "Impor Massal",
+                "active": True,
+                "updated_at": now_str
+            }
+            items.insert(0, new_j)
+            if match_key:
+                existing_by_title_or_issn[match_key] = new_j
+            imported_count += 1
+
+    _save_subscribed_journals(items)
+    return jsonify({
+        "status": "SUCCESS",
+        "message": f"Berhasil mengimpor {imported_count} jurnal baru dan memperbarui {updated_count} jurnal yang ada.",
+        "imported": imported_count,
+        "updated": updated_count,
+        "total": len(items),
+        "items": items
+    })
+
+
+@app.route('/api/admin/international/journals/export')
+def admin_export_subscribed_journals():
+    """Export subscribed journals as CSV file."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    journals = _load_subscribed_journals()
+    si = io.StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['ID', 'Title', 'ISSN', 'E-ISSN', 'Publisher', 'URL', 'Subject', 'Notes', 'Status'])
+
+    for j in journals:
+        writer.writerow([
+            j.get('id', ''),
+            j.get('title', ''),
+            j.get('issn', ''),
+            j.get('eissn', ''),
+            j.get('publisher', ''),
+            j.get('url', ''),
+            j.get('subject', ''),
+            j.get('notes', ''),
+            'Aktif' if j.get('active', True) else 'Nonaktif'
+        ])
+
+    output = io.BytesIO()
+    output.write(si.getvalue().encode('utf-8-sig'))
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f"ums_subscribed_journals_{datetime.now().strftime('%Y%m%d')}.csv"
+    )
+
+
+@app.route('/api/admin/international/journals/template')
+def admin_template_subscribed_journals():
+    """Download sample CSV template for bulk import."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+    si = io.StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['Title', 'ISSN', 'E-ISSN', 'Publisher', 'URL', 'Subject', 'Notes'])
+    writer.writerow(['Nature Machine Intelligence', '2522-5839', '2522-5839', 'Springer Nature', 'https://www.nature.com/natmachintell/', 'Informatika & AI', 'Langganan UMS 2026'])
+    writer.writerow(['The Lancet', '0140-6736', '1474-547X', 'Elsevier', 'https://www.thelancet.com/', 'Kedokteran & Kesehatan', 'Langganan UMS 2026'])
+    writer.writerow(['IEEE Transactions on Education', '0018-9359', '1557-9638', 'IEEE', 'https://ieeexplore.ieee.org/', 'Teknik & Pendidikan', 'Konsorsium 2026'])
+
+    output = io.BytesIO()
+    output.write(si.getvalue().encode('utf-8-sig'))
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name="template_jurnal_langganan_ums.csv"
+    )
+
 
 # ── ADMIN HARVEST & SCHEDULER MONITORING ──
-ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'ums-onesearch-secret-key').strip('"\'')
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-DATA_DIR = os.path.join(BASE_DIR, 'data')
-LOGS_DIR = os.path.join(BASE_DIR, 'logs', 'harvest')
-STATE_FILE = os.path.join(DATA_DIR, 'scheduler_state.json')
-
-
-def _check_admin_auth():
-    """Verify admin secret key from header or query param or JSON body."""
-    auth_header = request.headers.get('X-Admin-Key', '')
-    query_key = request.args.get('key', '')
-    body_key = ''
-    try:
-        json_body = request.get_json(silent=True)
-        if isinstance(json_body, dict):
-            body_key = json_body.get('key', '')
-    except Exception:
-        pass
-    provided = auth_header or query_key or body_key
-    return provided == ADMIN_SECRET_KEY
-
 
 @app.route('/api/admin/auth/verify', methods=['GET', 'POST'])
 def admin_auth_verify():
@@ -1216,6 +1822,8 @@ def admin_auth_verify():
 @app.route('/api/admin/harvest/status')
 def harvest_status():
     """Check current harvest & scheduler state."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
     state = {
         "status": "IDLE",
         "last_run": None,
@@ -1350,6 +1958,9 @@ def harvest_unlock():
 @app.route('/api/admin/stats')
 def admin_stats():
     """Return summary statistics of local datasets and repositories."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
     books_path = os.path.join(DATA_DIR, 'books.json')
     facets_path = os.path.join(DATA_DIR, 'facets.json')
 

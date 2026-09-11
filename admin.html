@@ -392,17 +392,25 @@
         }
 
         .select {
-            background: var(--bg-surface);
+            background-color: var(--bg-surface);
             border: 1px solid var(--border-main);
             color: var(--text-main);
-            font-size: 0.78rem;
-            padding: 0.38rem 0.65rem;
+            font-size: 0.82rem;
+            padding: 0.45rem 0.65rem;
             border-radius: var(--radius-sm);
             outline: none;
             cursor: pointer;
+            width: 100%;
+            height: 36px;
+            box-sizing: border-box;
         }
         .select:focus {
             border-color: var(--border-focus);
+        }
+        .select option {
+            background-color: var(--bg-surface);
+            color: var(--text-main);
+            padding: 4px;
         }
 
         /* Table */
@@ -628,33 +636,261 @@
             z-index: 200;
             display: none;
         }
+
+        /* ──── Admin Authentication Gate ──── */
+        .auth-gate-wrapper {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-page);
+            background-image: radial-gradient(circle at 50% 25%, rgba(37, 99, 235, 0.08) 0%, transparent 65%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 1.5rem;
+        }
+
+        [data-theme="dark"] .auth-gate-wrapper {
+            background-image: radial-gradient(circle at 50% 25%, rgba(59, 130, 246, 0.12) 0%, transparent 65%);
+        }
+
+        .auth-gate-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-main);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 440px;
+            padding: 2rem 2.25rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.03);
+            text-align: left;
+            animation: authFadeIn 0.25s ease-out;
+        }
+
+        [data-theme="dark"] .auth-gate-card {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+
+        @keyframes authFadeIn {
+            from { opacity: 0; transform: translateY(8px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .auth-gate-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .auth-gate-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 14px;
+            background: var(--bg-muted);
+            border: 1px solid var(--border-main);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.85rem;
+        }
+
+        .auth-gate-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.01em;
+            margin-bottom: 0.35rem;
+        }
+
+        .auth-gate-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.45;
+            margin-bottom: 0.85rem;
+        }
+
+        .auth-gate-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 0.25rem 0.65rem;
+            border-radius: 20px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            border: 1px solid var(--accent-border);
+        }
+
+        .auth-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .auth-pwd-toggle {
+            position: absolute;
+            right: 0.65rem;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-xs);
+            transition: color 0.15s;
+        }
+
+        .auth-pwd-toggle:hover {
+            color: var(--text-main);
+        }
+
+        .auth-err-banner {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 0.75rem;
+            border-radius: var(--radius-sm);
+            background: var(--status-err-bg);
+            border: 1px solid var(--status-err-border);
+            color: var(--status-err-text);
+            font-size: 0.78rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .auth-gate-footer {
+            margin-top: 1.5rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid var(--border-subtle);
+            text-align: center;
+        }
+
+        .auth-back-link {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            transition: color 0.15s;
+        }
+
+        .auth-back-link:hover {
+            color: var(--accent);
+        }
+
+        .auth-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 0.2rem 0.55rem;
+            border-radius: 20px;
+            background: var(--status-idle-bg);
+            color: var(--status-idle-text);
+            border: 1px solid var(--status-idle-border);
+            margin-right: 0.25rem;
+        }
+
+        .btn-logout {
+            color: var(--status-err-text);
+            border-color: var(--status-err-border);
+            background: var(--status-err-bg);
+        }
+
+        .btn-logout:hover {
+            background: #ef4444;
+            color: #ffffff;
+            border-color: #ef4444;
+        }
     </style>
 </head>
 
 <body>
 
-    <!-- Header Navigation -->
-    <header class="app-header">
-        <a href="/" class="header-brand">
-            <img src="img/logo4.png" alt="UMS Logo">
-            <span class="header-brand-title">UMS OneSearch</span>
-            <span class="header-tag">Console</span>
-        </a>
-        <div class="header-actions">
-            <a href="/" class="btn btn-xs">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
-                Portal Pencarian
-            </a>
-            <button type="button" class="btn btn-xs" id="theme-btn" onclick="toggleTheme()" title="Ganti Tema">
-                Mode
-            </button>
-            <button type="button" class="btn btn-xs" onclick="logoutAdmin()" title="Ganti Secret Key">
-                Kunci Akses
-            </button>
+    <!-- FULLSCREEN ADMIN AUTHENTICATION GATE -->
+    <div id="admin-auth-gate" class="auth-gate-wrapper">
+        <div class="auth-gate-card">
+            <div class="auth-gate-header">
+                <div class="auth-gate-icon">
+                    <img src="img/logo4.png" alt="UMS Logo" width="38" height="38">
+                </div>
+                <h1 class="auth-gate-title">UMS OneSearch Admin</h1>
+                <p class="auth-gate-desc">Panel kontrol harvester, sinkronisasi repositori, dan konfigurasi jurnal internasional.</p>
+                <div class="auth-gate-badge">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Akses Terproteksi API Secret Key
+                </div>
+            </div>
+
+            <form id="auth-gate-form" onsubmit="event.preventDefault(); submitAdminKey();">
+                <div class="form-group" style="margin-bottom:1rem;">
+                    <label class="form-label" for="admin-key-input">Admin Secret Key :</label>
+                    <div class="auth-input-wrapper">
+                        <input type="password" id="admin-key-input" class="input" placeholder="Masukkan ADMIN_SECRET_KEY..." autofocus required style="font-family:var(--font-mono); font-size:0.85rem; padding-right:2.5rem;">
+                        <button type="button" class="auth-pwd-toggle" onclick="togglePasswordVisibility()" title="Lihat / Sembunyikan Key">
+                            <svg id="pwd-eye-open" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <svg id="pwd-eye-closed" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem;">
+                    <label style="display:inline-flex; align-items:center; gap:0.45rem; font-size:0.78rem; color:var(--text-secondary); cursor:pointer;">
+                        <input type="checkbox" id="auth-remember-check" checked style="accent-color:var(--accent); cursor:pointer;">
+                        <span>Ingat sesi di browser ini</span>
+                    </label>
+                </div>
+
+                <div id="auth-gate-err" class="auth-err-banner" style="display:none;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span id="auth-gate-err-msg">Admin secret key tidak valid atau salah.</span>
+                </div>
+
+                <button type="submit" id="btn-auth-submit" class="btn btn-primary" style="width:100%; padding:0.6rem 1rem; font-size:0.85rem; font-weight:600; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <span id="btn-auth-submit-text">Verifikasi & Masuk Dashboard</span>
+                </button>
+            </form>
+
+            <div class="auth-gate-footer">
+                <a href="/" class="auth-back-link">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                    Kembali ke Portal Pencarian OneSearch
+                </a>
+            </div>
         </div>
-    </header>
+    </div>
+
+    <!-- MAIN ADMIN DASHBOARD WRAPPER (HIDDEN UNTIL AUTHENTICATED) -->
+    <div id="admin-app" style="display:none; flex-direction:column; min-height:100vh;">
+        <!-- Header Navigation -->
+        <header class="app-header">
+            <a href="/admin.html" class="header-brand">
+                <img src="img/logo4.png" alt="UMS Logo">
+                <span class="header-brand-title">UMS OneSearch</span>
+                <span class="header-tag">Console</span>
+            </a>
+            <div class="header-actions">
+                <span class="auth-status-badge">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    Terotentikasi
+                </span>
+                <a href="/" class="btn btn-xs" title="Buka Portal Pencarian">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Portal Publik
+                </a>
+                <button type="button" class="btn btn-xs" id="theme-btn" onclick="toggleTheme()" title="Ganti Tema">
+                    Mode
+                </button>
+                <button type="button" class="btn btn-xs btn-logout" onclick="logoutAdmin()" title="Keluar dari sesi admin">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <span>Keluar</span>
+                </button>
+            </div>
+        </header>
 
     <!-- Main Workspace -->
     <main class="main-content">
@@ -662,8 +898,8 @@
         <!-- Page Top Bar -->
         <div class="page-bar">
             <div class="page-bar-left">
-                <h1>Harvester & Repository Management</h1>
-                <p>Monitoring sinkronisasi otomatis OAI-PMH katalog Koha, EPrints, Jurnal, dan institusi mitra.</p>
+                <h1 id="page-main-title">Harvester & Repository Management</h1>
+                <p id="page-main-desc">Monitoring sinkronisasi otomatis OAI-PMH katalog Koha, EPrints, Jurnal, dan institusi mitra.</p>
             </div>
             <div style="display:flex; align-items:center; gap:0.5rem;">
                 <div class="status-pill idle" id="status-badge">
@@ -680,147 +916,378 @@
             </div>
         </div>
 
-        <!-- Metrics Overview -->
-        <div class="metrics-grid">
-            <div class="card">
-                <div class="card-label">Jadwal Harian</div>
-                <div class="card-value" id="metric-schedule">02:00 WIB</div>
-                <div class="card-sub">Inkremental otomatis (N hari)</div>
-            </div>
-            <div class="card">
-                <div class="card-label">Eksekusi Terakhir</div>
-                <div class="card-value" id="metric-last-run" style="font-size:1.15rem;">-</div>
-                <div class="card-sub" id="metric-last-meta">Durasi: -</div>
-            </div>
-            <div class="card">
-                <div class="card-label">Total Rekord Katalog</div>
-                <div class="card-value" id="metric-total-books">-</div>
-                <div class="card-sub" id="metric-src-breakdown">Koha, ETD, Jurnal, Mitra</div>
-            </div>
-            <div class="card">
-                <div class="card-label">Ukuran Indeks Lokal</div>
-                <div class="card-value" id="metric-file-size">-</div>
-                <div class="card-sub" id="metric-file-mod">data/books.json</div>
-            </div>
+        <!-- Admin Workspace Tabs -->
+        <div class="admin-tab-nav" style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid var(--border-main); padding-bottom:0.75rem;">
+            <button type="button" class="btn btn-xs admin-tab-btn active" id="tab-btn-harvest" onclick="switchAdminTab('harvest')" style="font-weight:600; padding:0.45rem 0.85rem; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:0.45rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                <span>Katalog & Harvester OAI-PMH</span>
+            </button>
+            <button type="button" class="btn btn-xs admin-tab-btn" id="tab-btn-international" onclick="switchAdminTab('international')" style="font-weight:600; padding:0.45rem 0.85rem; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:0.45rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                <span>Jurnal Internasional & E-Resources</span>
+            </button>
         </div>
 
-        <!-- Action Panel -->
-        <div>
-            <div class="section-header">
-                <span class="section-heading">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
-                    Pemicu Eksekusi Harvesting
-                </span>
+        <!-- TAB 1: HARVESTER & LOCAL REPOSITORY -->
+        <div id="view-harvest" style="display:flex; flex-direction:column; gap:1.75rem;">
+            <!-- Metrics Overview -->
+            <div class="metrics-grid">
+                <div class="card">
+                    <div class="card-label">Jadwal Harian</div>
+                    <div class="card-value" id="metric-schedule">02:00 WIB</div>
+                    <div class="card-sub">Inkremental otomatis (N hari)</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Eksekusi Terakhir</div>
+                    <div class="card-value" id="metric-last-run" style="font-size:1.15rem;">-</div>
+                    <div class="card-sub" id="metric-last-meta">Durasi: -</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Total Rekord Katalog</div>
+                    <div class="card-value" id="metric-total-books">-</div>
+                    <div class="card-sub" id="metric-src-breakdown">Koha, ETD, Jurnal, Mitra</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Ukuran Indeks Lokal</div>
+                    <div class="card-value" id="metric-file-size">-</div>
+                    <div class="card-sub" id="metric-file-mod">data/books.json</div>
+                </div>
             </div>
-            <div class="action-row-grid">
-                
-                <!-- Incremental -->
-                <div class="action-box">
-                    <div>
-                        <div class="action-box-title">Inkremental Sync & Fast Rebuild</div>
-                        <div class="action-box-desc">Menarik metadata baru yang diperbarui dalam rentang hari terakhir dari seluruh institusi aktif, lalu membangun ulang file indeks pencarian.</div>
+
+            <!-- Action Panel -->
+            <div>
+                <div class="section-header">
+                    <span class="section-heading">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        Pemicu Eksekusi Harvesting
+                    </span>
+                </div>
+                <div class="action-row-grid">
+                    
+                    <!-- Incremental -->
+                    <div class="action-box">
+                        <div>
+                            <div class="action-box-title">Inkremental Sync & Fast Rebuild</div>
+                            <div class="action-box-desc">Menarik metadata baru yang diperbarui dalam rentang hari terakhir dari seluruh institusi aktif, lalu membangun ulang file indeks pencarian.</div>
+                        </div>
+                        <div class="action-bar">
+                            <select id="inc-days" class="select">
+                                <option value="1">1 Hari Terakhir</option>
+                                <option value="3" selected>3 Hari Terakhir (Default)</option>
+                                <option value="7">7 Hari Terakhir (1 Minggu)</option>
+                                <option value="14">14 Hari Terakhir (2 Minggu)</option>
+                                <option value="30">30 Hari Terakhir (1 Bulan)</option>
+                            </select>
+                            <button type="button" class="btn btn-primary btn-xs" id="btn-run-inc" onclick="triggerHarvest('incremental')">
+                                Jalankan Inkremental Sync
+                            </button>
+                        </div>
                     </div>
-                    <div class="action-bar">
-                        <select id="inc-days" class="select">
-                            <option value="1">1 Hari Terakhir</option>
-                            <option value="3" selected>3 Hari Terakhir (Default)</option>
-                            <option value="7">7 Hari Terakhir (1 Minggu)</option>
-                            <option value="14">14 Hari Terakhir (2 Minggu)</option>
-                            <option value="30">30 Hari Terakhir (1 Bulan)</option>
+
+                    <!-- Full Sync & Lock Reset -->
+                    <div class="action-box">
+                        <div>
+                            <div class="action-box-title">Full Harvest & Pemeliharaan</div>
+                            <div class="action-box-desc">Dump ulang seluruh record OAI-PMH dari awal, atau buka paksa kunci status jika eksekusi scheduler sebelumnya terhenti mendadak.</div>
+                        </div>
+                        <div class="action-bar">
+                            <button type="button" class="btn btn-xs" id="btn-run-full" onclick="confirmFullSync()">
+                                Jalankan Full Sync
+                            </button>
+                            <button type="button" class="btn btn-destructive btn-xs" onclick="resetLock()">
+                                Buka Kunci (Reset ke Idle)
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Partner Institutions Table -->
+            <div>
+                <div class="section-header">
+                    <span class="section-heading">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        Daftar Mitra & Endpoint OAI-PMH
+                    </span>
+                    <button type="button" class="btn btn-primary btn-xs" onclick="openAddMitraModal()">
+                        + Tambah Endpoint Mitra
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Institusi / Sumber</th>
+                                <th>Tipe</th>
+                                <th>Endpoint URL</th>
+                                <th>Aktif</th>
+                                <th style="text-align:right;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mitra-tbody">
+                            <tr>
+                                <td colspan="5" style="text-align:center; padding:1.25rem; color:var(--text-muted);">
+                                    Memuat data institusi...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Terminal Log Viewer -->
+            <div>
+                <div class="section-header">
+                    <span class="section-heading">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="4 17 10 11 4 5"></polyline>
+                            <line x1="12" y1="19" x2="20" y2="19"></line>
+                        </svg>
+                        Log Eksekusi Harvester
+                    </span>
+                    <div style="display:flex; align-items:center; gap:0.4rem;">
+                        <select id="log-file-select" class="select" onchange="loadLogContent(this.value)" style="max-width:240px;">
+                            <option value="">(Pilih file log...)</option>
                         </select>
-                        <button type="button" class="btn btn-primary btn-xs" id="btn-run-inc" onclick="triggerHarvest('incremental')">
-                            Jalankan Inkremental Sync
+                        <button type="button" class="btn btn-xs" onclick="loadLogContent()" title="Refresh log">
+                            Refresh Log
+                        </button>
+                        <button type="button" class="btn btn-xs" onclick="copyLogToClipboard()" title="Salin log">
+                            Salin
                         </button>
                     </div>
                 </div>
+                <div class="terminal-wrap">
+                    <div class="terminal-header">
+                        <span class="terminal-title" id="terminal-filename">console.log</span>
+                    </div>
+                    <div class="terminal-body" id="log-box">Masukkan Admin Secret Key untuk memuat output log eksekusi.</div>
+                </div>
+            </div>
+        </div>
 
-                <!-- Full Sync & Lock Reset -->
-                <div class="action-box">
+        <!-- TAB 2: JURNAL INTERNASIONAL & E-RESOURCES -->
+        <div id="view-international" style="display:none; flex-direction:column; gap:1.75rem;">
+            
+            <!-- Master Control & Status Banner -->
+            <div class="card" style="border-left: 4px solid var(--border-focus); padding:1.25rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
                     <div>
-                        <div class="action-box-title">Full Harvest & Pemeliharaan</div>
-                        <div class="action-box-desc">Dump ulang seluruh record OAI-PMH dari awal, atau buka paksa kunci status jika eksekusi scheduler sebelumnya terhenti mendadak.</div>
+                        <div style="font-size:1.05rem; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:0.5rem;">
+                            <span>Master Switch: Tampilkan Jurnal Internasional</span>
+                            <span id="master-switch-status-pill" class="status-pill idle">Memuat...</span>
+                        </div>
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin:0.35rem 0 0; max-width:640px; line-height:1.45;">
+                            Jika dimatikan, seluruh fitur pencarian federated jurnal internasional, tab basis data luar, dan rekomendasi literatur global akan disembunyikan dari portal publik.
+                        </p>
                     </div>
-                    <div class="action-bar">
-                        <button type="button" class="btn btn-xs" id="btn-run-full" onclick="confirmFullSync()">
-                            Jalankan Full Sync
+                    <label class="switch" style="transform:scale(1.25);">
+                        <input type="checkbox" id="intl-master-toggle" onchange="saveInternationalMasterToggle(this.checked)">
+                        <span class="switch-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Provider Switches Grid -->
+            <div>
+                <div class="section-header">
+                    <span class="section-heading">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                        Saklar On / Off Pangkalan Data (Provider)
+                    </span>
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Pilih database mana yang aktif dicari</span>
+                </div>
+
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:0.85rem;">
+                    
+                    <!-- Scopus -->
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1rem;">
+                        <div>
+                            <div style="font-weight:600; font-size:0.85rem; color:var(--text-main);">Elsevier Scopus</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted);">Scopus Search API</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="src-toggle-scopus" onchange="saveInternationalSourceToggle('scopus', this.checked)">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Springer -->
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1rem;">
+                        <div>
+                            <div style="font-weight:600; font-size:0.85rem; color:var(--text-main);">Springer Nature</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted);">SpringerLink & OA API</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="src-toggle-springer" onchange="saveInternationalSourceToggle('springer', this.checked)">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- OpenAlex -->
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1rem;">
+                        <div>
+                            <div style="font-weight:600; font-size:0.85rem; color:var(--text-main);">OpenAlex Global OA</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted);">OpenAlex Works API</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="src-toggle-openalex" onchange="saveInternationalSourceToggle('openalex', this.checked)">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Semantic Scholar -->
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1rem;">
+                        <div>
+                            <div style="font-weight:600; font-size:0.85rem; color:var(--text-main);">Semantic Scholar</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted);">S2 Graph API</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="src-toggle-semanticscholar" onchange="saveInternationalSourceToggle('semanticscholar', this.checked)">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- The Lens -->
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1rem;">
+                        <div>
+                            <div style="font-weight:600; font-size:0.85rem; color:var(--text-main);">The Lens</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted);">Lens Scholarly API</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="src-toggle-lens" onchange="saveInternationalSourceToggle('lens', this.checked)">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Crossref -->
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1rem;">
+                        <div>
+                            <div style="font-weight:600; font-size:0.85rem; color:var(--text-main);">Crossref</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted);">Crossref Works API</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="src-toggle-crossref" onchange="saveInternationalSourceToggle('crossref', this.checked)">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Emerald -->
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1rem;">
+                        <div>
+                            <div style="font-weight:600; font-size:0.85rem; color:var(--text-main);">Emerald Insight</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted);">Emerald Publications</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="src-toggle-emerald" onchange="saveInternationalSourceToggle('emerald', this.checked)">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Subscribed Journals Management Section -->
+            <div>
+                <div class="section-header" style="flex-wrap:wrap; gap:0.6rem;">
+                    <div>
+                        <span class="section-heading">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                            </svg>
+                            Katalog Jurnal Internasional yang Dilanggan UMS
+                        </span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+                        <button type="button" class="btn btn-primary btn-xs" onclick="openAddJournalModal()" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            <span>Tambah Jurnal</span>
                         </button>
-                        <button type="button" class="btn btn-destructive btn-xs" onclick="resetLock()">
-                            Buka Kunci (Reset ke Idle)
+                        <button type="button" class="btn btn-xs" onclick="openImportJournalModal()" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            <span>Impor CSV</span>
+                        </button>
+                        <button type="button" class="btn btn-xs" onclick="exportJournalsCsv()" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            <span>Ekspor CSV</span>
+                        </button>
+                        <button type="button" class="btn btn-xs" onclick="downloadJournalTemplate()" title="Unduh format template CSV" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                            <span>Template CSV</span>
                         </button>
                     </div>
                 </div>
 
-            </div>
-        </div>
+                <!-- Subscribed Journals Metrics -->
+                <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom:1rem;">
+                    <div class="card" style="padding:0.85rem 1rem;">
+                        <div class="card-label">Total Jurnal Terdaftar</div>
+                        <div class="card-value" id="metric-jrn-total" style="font-size:1.35rem;">0</div>
+                        <div class="card-sub">Judul e-Journal</div>
+                    </div>
+                    <div class="card" style="padding:0.85rem 1rem;">
+                        <div class="card-label">Jurnal Berstatus Aktif</div>
+                        <div class="card-value" id="metric-jrn-active" style="font-size:1.35rem; color:#10b981;">0</div>
+                        <div class="card-sub">Diprioritaskan di pencarian</div>
+                    </div>
+                    <div class="card" style="padding:0.85rem 1rem;">
+                        <div class="card-label">Penerbit / Platform</div>
+                        <div class="card-value" id="metric-jrn-publishers" style="font-size:1.35rem;">0</div>
+                        <div class="card-sub">Springer, Elsevier, IEEE, dll.</div>
+                    </div>
+                </div>
 
-        <!-- Partner Institutions Table -->
-        <div>
-            <div class="section-header">
-                <span class="section-heading">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                    Daftar Mitra & Endpoint OAI-PMH
-                </span>
-                <button type="button" class="btn btn-primary btn-xs" onclick="openAddMitraModal()">
-                    + Tambah Endpoint Mitra
-                </button>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Institusi / Sumber</th>
-                            <th>Tipe</th>
-                            <th>Endpoint URL</th>
-                            <th>Aktif</th>
-                            <th style="text-align:right;">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="mitra-tbody">
-                        <tr>
-                            <td colspan="5" style="text-align:center; padding:1.25rem; color:var(--text-muted);">
-                                Memuat data institusi...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Terminal Log Viewer -->
-        <div>
-            <div class="section-header">
-                <span class="section-heading">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="4 17 10 11 4 5"></polyline>
-                        <line x1="12" y1="19" x2="20" y2="19"></line>
-                    </svg>
-                    Log Eksekusi Harvester
-                </span>
-                <div style="display:flex; align-items:center; gap:0.4rem;">
-                    <select id="log-file-select" class="select" onchange="loadLogContent(this.value)" style="max-width:240px;">
-                        <option value="">(Pilih file log...)</option>
+                <!-- Search & Filter Bar -->
+                <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap; align-items:center;">
+                    <input type="text" id="jrn-search-input" class="input" placeholder="Cari judul jurnal, ISSN, atau bidang ilmu..." style="max-width:320px;" oninput="filterJournalsTable()">
+                    <select id="jrn-filter-pub" class="select" onchange="filterJournalsTable()" style="max-width:200px;">
+                        <option value="all">Semua Penerbit</option>
                     </select>
-                    <button type="button" class="btn btn-xs" onclick="loadLogContent()" title="Refresh log">
-                        Refresh Log
-                    </button>
-                    <button type="button" class="btn btn-xs" onclick="copyLogToClipboard()" title="Salin log">
-                        Salin
-                    </button>
+                    <select id="jrn-filter-status" class="select" onchange="filterJournalsTable()" style="max-width:140px;">
+                        <option value="all">Semua Status</option>
+                        <option value="active">Hanya Aktif</option>
+                        <option value="inactive">Hanya Nonaktif</option>
+                    </select>
+                </div>
+
+                <!-- Subscribed Journals Data Table -->
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Judul Jurnal & ID</th>
+                                <th>ISSN / e-ISSN</th>
+                                <th>Penerbit / Database</th>
+                                <th>Subjek / Fakultas</th>
+                                <th>Akses Kampus</th>
+                                <th>Aktif</th>
+                                <th style="text-align:right;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="journals-tbody">
+                            <tr>
+                                <td colspan="7" style="text-align:center; padding:1.5rem; color:var(--text-muted);">
+                                    Memuat daftar jurnal langganan...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            <div class="terminal-wrap">
-                <div class="terminal-header">
-                    <span class="terminal-title" id="terminal-filename">console.log</span>
-                </div>
-                <div class="terminal-body" id="log-box">Masukkan Admin Secret Key untuk memuat output log eksekusi.</div>
-            </div>
+
         </div>
 
     </main>
@@ -905,16 +1372,126 @@
         </div>
     </div>
 
-    <!-- Modal: Auth -->
-    <div class="modal-backdrop" id="auth-modal" style="display:none;">
-        <div class="modal-dialog" style="max-width:380px;">
-            <h2 class="modal-title">Otentikasi Administrator</h2>
-            <p class="modal-desc">Masukkan Admin Secret Key untuk mengelola konfigurasi harvester.</p>
-            <input type="password" id="admin-key-input" class="input" placeholder="Admin Secret Key..." autofocus onkeyup="if(event.key==='Enter') submitAdminKey()" style="font-family:var(--font-mono); text-align:center; margin-bottom:0.75rem;">
-            <button type="button" class="btn btn-primary" style="width:100%;" onclick="submitAdminKey()">
-                Verifikasi & Masuk
-            </button>
-            <p id="auth-err" style="color:var(--status-err-text); font-size:0.75rem; margin-top:0.6rem; text-align:center; display:none;">Secret key tidak valid.</p>
+    <!-- Modal: Tambah / Edit Jurnal Langganan -->
+    <div class="modal-backdrop" id="journal-modal" style="display:none;">
+        <div class="modal-dialog" style="max-width:580px;">
+            <h2 class="modal-title" id="modal-journal-title">Tambah Jurnal Langganan</h2>
+            <p class="modal-desc">Daftarkan e-journal internasional yang dilanggan perpustakaan agar diprioritaskan dalam pencarian dan diberi badge akses resmi.</p>
+            
+            <form id="journal-form" onsubmit="event.preventDefault(); saveSubscribedJournal();">
+                <input type="hidden" id="journal-id">
+                
+                <div class="form-group">
+                    <label class="form-label" for="journal-title">Judul Jurnal (Publikasi) * :</label>
+                    <input type="text" id="journal-title" class="input" placeholder="Contoh: Nature Machine Intelligence" required>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.6rem; margin-bottom:0.85rem;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label" for="journal-publisher-select">Penerbit / Platform * :</label>
+                        <select id="journal-publisher-select" class="select" required onchange="handlePublisherSelectChange(this.value)">
+                            <option value="" disabled selected>Pilih Penerbit / Platform...</option>
+                            <option value="Springer Nature">Springer Nature</option>
+                            <option value="Elsevier">Elsevier / ScienceDirect</option>
+                            <option value="IEEE">IEEE Xplore</option>
+                            <option value="Emerald Insight">Emerald Insight</option>
+                            <option value="Taylor & Francis">Taylor & Francis</option>
+                            <option value="Wiley Online Library">Wiley Online Library</option>
+                            <option value="Cambridge University Press">Cambridge University Press</option>
+                            <option value="Oxford Academic">Oxford Academic</option>
+                            <option value="SAGE Publications">SAGE Publications</option>
+                            <option value="ACM Digital Library">ACM Digital Library</option>
+                            <option value="JSTOR">JSTOR</option>
+                            <option value="__other__">+ Tulis Nama Penerbit Lain...</option>
+                        </select>
+                        <input type="text" id="journal-publisher-custom" class="input" placeholder="Tulis nama penerbit..." style="display:none; margin-top:0.35rem;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label" for="journal-access-type">Metode Akses Kampus:</label>
+                        <select id="journal-access-type" class="select" style="width:100%;">
+                            <option value="kampus">IP Kampus / Eduroam</option>
+                            <option value="ezproxy">EZProxy / Single Sign-On</option>
+                            <option value="open">Open Access Terverifikasi</option>
+                            <option value="direct">Direct Publisher Portal</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.6rem; margin-bottom:0.85rem;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label" for="journal-issn">Print ISSN:</label>
+                        <input type="text" id="journal-issn" class="input" placeholder="2522-5839" style="font-family:var(--font-mono);">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label" for="journal-eissn">Electronic ISSN (e-ISSN):</label>
+                        <input type="text" id="journal-eissn" class="input" placeholder="2522-5839" style="font-family:var(--font-mono);">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="journal-url">URL Akses Portal Jurnal (atau Link EZProxy):</label>
+                    <input type="url" id="journal-url" class="input" placeholder="https://link.springer.com/journal/42256">
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.6rem; margin-bottom:0.85rem;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label" for="journal-subject">Bidang Ilmu / Subjek:</label>
+                        <input type="text" id="journal-subject" class="input" placeholder="Computer Science, AI, Robotics">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label" for="journal-faculty">Fakultas Terkait (Opsional):</label>
+                        <input type="text" id="journal-faculty" class="input" placeholder="FKI, FT, FK">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="journal-notes">Catatan Langganan / Masa Berlaku:</label>
+                    <input type="text" id="journal-notes" class="input" placeholder="Dilanggan via Konsorsium Dikti s/d Des 2026">
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1.25rem;">
+                    <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.82rem; cursor:pointer;">
+                        <input type="checkbox" id="journal-active" checked style="accent-color:var(--border-focus); cursor:pointer;">
+                        <span>Status Aktif Dilanggan</span>
+                    </label>
+                    <div style="display:flex; gap:0.4rem;">
+                        <button type="button" class="btn btn-xs" onclick="closeJournalModal()">Batal</button>
+                        <button type="submit" class="btn btn-primary btn-xs">Simpan Jurnal</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Impor Bulk CSV Jurnal -->
+    <div class="modal-backdrop" id="journal-import-modal" style="display:none;">
+        <div class="modal-dialog" style="max-width:500px;">
+            <h2 class="modal-title">Impor Massal Jurnal Langganan</h2>
+            <p class="modal-desc">Unggah file format CSV (.csv) untuk memperbarui atau menambahkan daftar jurnal langganan sekaligus.</p>
+            
+            <div style="background:var(--bg-muted); border:1px solid var(--border-main); padding:0.85rem; border-radius:var(--radius-sm); margin-bottom:1rem; font-size:0.78rem; line-height:1.5;">
+                <div style="font-weight:600; margin-bottom:0.25rem;">Petunjuk Kolom CSV:</div>
+                <code>title, publisher, issn, eissn, url, access_type, subject, faculty, notes</code>
+                <div style="margin-top:0.4rem;">
+                    <a href="javascript:void(0)" onclick="downloadJournalTemplate()" style="color:var(--border-focus); text-decoration:underline;">Unduh file contoh template CSV</a>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="journal-csv-file">Pilih File CSV:</label>
+                <input type="file" id="journal-csv-file" accept=".csv,text/csv" class="input" onchange="handleJournalCsvFileSelect(event)">
+            </div>
+
+            <div id="csv-preview-info" style="display:none; font-size:0.8rem; padding:0.6rem; border-radius:var(--radius-sm); background:var(--status-idle-bg); color:var(--status-idle-text); border:1px solid var(--status-idle-border); margin-bottom:1rem;">
+                <!-- Preview info -->
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:0.4rem; margin-top:1.25rem;">
+                <button type="button" class="btn btn-xs" onclick="closeImportJournalModal()">Batal</button>
+                <button type="button" class="btn btn-primary btn-xs" id="btn-submit-import" onclick="submitImportJournal()" disabled>
+                    Mulai Impor Data
+                </button>
+            </div>
         </div>
     </div>
 
@@ -923,9 +1500,14 @@
 
     <script>
         // ── State ──
-        let adminKey = sessionStorage.getItem('ums_admin_key') || '';
+        let adminKey = sessionStorage.getItem('ums_admin_key') || localStorage.getItem('ums_admin_key') || '';
         let institutionsList = [];
+        let internationalConfig = null;
+        let subscribedJournalsList = [];
+        let currentAdminTab = 'harvest';
+        let pendingCsvContent = '';
         let isPolling = false;
+        let pollingTimer = null;
         let confirmActionCallback = null;
 
         // ── Toast ──
@@ -946,7 +1528,38 @@
         const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         document.documentElement.setAttribute('data-theme', savedTheme);
 
-        // ── Auth ──
+        // ── Password Visibility Toggle ──
+        function togglePasswordVisibility() {
+            const input = document.getElementById('admin-key-input');
+            const openEye = document.getElementById('pwd-eye-open');
+            const closedEye = document.getElementById('pwd-eye-closed');
+            if (!input) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                if (openEye) openEye.style.display = 'none';
+                if (closedEye) closedEye.style.display = 'block';
+            } else {
+                input.type = 'password';
+                if (openEye) openEye.style.display = 'block';
+                if (closedEye) closedEye.style.display = 'none';
+            }
+        }
+
+        // ── Centralized Admin API Fetcher ──
+        async function adminFetch(url, options = {}) {
+            if (!options.headers) options.headers = {};
+            if (adminKey) {
+                options.headers['X-Admin-Key'] = adminKey;
+            }
+            const res = await fetch(url, options);
+            if (res.status === 401) {
+                handleAuthRequired('Sesi telah berakhir atau Secret Key tidak valid.');
+                throw new Error('Unauthorized');
+            }
+            return res;
+        }
+
+        // ── Auth Verification & Gate Controllers ──
         async function verifyKey(key) {
             if (!key) return false;
             try {
@@ -963,43 +1576,152 @@
 
         async function checkAuth() {
             if (!adminKey) {
-                document.getElementById('auth-modal').style.display = 'flex';
+                showAuthGateView();
                 return false;
             }
-            const isValid = await verifyKey(adminKey);
-            if (!isValid) {
-                sessionStorage.removeItem('ums_admin_key');
-                adminKey = '';
-                document.getElementById('auth-modal').style.display = 'flex';
-                return false;
-            }
-            document.getElementById('auth-modal').style.display = 'none';
             return true;
         }
 
-        async function submitAdminKey() {
-            const input = document.getElementById('admin-key-input').value.trim();
-            const errEl = document.getElementById('auth-err');
-            if (!input) return;
+        function showDashboardView() {
+            document.getElementById('admin-auth-gate').style.display = 'none';
+            const appEl = document.getElementById('admin-app');
+            appEl.style.display = 'flex';
+            refreshDashboard(true);
+            loadInstitutions();
+            if (currentAdminTab === 'international') {
+                loadInternationalConfig();
+                loadSubscribedJournals();
+            }
+            if (!pollingTimer) {
+                pollingTimer = setInterval(() => { refreshDashboard(false); }, 4000);
+            }
+        }
 
-            const isValid = await verifyKey(input);
-            if (isValid) {
-                adminKey = input;
-                sessionStorage.setItem('ums_admin_key', input);
-                document.getElementById('auth-modal').style.display = 'none';
-                errEl.style.display = 'none';
-                showToast('Akses berhasil.');
-                refreshDashboard(true);
+        function showAuthGateView(errorMsg = '') {
+            if (pollingTimer) {
+                clearInterval(pollingTimer);
+                pollingTimer = null;
+            }
+            document.getElementById('admin-app').style.display = 'none';
+            const gate = document.getElementById('admin-auth-gate');
+            gate.style.display = 'flex';
+            const errEl = document.getElementById('auth-gate-err');
+            const errMsgEl = document.getElementById('auth-gate-err-msg');
+            if (errorMsg) {
+                errMsgEl.textContent = errorMsg;
+                errEl.style.display = 'flex';
             } else {
-                errEl.style.display = 'block';
+                errEl.style.display = 'none';
+            }
+            const inp = document.getElementById('admin-key-input');
+            if (inp) {
+                inp.value = '';
+                inp.focus();
+            }
+        }
+
+        function handleAuthRequired(msg) {
+            sessionStorage.removeItem('ums_admin_key');
+            localStorage.removeItem('ums_admin_key');
+            adminKey = '';
+            showAuthGateView(msg || 'Sesi otentikasi diperlukan.');
+        }
+
+        async function submitAdminKey() {
+            const inp = document.getElementById('admin-key-input');
+            const key = inp ? inp.value.trim() : '';
+            const remember = document.getElementById('auth-remember-check')?.checked;
+            const submitBtn = document.getElementById('btn-auth-submit');
+            const btnText = document.getElementById('btn-auth-submit-text');
+            const errEl = document.getElementById('auth-gate-err');
+            const errMsgEl = document.getElementById('auth-gate-err-msg');
+
+            if (!key) {
+                if (errMsgEl) errMsgEl.textContent = 'Harap masukkan Admin Secret Key.';
+                if (errEl) errEl.style.display = 'flex';
+                return;
+            }
+
+            if (submitBtn) submitBtn.disabled = true;
+            if (btnText) btnText.textContent = 'Memverifikasi...';
+
+            try {
+                const isValid = await verifyKey(key);
+                if (isValid) {
+                    adminKey = key;
+                    sessionStorage.setItem('ums_admin_key', key);
+                    if (remember) {
+                        localStorage.setItem('ums_admin_key', key);
+                    } else {
+                        localStorage.removeItem('ums_admin_key');
+                    }
+                    showToast('Otentikasi berhasil.');
+                    showDashboardView();
+                } else {
+                    if (errMsgEl) errMsgEl.textContent = 'Admin Secret Key salah atau tidak cocok.';
+                    if (errEl) errEl.style.display = 'flex';
+                }
+            } catch (e) {
+                if (errMsgEl) errMsgEl.textContent = 'Gagal menghubungi server: ' + e.message;
+                if (errEl) errEl.style.display = 'flex';
+            } finally {
+                if (submitBtn) submitBtn.disabled = false;
+                if (btnText) btnText.textContent = 'Verifikasi & Masuk Dashboard';
             }
         }
 
         function logoutAdmin() {
             sessionStorage.removeItem('ums_admin_key');
+            localStorage.removeItem('ums_admin_key');
             adminKey = '';
-            document.getElementById('admin-key-input').value = '';
-            document.getElementById('auth-modal').style.display = 'flex';
+            showAuthGateView();
+            showToast('Sesi admin telah berhasil ditutup.');
+        }
+
+        async function initAdminAuth() {
+            const storedKey = sessionStorage.getItem('ums_admin_key') || localStorage.getItem('ums_admin_key') || '';
+            if (storedKey) {
+                const isValid = await verifyKey(storedKey);
+                if (isValid) {
+                    adminKey = storedKey;
+                    showDashboardView();
+                    return;
+                } else {
+                    sessionStorage.removeItem('ums_admin_key');
+                    localStorage.removeItem('ums_admin_key');
+                    adminKey = '';
+                }
+            }
+            showAuthGateView();
+        }
+
+        // ── Workspace Tab Switching ──
+        function switchAdminTab(tab) {
+            currentAdminTab = tab;
+            const btnHarvest = document.getElementById('tab-btn-harvest');
+            const btnIntl = document.getElementById('tab-btn-international');
+            const viewHarvest = document.getElementById('view-harvest');
+            const viewIntl = document.getElementById('view-international');
+            const pageTitle = document.getElementById('page-main-title');
+            const pageDesc = document.getElementById('page-main-desc');
+
+            if (tab === 'international') {
+                btnHarvest.classList.remove('active');
+                btnIntl.classList.add('active');
+                viewHarvest.style.display = 'none';
+                viewIntl.style.display = 'flex';
+                pageTitle.textContent = 'Manajemen Jurnal Internasional & E-Resources';
+                pageDesc.textContent = 'Kontrol saklar database global (Scopus, Springer, dll.) dan katalog e-journal langganan resmi UMS.';
+                loadInternationalConfig();
+                loadSubscribedJournals();
+            } else {
+                btnIntl.classList.remove('active');
+                btnHarvest.classList.add('active');
+                viewIntl.style.display = 'none';
+                viewHarvest.style.display = 'flex';
+                pageTitle.textContent = 'Harvester & Repository Management';
+                pageDesc.textContent = 'Monitoring sinkronisasi otomatis OAI-PMH katalog Koha, EPrints, Jurnal, dan institusi mitra.';
+            }
         }
 
         // ── Custom Confirm Modal ──
@@ -1068,27 +1790,32 @@
         // ── Dashboard Refresh ──
         async function refreshDashboard(manual = false) {
             if (isPolling && !manual) return;
+            if (!adminKey) return;
             isPolling = true;
 
             try {
-                const statusRes = await fetch('/api/admin/harvest/status');
+                const statusRes = await adminFetch('/api/admin/harvest/status');
                 if (statusRes.ok) {
                     const statusData = await statusRes.json();
                     renderStatus(statusData);
                 }
 
-                const statsRes = await fetch('/api/admin/stats');
+                const statsRes = await adminFetch('/api/admin/stats');
                 if (statsRes.ok) {
                     const statsData = await statsRes.json();
                     renderStats(statsData);
                 }
 
-                if (adminKey) {
-                    loadInstitutions();
-                    loadLogContent();
+                loadInstitutions();
+                loadLogContent();
+                if (currentAdminTab === 'international') {
+                    loadInternationalConfig();
+                    loadSubscribedJournals();
                 }
             } catch (e) {
-                console.error('Refresh error:', e);
+                if (e.message !== 'Unauthorized') {
+                    console.error('Refresh error:', e);
+                }
             } finally {
                 isPolling = false;
             }
@@ -1155,15 +1882,13 @@
         async function loadInstitutions() {
             if (!adminKey) return;
             try {
-                const res = await fetch('/api/admin/institutions', {
-                    headers: { 'X-Admin-Key': adminKey }
-                });
+                const res = await adminFetch('/api/admin/institutions');
                 if (res.ok) {
                     institutionsList = await res.json();
                     renderMitraTable(institutionsList);
                 }
             } catch (e) {
-                console.error('Error institutions:', e);
+                if (e.message !== 'Unauthorized') console.error('Error institutions:', e);
             }
         }
 
@@ -1257,9 +1982,9 @@
             }
 
             try {
-                const res = await fetch('/api/admin/institutions', {
+                const res = await adminFetch('/api/admin/institutions', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id, name, url, type, source, active: true })
                 });
                 const resData = await res.json();
@@ -1271,7 +1996,7 @@
                     showToast(`Gagal: ${resData.error}`);
                 }
             } catch (err) {
-                showToast(`Error: ${err.message}`);
+                if (err.message !== 'Unauthorized') showToast(`Error: ${err.message}`);
             }
         }
 
@@ -1280,9 +2005,9 @@
             if (!isAuthed) return;
 
             try {
-                const res = await fetch('/api/admin/institutions/toggle', {
+                const res = await adminFetch('/api/admin/institutions/toggle', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id })
                 });
                 const resData = await res.json();
@@ -1293,7 +2018,7 @@
                     showToast(`Gagal: ${resData.error}`);
                 }
             } catch (e) {
-                showToast(`Error: ${e.message}`);
+                if (e.message !== 'Unauthorized') showToast(`Error: ${e.message}`);
             }
         }
 
@@ -1308,9 +2033,8 @@
                 true,
                 async () => {
                     try {
-                        const res = await fetch(`/api/admin/institutions/${encodeURIComponent(id)}`, {
-                            method: 'DELETE',
-                            headers: { 'X-Admin-Key': adminKey }
+                        const res = await adminFetch(`/api/admin/institutions/${encodeURIComponent(id)}`, {
+                            method: 'DELETE'
                         });
                         const resData = await res.json();
                         if (res.ok) {
@@ -1320,13 +2044,16 @@
                             showToast(`Gagal: ${resData.error}`);
                         }
                     } catch (e) {
-                        showToast(`Error: ${e.message}`);
+                        if (e.message !== 'Unauthorized') showToast(`Error: ${e.message}`);
                     }
                 }
             );
         }
 
         async function testMitraUrl() {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
             const url = document.getElementById('mitra-url').value.trim();
             const testBox = document.getElementById('test-result-box');
             if (!url) {
@@ -1341,9 +2068,7 @@
             testBox.textContent = 'Menghubungkan ke endpoint OAI-PMH...';
 
             try {
-                const res = await fetch(`/api/admin/institutions/test?url=${encodeURIComponent(url)}`, {
-                    headers: { 'X-Admin-Key': adminKey }
-                });
+                const res = await adminFetch(`/api/admin/institutions/test?url=${encodeURIComponent(url)}`);
                 const data = await res.json();
                 if (data.ok) {
                     testBox.style.background = 'var(--status-idle-bg)';
@@ -1357,23 +2082,26 @@
                     testBox.textContent = `Gagal: ${data.message}`;
                 }
             } catch (err) {
-                testBox.style.background = 'var(--status-err-bg)';
-                testBox.style.color = 'var(--status-err-text)';
-                testBox.style.borderColor = 'var(--status-err-border)';
-                testBox.textContent = `Error: ${err.message}`;
+                if (err.message !== 'Unauthorized') {
+                    testBox.style.background = 'var(--status-err-bg)';
+                    testBox.style.color = 'var(--status-err-text)';
+                    testBox.style.borderColor = 'var(--status-err-border)';
+                    testBox.textContent = `Error: ${err.message}`;
+                }
             }
         }
 
         async function testOaiEndpoint(url) {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
             showToast('Menghubungkan OAI-PMH...');
             try {
-                const res = await fetch(`/api/admin/institutions/test?url=${encodeURIComponent(url)}`, {
-                    headers: { 'X-Admin-Key': adminKey }
-                });
+                const res = await adminFetch(`/api/admin/institutions/test?url=${encodeURIComponent(url)}`);
                 const data = await res.json();
                 showOaiResultModal(url, data);
             } catch (e) {
-                showOaiResultModal(url, { ok: false, message: e.message });
+                if (e.message !== 'Unauthorized') showOaiResultModal(url, { ok: false, message: e.message });
             }
         }
 
@@ -1389,7 +2117,7 @@
                     `/api/admin/harvest/logs?file=${encodeURIComponent(specificFile)}` : 
                     `/api/admin/harvest/logs`;
 
-                const res = await fetch(url, { headers: { 'X-Admin-Key': adminKey } });
+                const res = await adminFetch(url);
                 if (res.ok) {
                     const data = await res.json();
                     if (data.files && data.files.length > 0) {
@@ -1412,7 +2140,7 @@
                     }
                 }
             } catch (err) {
-                console.error('Error log:', err);
+                if (err.message !== 'Unauthorized') console.error('Error log:', err);
             }
         }
 
@@ -1431,9 +2159,8 @@
             const days = document.getElementById('inc-days').value || 3;
             try {
                 showToast(`Memulai ${mode.toUpperCase()} sync...`);
-                const res = await fetch(`/api/admin/harvest/run?mode=${mode}&days=${days}`, {
-                    method: 'POST',
-                    headers: { 'X-Admin-Key': adminKey }
+                const res = await adminFetch(`/api/admin/harvest/run?mode=${mode}&days=${days}`, {
+                    method: 'POST'
                 });
                 const resData = await res.json();
                 if (res.ok) {
@@ -1443,7 +2170,7 @@
                     showToast(`Gagal: ${resData.error || 'Terjadi kesalahan'}`);
                 }
             } catch (err) {
-                showToast(`Error: ${err.message}`);
+                if (err.message !== 'Unauthorized') showToast(`Error: ${err.message}`);
             }
         }
 
@@ -1468,9 +2195,8 @@
                 true,
                 async () => {
                     try {
-                        const res = await fetch('/api/admin/harvest/unlock', {
-                            method: 'POST',
-                            headers: { 'X-Admin-Key': adminKey }
+                        const res = await adminFetch('/api/admin/harvest/unlock', {
+                            method: 'POST'
                         });
                         const resData = await res.json();
                         if (res.ok) {
@@ -1480,12 +2206,472 @@
                             showToast(`Gagal: ${resData.error}`);
                         }
                     } catch (e) {
-                        showToast(`Error: ${e.message}`);
+                        if (e.message !== 'Unauthorized') showToast(`Error: ${e.message}`);
                     }
                 }
             );
         }
 
+        // ══════════════════════════════════════════════════════════
+        // ── INTERNATIONAL JOURNALS & E-RESOURCES CONTROLLERS ──
+        // ══════════════════════════════════════════════════════════
+
+        async function loadInternationalConfig() {
+            if (!adminKey) return;
+            try {
+                const res = await adminFetch('/api/admin/international/config');
+                if (res.ok) {
+                    internationalConfig = await res.json();
+                    renderInternationalConfig(internationalConfig);
+                }
+            } catch (err) {
+                if (err.message !== 'Unauthorized') console.error('Error loading international config:', err);
+            }
+        }
+
+        function renderInternationalConfig(cfg) {
+            if (!cfg) return;
+            const isMasterEnabled = cfg.enabled !== false;
+            const masterToggle = document.getElementById('intl-master-toggle');
+            const masterPill = document.getElementById('master-switch-status-pill');
+
+            if (masterToggle) masterToggle.checked = isMasterEnabled;
+            if (masterPill) {
+                if (isMasterEnabled) {
+                    masterPill.className = 'status-pill idle';
+                    masterPill.innerHTML = '<span class="status-dot"></span> AKTIF DI PORTAL';
+                } else {
+                    masterPill.className = 'status-pill error';
+                    masterPill.innerHTML = '<span class="status-dot"></span> NONAKTIF (DISEMBUNYIKAN)';
+                }
+            }
+
+            const src = cfg.sources || {};
+            const sourceKeys = ['scopus', 'springer', 'openalex', 'semanticscholar', 'lens', 'crossref', 'emerald'];
+            sourceKeys.forEach(k => {
+                const el = document.getElementById(`src-toggle-${k}`);
+                if (el) {
+                    el.checked = src[k] !== false;
+                }
+            });
+        }
+
+        async function saveInternationalMasterToggle(enabled) {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
+            try {
+                const res = await adminFetch('/api/admin/international/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled })
+                });
+                const resData = await res.json();
+                if (res.ok) {
+                    showToast(`Fitur Jurnal Internasional: ${enabled ? 'Diaktifkan' : 'Dinonaktifkan'}`);
+                    loadInternationalConfig();
+                } else {
+                    showToast(`Gagal: ${resData.error || 'Terjadi kesalahan'}`);
+                }
+            } catch (err) {
+                if (err.message !== 'Unauthorized') showToast(`Error: ${err.message}`);
+            }
+        }
+
+        async function saveInternationalSourceToggle(sourceId, enabled) {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
+            try {
+                const res = await adminFetch('/api/admin/international/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sources: { [sourceId]: enabled }
+                    })
+                });
+                const resData = await res.json();
+                if (res.ok) {
+                    showToast(`Sumber ${sourceId.toUpperCase()} ${enabled ? 'diaktifkan' : 'dinonaktifkan'}`);
+                } else {
+                    showToast(`Gagal: ${resData.error || 'Terjadi kesalahan'}`);
+                }
+            } catch (err) {
+                if (err.message !== 'Unauthorized') showToast(`Error: ${err.message}`);
+            }
+        }
+
+        async function loadSubscribedJournals() {
+            if (!adminKey) return;
+            try {
+                const res = await adminFetch('/api/admin/international/journals');
+                if (res.ok) {
+                    const data = await res.json();
+                    subscribedJournalsList = Array.isArray(data) ? data : (data.items || []);
+                    renderSubscribedJournalsTable(subscribedJournalsList);
+                    updateSubscribedJournalsMetrics(subscribedJournalsList);
+                    populatePublisherFilter(subscribedJournalsList);
+                }
+            } catch (err) {
+                if (err.message !== 'Unauthorized') console.error('Error load journals:', err);
+            }
+        }
+
+        function updateSubscribedJournalsMetrics(list) {
+            const total = list.length;
+            const active = list.filter(it => it.active !== false).length;
+            const publishers = new Set(list.map(it => it.publisher).filter(Boolean)).size;
+
+            const elTotal = document.getElementById('metric-jrn-total');
+            const elActive = document.getElementById('metric-jrn-active');
+            const elPubs = document.getElementById('metric-jrn-publishers');
+
+            if (elTotal) elTotal.textContent = total.toLocaleString('id-ID');
+            if (elActive) elActive.textContent = active.toLocaleString('id-ID');
+            if (elPubs) elPubs.textContent = publishers.toLocaleString('id-ID');
+        }
+
+        function populatePublisherFilter(list) {
+            const selectEl = document.getElementById('jrn-filter-pub');
+            if (!selectEl) return;
+            const currentVal = selectEl.value;
+            const publishers = Array.from(new Set(list.map(it => it.publisher).filter(Boolean))).sort();
+
+            selectEl.innerHTML = '<option value="all">Semua Penerbit</option>' + 
+                publishers.map(p => `<option value="${esc(p)}" ${p === currentVal ? 'selected' : ''}>${esc(p)}</option>`).join('');
+        }
+
+        function renderSubscribedJournalsTable(list) {
+            const tbody = document.getElementById('journals-tbody');
+            if (!tbody) return;
+
+            if (!list || list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--text-muted);">Belum ada jurnal internasional yang terdaftar. Klik "+ Tambah Jurnal" atau "Impor CSV".</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = list.map(it => {
+                const isActive = it.active !== false;
+                const issns = [it.issn, it.eissn].filter(Boolean).join(' / ') || '-';
+                const accessLabel = it.accessType === 'ezproxy' ? 'EZProxy SSO' : 
+                                   (it.accessType === 'open' ? 'Open Access' : 'IP Kampus');
+                
+                return `
+                <tr>
+                    <td>
+                        <div style="font-weight:600; color:var(--text-main); font-size:0.88rem;">${esc(it.title)}</div>
+                        <div style="font-size:0.72rem; color:var(--text-muted); font-family:var(--font-mono); margin-top:2px;">ID: ${esc(it.id)} ${it.notes ? '• ' + esc(it.notes) : ''}</div>
+                    </td>
+                    <td>
+                        <span class="code-tag" style="font-family:var(--font-mono); font-size:0.75rem;">${esc(issns)}</span>
+                    </td>
+                    <td>
+                        <div style="font-weight:500; font-size:0.82rem;">${esc(it.publisher || '-')}</div>
+                    </td>
+                    <td>
+                        <div style="font-size:0.8rem;">${esc(it.subject || '-')}</div>
+                        ${it.faculty ? `<div style="font-size:0.7rem; color:var(--text-muted);">Fak: ${esc(it.faculty)}</div>` : ''}
+                    </td>
+                    <td>
+                        <span class="type-badge" style="background:var(--bg-muted);">${esc(accessLabel)}</span>
+                        ${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" style="font-size:0.72rem; display:block; color:var(--border-focus); margin-top:3px;">Buka Link ↗</a>` : ''}
+                    </td>
+                    <td>
+                        <label class="switch" title="Aktifkan/Nonaktifkan Jurnal">
+                            <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleJournalActive('${esc(it.id)}')">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </td>
+                    <td style="text-align:right; white-space:nowrap;">
+                        <button type="button" class="btn btn-xs" onclick="editJournal('${esc(it.id)}')" title="Edit Data Jurnal">
+                            Edit
+                        </button>
+                        <button type="button" class="btn btn-destructive btn-xs" onclick="deleteSubscribedJournal('${esc(it.id)}')" title="Hapus Jurnal">
+                            Hapus
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function filterJournalsTable() {
+            const query = (document.getElementById('jrn-search-input')?.value || '').toLowerCase().trim();
+            const filterPub = document.getElementById('jrn-filter-pub')?.value || 'all';
+            const filterStatus = document.getElementById('jrn-filter-status')?.value || 'all';
+
+            const filtered = subscribedJournalsList.filter(it => {
+                const matchPub = filterPub === 'all' || it.publisher === filterPub;
+                const matchStatus = filterStatus === 'all' || 
+                    (filterStatus === 'active' && it.active !== false) ||
+                    (filterStatus === 'inactive' && it.active === false);
+                
+                const searchStr = `${it.title || ''} ${it.issn || ''} ${it.eissn || ''} ${it.subject || ''} ${it.publisher || ''} ${it.faculty || ''}`.toLowerCase();
+                const matchQuery = !query || searchStr.includes(query);
+
+                return matchPub && matchStatus && matchQuery;
+            });
+
+            renderSubscribedJournalsTable(filtered);
+        }
+
+        function handlePublisherSelectChange(val) {
+            const customInput = document.getElementById('journal-publisher-custom');
+            if (val === '__other__') {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+            }
+        }
+
+        function setPublisherValue(val) {
+            const sel = document.getElementById('journal-publisher-select');
+            const customInput = document.getElementById('journal-publisher-custom');
+            if (!val) {
+                sel.value = '';
+                customInput.style.display = 'none';
+                customInput.value = '';
+                return;
+            }
+            const hasOption = Array.from(sel.options).some(opt => opt.value === val);
+            if (hasOption) {
+                sel.value = val;
+                customInput.style.display = 'none';
+                customInput.value = '';
+            } else {
+                sel.value = '__other__';
+                customInput.style.display = 'block';
+                customInput.value = val;
+            }
+        }
+
+        function getPublisherValue() {
+            const sel = document.getElementById('journal-publisher-select');
+            if (sel.value === '__other__') {
+                return document.getElementById('journal-publisher-custom').value.trim();
+            }
+            return sel.value;
+        }
+
+        function openAddJournalModal(editItem = null) {
+            const modal = document.getElementById('journal-modal');
+            const titleEl = document.getElementById('modal-journal-title');
+
+            if (editItem) {
+                titleEl.textContent = 'Edit Data Jurnal Langganan';
+                document.getElementById('journal-id').value = editItem.id;
+                document.getElementById('journal-title').value = editItem.title || '';
+                setPublisherValue(editItem.publisher || '');
+                document.getElementById('journal-access-type').value = editItem.accessType || 'kampus';
+                document.getElementById('journal-issn').value = editItem.issn || '';
+                document.getElementById('journal-eissn').value = editItem.eissn || '';
+                document.getElementById('journal-url').value = editItem.url || '';
+                document.getElementById('journal-subject').value = editItem.subject || '';
+                document.getElementById('journal-faculty').value = editItem.faculty || '';
+                document.getElementById('journal-notes').value = editItem.notes || '';
+                document.getElementById('journal-active').checked = editItem.active !== false;
+            } else {
+                titleEl.textContent = 'Tambah Jurnal Langganan';
+                document.getElementById('journal-form').reset();
+                document.getElementById('journal-id').value = '';
+                setPublisherValue('');
+                document.getElementById('journal-active').checked = true;
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeJournalModal() {
+            document.getElementById('journal-modal').style.display = 'none';
+        }
+
+        function editJournal(id) {
+            const item = subscribedJournalsList.find(it => it.id === id);
+            if (item) openAddJournalModal(item);
+        }
+
+        async function saveSubscribedJournal() {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
+            const id = document.getElementById('journal-id').value.trim();
+            const title = document.getElementById('journal-title').value.trim();
+            const publisher = getPublisherValue();
+            const accessType = document.getElementById('journal-access-type').value;
+            const issn = document.getElementById('journal-issn').value.trim();
+            const eissn = document.getElementById('journal-eissn').value.trim();
+            const url = document.getElementById('journal-url').value.trim();
+            const subject = document.getElementById('journal-subject').value.trim();
+            const faculty = document.getElementById('journal-faculty').value.trim();
+            const notes = document.getElementById('journal-notes').value.trim();
+            const active = document.getElementById('journal-active').checked;
+
+            if (!title || !publisher) {
+                showToast('Judul jurnal dan nama penerbit wajib diisi!');
+                return;
+            }
+
+            const payload = { id, title, publisher, accessType, issn, eissn, url, subject, faculty, notes, active };
+
+            try {
+                const res = await adminFetch('/api/admin/international/journals', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const resData = await res.json();
+                if (res.ok) {
+                    showToast(resData.message || 'Jurnal berhasil disimpan.');
+                    closeJournalModal();
+                    loadSubscribedJournals();
+                } else {
+                    showToast(`Gagal: ${resData.error || 'Terjadi kesalahan'}`);
+                }
+            } catch (err) {
+                if (err.message !== 'Unauthorized') showToast(`Error: ${err.message}`);
+            }
+        }
+
+        async function toggleJournalActive(id) {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
+            try {
+                const res = await adminFetch('/api/admin/international/journals/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                const resData = await res.json();
+                if (res.ok) {
+                    showToast(resData.message);
+                    loadSubscribedJournals();
+                } else {
+                    showToast(`Gagal: ${resData.error || 'Terjadi kesalahan'}`);
+                }
+            } catch (err) {
+                if (err.message !== 'Unauthorized') showToast(`Error: ${err.message}`);
+            }
+        }
+
+        async function deleteSubscribedJournal(id) {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
+            const item = subscribedJournalsList.find(it => it.id === id);
+            const journalTitle = item ? item.title : id;
+
+            openConfirmModal(
+                'Hapus Jurnal Langganan',
+                `Apakah Anda yakin ingin menghapus "${journalTitle}" dari daftar langganan resmi UMS?`,
+                'Hapus Jurnal',
+                true,
+                async () => {
+                    try {
+                        const res = await adminFetch(`/api/admin/international/journals/${encodeURIComponent(id)}`, {
+                            method: 'DELETE'
+                        });
+                        const resData = await res.json();
+                        if (res.ok) {
+                            showToast(resData.message);
+                            loadSubscribedJournals();
+                        } else {
+                            showToast(`Gagal: ${resData.error || 'Terjadi kesalahan'}`);
+                        }
+                    } catch (err) {
+                        if (err.message !== 'Unauthorized') showToast(`Error: ${err.message}`);
+                    }
+                }
+            );
+        }
+
+        // ── CSV Import & Export ──
+        function openImportJournalModal() {
+            document.getElementById('journal-csv-file').value = '';
+            document.getElementById('csv-preview-info').style.display = 'none';
+            document.getElementById('btn-submit-import').disabled = true;
+            pendingCsvContent = '';
+            document.getElementById('journal-import-modal').style.display = 'flex';
+        }
+
+        function closeImportJournalModal() {
+            document.getElementById('journal-import-modal').style.display = 'none';
+        }
+
+        function handleJournalCsvFileSelect(event) {
+            const file = event.target.files[0];
+            const previewEl = document.getElementById('csv-preview-info');
+            const submitBtn = document.getElementById('btn-submit-import');
+
+            if (!file) {
+                previewEl.style.display = 'none';
+                submitBtn.disabled = true;
+                pendingCsvContent = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                pendingCsvContent = e.target.result;
+                const lines = pendingCsvContent.split(/\r?\n/).filter(line => line.trim().length > 0);
+                const rowCount = Math.max(0, lines.length - 1); // exclude header
+
+                previewEl.style.display = 'block';
+                previewEl.innerHTML = `
+                    <div style="font-weight:600;">✓ File Terbaca: ${esc(file.name)}</div>
+                    <div>Perkiraan baris jurnal yang akan diimpor: <strong>${rowCount} data</strong></div>
+                `;
+                submitBtn.disabled = rowCount === 0;
+            };
+            reader.readAsText(file);
+        }
+
+        async function submitImportJournal() {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
+            if (!pendingCsvContent) {
+                showToast('Pilih file CSV terlebih dahulu');
+                return;
+            }
+
+            const submitBtn = document.getElementById('btn-submit-import');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Mengimpor...';
+
+            try {
+                const res = await adminFetch('/api/admin/international/journals/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ csv: pendingCsvContent })
+                });
+                const resData = await res.json();
+                if (res.ok) {
+                    showToast(resData.message || 'Impor CSV berhasil!');
+                    closeImportJournalModal();
+                    loadSubscribedJournals();
+                } else {
+                    showToast(`Gagal: ${resData.error || 'Format CSV tidak valid'}`);
+                }
+            } catch (err) {
+                if (err.message !== 'Unauthorized') showToast(`Error: ${err.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Mulai Impor Data';
+            }
+        }
+
+        function exportJournalsCsv() {
+            const url = adminKey ? `/api/admin/international/journals/export?key=${encodeURIComponent(adminKey)}` : '/api/admin/international/journals/export';
+            window.open(url, '_blank');
+        }
+
+        function downloadJournalTemplate() {
+            const url = adminKey ? `/api/admin/international/journals/template?key=${encodeURIComponent(adminKey)}` : '/api/admin/international/journals/template';
+            window.open(url, '_blank');
+        }
+
+        // ── Utilities ──
         function esc(str) {
             if (!str) return '';
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
@@ -1510,8 +2696,7 @@
 
         // ── Init ──
         window.addEventListener('DOMContentLoaded', () => {
-            refreshDashboard(true);
-            setInterval(() => { refreshDashboard(false); }, 4000);
+            initAdminAuth();
         });
     </script>
 </body>

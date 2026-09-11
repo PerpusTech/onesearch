@@ -1,5 +1,5 @@
-const CACHE_NAME_SHELL = 'onesearch-shell-v82';
-const CACHE_NAME_DATA  = 'onesearch-data-v82';
+const CACHE_NAME_SHELL = 'onesearch-shell-v87';
+const CACHE_NAME_DATA  = 'onesearch-data-v87';
 
 const SHELL_ASSETS = [
   '/',
@@ -18,7 +18,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME_SHELL).then((cache) => {
-      console.log('[SW] Pre-caching App Shell v82');
+      console.log('[SW] Pre-caching App Shell v86');
       return cache.addAll(SHELL_ASSETS);
     })
   );

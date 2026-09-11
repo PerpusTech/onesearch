@@ -24,6 +24,8 @@ const app = {
     activeFakultas: null,
     debounce: null,
     lang: localStorage.getItem('bf-lang') || 'id',
+    intlConfig: null,
+    _ejournalsList: [],
 
     translations: {
         id: {
@@ -516,6 +518,13 @@ const app = {
                 this.prodiIndex = {};
             }
 
+            // Load international configuration (toggles & active sources)
+            try {
+                this.intlConfig = await (await fetch('/api/international/config')).json();
+            } catch (e) {
+                this.intlConfig = { enabled: true, sources: {} };
+            }
+
             txt.textContent = this.t('building_index');
             this.searchEngine.build(this.books);
             this.recommender = new Recommender(this.searchEngine);
@@ -659,6 +668,15 @@ const app = {
                     mobMenu.classList.remove('open');
                 }
             }
+
+            // Close bookmark export menu on outside click
+            const expMenu = document.getElementById('bm-export-menu');
+            const expWrap = document.querySelector('.bm-export-dropdown-wrap');
+            if (expMenu && expMenu.style.display === 'block') {
+                if (!expWrap || !expWrap.contains(e.target)) {
+                    expMenu.style.display = 'none';
+                }
+            }
         });
     },
 
@@ -702,6 +720,9 @@ const app = {
         this._applyBrowseMode();
         this.renderProdi();
     },
+    setBrowseMode(mode) {
+        this.switchBrowseMode(mode);
+    },
     switchBrowseMode(mode) {
         this.browseMode = mode;
         this._applyBrowseMode();
@@ -714,21 +735,152 @@ const app = {
         }
     },
     _applyBrowseMode() {
-        const ddcArea = document.getElementById('browse-ddc-area');
-        const prodiArea = document.getElementById('browse-prodi-area');
-        const tabDdc = document.getElementById('bmt-ddc');
-        const tabProdi = document.getElementById('bmt-prodi');
+        const ddcArea = document.getElementById('browse-ddc-wrap') || document.getElementById('browse-ddc-area');
+        const prodiArea = document.getElementById('browse-prodi-wrap') || document.getElementById('browse-prodi-area');
+        const tabDdc = document.getElementById('tab-browse-ddc') || document.getElementById('bmt-ddc');
+        const tabProdi = document.getElementById('tab-browse-prodi') || document.getElementById('bmt-prodi');
         const isDdc = this.browseMode !== 'prodi';
         if (ddcArea) ddcArea.style.display = isDdc ? 'block' : 'none';
         if (prodiArea) prodiArea.style.display = isDdc ? 'none' : 'block';
-        if (tabDdc) tabDdc.classList.toggle('active', isDdc);
-        if (tabProdi) tabProdi.classList.toggle('active', !isDdc);
+        if (tabDdc) {
+            tabDdc.className = isDdc ? 'btn btn-brand' : 'btn btn-ghost';
+            tabDdc.classList.toggle('active', isDdc);
+        }
+        if (tabProdi) {
+            tabProdi.className = !isDdc ? 'btn btn-brand' : 'btn btn-ghost';
+            tabProdi.classList.toggle('active', !isDdc);
+        }
     },
     showBookmarks() {
         this.showPage('bookmarks');
         this.renderBookmarks();
     },
     showStats() { this.showPage('stats'); this.renderStats(); },
+
+    // ──── Public E-Journal Directory (Langganan Resmi UMS) ────
+    async showEJournalDirectory() {
+        this.showPage('ejournals');
+        const grid = document.getElementById('ejrn-grid');
+        const loading = document.getElementById('ejrn-loading');
+
+        if (this._ejournalsList && this._ejournalsList.length > 0) {
+            this.renderEJournalDirectory(this._ejournalsList);
+            return;
+        }
+
+        if (loading) loading.style.display = 'block';
+        if (grid) grid.innerHTML = '';
+
+        try {
+            const res = await fetch('/api/international/journals');
+            if (res.ok) {
+                const data = await res.json();
+                this._ejournalsList = Array.isArray(data) ? data : (data.items || []);
+                this.populateEJournalFilters(this._ejournalsList);
+                this.renderEJournalDirectory(this._ejournalsList);
+            }
+        } catch (e) {
+            console.error('Error fetching subscribed journals:', e);
+            if (grid) {
+                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:2rem; color:var(--ink-3);">Gagal memuat katalog jurnal. Silakan coba sesaat lagi.</div>';
+            }
+        } finally {
+            if (loading) loading.style.display = 'none';
+        }
+    },
+
+    populateEJournalFilters(list) {
+        const pubSel = document.getElementById('ejrn-filter-publisher');
+        if (!pubSel) return;
+        const safeList = Array.isArray(list) ? list : (list && Array.isArray(list.items) ? list.items : []);
+        const publishers = Array.from(new Set(safeList.map(it => it.publisher).filter(Boolean))).sort();
+        pubSel.innerHTML = '<option value="all">Semua Penerbit</option>' + 
+            publishers.map(p => `<option value="${this.esc(p)}">${this.esc(p)}</option>`).join('');
+    },
+
+    filterEJournalDirectory() {
+        const q = (document.getElementById('ejrn-search-input')?.value || '').toLowerCase().trim();
+        const pubFilter = document.getElementById('ejrn-filter-publisher')?.value || 'all';
+        const accessFilter = document.getElementById('ejrn-filter-access')?.value || 'all';
+
+        const safeList = Array.isArray(this._ejournalsList) ? this._ejournalsList : [];
+        const filtered = safeList.filter(it => {
+            const matchPub = pubFilter === 'all' || it.publisher === pubFilter;
+            const matchAccess = accessFilter === 'all' || it.accessType === accessFilter;
+            const searchStr = `${it.title || ''} ${it.publisher || ''} ${it.issn || ''} ${it.eissn || ''} ${it.subject || ''} ${it.faculty || ''}`.toLowerCase();
+            const matchQ = !q || searchStr.includes(q);
+            return matchPub && matchAccess && matchQ;
+        });
+
+        this.renderEJournalDirectory(filtered);
+    },
+
+    starSvg(isBm) {
+        if (isBm) {
+            return `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+        }
+        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+    },
+
+    renderEJournalDirectory(list) {
+        const grid = document.getElementById('ejrn-grid');
+        if (!grid) return;
+
+        const safeList = Array.isArray(list) ? list : (list && Array.isArray(list.items) ? list.items : []);
+
+        if (!safeList || safeList.length === 0) {
+            grid.innerHTML = `
+                <div style="grid-column:1/-1; text-align:center; padding:3rem 1.5rem; color:var(--ink-3); background:var(--bg-2); border:1px solid var(--border); border-radius:var(--r-md);">
+                    <p style="font-size:1.05rem; font-weight:600; color:var(--ink); margin-bottom:0.35rem;">Tidak Ada Jurnal yang Sesuai</p>
+                    <p style="font-size:0.85rem;">Coba sesuaikan kata kunci pencarian atau filter penerbit.</p>
+                </div>`;
+            return;
+        }
+
+        grid.innerHTML = safeList.map(it => {
+            const issns = [it.issn, it.eissn].filter(Boolean).join(' / ') || '-';
+            const accessBadge = it.accessType === 'ezproxy' ? 
+                '<span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">EZProxy SSO</span>' :
+                (it.accessType === 'open' ? 
+                '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
+                '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
+
+            const directUrl = it.url || '#';
+
+            return `
+            <div class="ejournal-card">
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem; margin-bottom:0.5rem;">
+                        <span class="fed-badge-subscribed" style="font-size:0.68rem;"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Langganan UMS</span>
+                        ${accessBadge}
+                    </div>
+                    <h3 style="font-size:1.05rem; font-weight:700; color:var(--ink); margin-bottom:0.4rem; line-height:1.35;">
+                        ${this.esc(it.title)}
+                    </h3>
+                    <div style="font-size:0.82rem; font-weight:600; color:var(--brand-text); margin-bottom:0.5rem;">
+                        ${this.esc(it.publisher || 'Penerbit Internasional')}
+                    </div>
+                    <div style="font-size:0.75rem; color:var(--ink-3); margin-bottom:0.6rem; font-family:var(--font-mono);">
+                        ISSN: ${this.esc(issns)}
+                    </div>
+                    ${it.subject ? `
+                    <div style="font-size:0.78rem; color:var(--ink-2); margin-bottom:0.75rem;">
+                        <strong>Subjek:</strong> ${this.esc(it.subject)} ${it.faculty ? `(Fak: ${this.esc(it.faculty)})` : ''}
+                    </div>` : ''}
+                    ${it.notes ? `
+                    <div style="font-size:0.74rem; color:var(--ink-3); margin-bottom:0.75rem; display:flex; align-items:flex-start; gap:0.35rem;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        <span>${this.esc(it.notes)}</span>
+                    </div>` : ''}
+                </div>
+                <div style="margin-top:1rem; border-top:1px solid var(--border); padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center;">
+                    <a href="${this.esc(directUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="font-size:0.78rem; padding:0.4rem 0.85rem; width:100%; justify-content:center;">
+                        Buka Portal Jurnal ↗
+                    </a>
+                </div>
+            </div>`;
+        }).join('');
+    },
     toggleMobileMenu(forceClose) {
         const m = document.getElementById('mob-menu');
         if (!m) return;
@@ -763,7 +915,7 @@ const app = {
             if (itemData) {
                 this.bookmarksData[id] = itemData;
             }
-            this.toast(this.lang === 'id' ? 'Disimpan ke Koleksi Saya ⭐' : 'Saved to collection ⭐');
+            this.toast(this.lang === 'id' ? 'Disimpan ke Koleksi Saya' : 'Saved to collection');
         }
         localStorage.setItem('bf-bookmarks', JSON.stringify([...this.bookmarks]));
         localStorage.setItem('bf-bookmarks-data', JSON.stringify(this.bookmarksData));
@@ -781,7 +933,7 @@ const app = {
         const artBtn = document.getElementById('btn-art-bm');
         if (artBtn) {
             const hasBm = this.bookmarks.has(id) || this.bookmarks.has(idStr);
-            artBtn.innerHTML = hasBm ? '⭐ Tersimpan di Koleksi' : '☆ Simpan ke Koleksi';
+            artBtn.innerHTML = `${this.starSvg(hasBm)} <span>${hasBm ? 'Tersimpan di Koleksi' : 'Simpan ke Koleksi'}</span>`;
             artBtn.style.color = hasBm ? 'var(--brand)' : '';
         }
 
@@ -789,7 +941,7 @@ const app = {
         const cardBtn = document.getElementById('bm-star-' + id);
         if (cardBtn) {
             const hasBm = this.bookmarks.has(id) || this.bookmarks.has(idStr);
-            cardBtn.textContent = hasBm ? '⭐' : '☆';
+            cardBtn.innerHTML = this.starSvg(hasBm);
             cardBtn.style.color = hasBm ? 'var(--brand)' : 'var(--ink-3)';
         }
 
@@ -798,7 +950,7 @@ const app = {
         fedCardBtns.forEach(b => {
             const hasBm = this.bookmarks.has(id) || this.bookmarks.has(idStr);
             b.classList.toggle('active', hasBm);
-            b.textContent = hasBm ? '⭐' : '☆';
+            b.innerHTML = this.starSvg(hasBm);
             b.title = hasBm ? (this.lang === 'id' ? 'Tersimpan di Koleksi Saya' : 'Saved in collection') : (this.lang === 'id' ? 'Simpan ke Koleksi Saya' : 'Save to collection');
         });
 
@@ -834,13 +986,43 @@ const app = {
         });
     },
 
+    _bmSort: 'saved',
+    _bmTypeFilter: 'all',
+
     setBmSort(mode) {
-        this._bmSort = mode;
-        ['az', 'year', 'ddc'].forEach(m => {
-            const el = document.getElementById('bm-sort-' + m);
-            if (el) el.classList.toggle('active', m === mode);
+        this._bmSort = mode || 'saved';
+        const sel = document.getElementById('bm-sort-sel');
+        if (sel && sel.value !== this._bmSort) {
+            sel.value = this._bmSort;
+        }
+        this.renderBookmarks();
+    },
+
+    setBmTypeFilter(type, btnEl) {
+        this._bmTypeFilter = type || 'all';
+        const tabs = document.querySelectorAll('#bm-filter-tabs .bm-filter-chip');
+        tabs.forEach(t => {
+            if (t.getAttribute('data-filter') === this._bmTypeFilter) {
+                t.classList.add('active');
+            } else {
+                t.classList.remove('active');
+            }
         });
-        this.renderBookmarks(false);
+        this.renderBookmarks();
+    },
+
+    toggleBmExportMenu(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('bm-export-menu');
+        if (menu) {
+            const isShown = menu.style.display === 'block';
+            menu.style.display = isShown ? 'none' : 'block';
+        }
+    },
+
+    closeBmExportMenu() {
+        const menu = document.getElementById('bm-export-menu');
+        if (menu) menu.style.display = 'none';
     },
 
     clearAllBookmarks() {
@@ -851,6 +1033,7 @@ const app = {
         localStorage.removeItem('bf-bookmarks-data');
         this._updateBmBadge();
         this.renderBookmarks();
+        this.toast(this.lang === 'id' ? 'Seluruh koleksi tersimpan telah dibersihkan.' : 'All bookmarks cleared.');
     },
 
     // ──── Citation & Reference Manager Generators (.RIS & .BIB) ────
@@ -999,41 +1182,26 @@ const app = {
         this.toast(`Koleksi (${savedItems.length} item) diekspor ke .${format.toUpperCase()}!`);
     },
 
-    renderBookmarks(buildToolbar = true) {
-        const wrap = document.getElementById('bookmarks-wrap');
+    renderBookmarks() {
         const grid = document.getElementById('bookmarks-grid');
         if (!grid) return;
 
-        let savedItems = [...this.bookmarks].map(id => {
+        let allSavedItems = [...this.bookmarks].map(id => {
             return this.searchEngine.getById(id)
                 || (this.bookmarksData && this.bookmarksData[id])
                 || (this.baseResults && this.baseResults.find(b => b.id == id));
         }).filter(Boolean);
 
-        // Sort
-        if (this._bmSort === 'az') savedItems.sort((a, b) => (a.t || a.title || '').localeCompare(b.t || b.title || ''));
-        else if (this._bmSort === 'year') savedItems.sort((a, b) => String(b.yr || b.year || '').localeCompare(String(a.yr || a.year || '')));
-        else if (this._bmSort === 'ddc') savedItems.sort((a, b) => (a.ddc || a.contentType || '').localeCompare(b.ddc || b.contentType || '') || (a.t || a.title || '').localeCompare(b.t || b.title || ''));
-
-        // Toolbar
-        if (buildToolbar && wrap) {
-            const toolbar = document.getElementById('bookmarks-toolbar');
-            if (toolbar) {
-                toolbar.style.display = savedItems.length > 0 ? 'flex' : 'none';
-            }
+        const totalSaved = allSavedItems.length;
+        const countText = document.getElementById('bm-count-text');
+        if (countText) {
+            countText.textContent = `${totalSaved} item tersimpan`;
         }
 
-        if (savedItems.length > 0) {
-            grid.style.display = 'grid';
-            grid.innerHTML = `<div style="grid-column:1/-1;color:var(--ink-2);font-size:.82rem;margin-bottom:.25rem">
-                ${this.fmt(savedItems.length)} ${this.t('results_found').toLowerCase()}</div>` +
-                savedItems.map(b => {
-                    if (b.t && !b.contentType) {
-                        return this.bookCard(b);
-                    }
-                    return this.fedBookmarkCard(b);
-                }).join('');
-        } else {
+        const panel = document.getElementById('bm-panel');
+
+        if (totalSaved === 0) {
+            if (panel) panel.style.display = 'none';
             grid.style.display = 'block';
             grid.innerHTML = `
                 <div class="empty-state">
@@ -1041,10 +1209,63 @@ const app = {
                         ${this.getEmptyStateSvg('bookmarks')}
                     </div>
                     <div class="empty-state-title">Belum Ada Koleksi Disimpan</div>
-                    <div class="empty-state-desc">Simpan buku, skripsi, atau artikel jurnal internasional dengan menekan tombol bintang pada kartu agar tersimpan di sini.</div>
+                    <div class="empty-state-desc">Simpan buku perpustakaan, skripsi & tesis, atau artikel jurnal internasional dengan menekan tombol bintang pada kartu literatur untuk menyimpannya di sini.</div>
                     <div class="empty-state-actions">
-                        <button type="button" class="btn btn-brand" onclick="app.showBrowse()">Jelajahi Koleksi</button>
+                        <button type="button" class="btn btn-brand" onclick="app.showBrowse()">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+                            Jelajahi Koleksi
+                        </button>
                         <button type="button" class="btn btn-ghost" onclick="app.showHome()">Kembali ke Beranda</button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        if (panel) panel.style.display = 'block';
+
+        // Filter by type
+        let filteredItems = allSavedItems;
+        const typeFilter = this._bmTypeFilter || 'all';
+        if (typeFilter !== 'all') {
+            filteredItems = filteredItems.filter(item => {
+                const isBook = item.type === 'book' || (!item.contentType && item.ddc && !(item.url || '').includes('eprints'));
+                const isThesis = (item.type || '').includes('thesis') || (item.src || '').includes('eprints') || (item.url || '').includes('eprints');
+                const isArticle = Boolean(item.contentType) || (!isBook && !isThesis);
+
+                if (typeFilter === 'book') return isBook;
+                if (typeFilter === 'thesis') return isThesis;
+                if (typeFilter === 'article') return isArticle;
+                return true;
+            });
+        }
+
+        // Sort
+        const sortMode = this._bmSort || 'saved';
+        if (sortMode === 'az') {
+            filteredItems.sort((a, b) => (a.t || a.title || '').localeCompare(b.t || b.title || ''));
+        } else if (sortMode === 'year') {
+            filteredItems.sort((a, b) => String(b.yr || b.year || '').localeCompare(String(a.yr || a.year || '')));
+        } else if (sortMode === 'ddc') {
+            filteredItems.sort((a, b) => (a.ddc || a.contentType || '').localeCompare(b.ddc || b.contentType || '') || (a.t || a.title || '').localeCompare(b.t || b.title || ''));
+        }
+
+        if (filteredItems.length > 0) {
+            grid.style.display = 'grid';
+            grid.innerHTML = filteredItems.map(b => {
+                if (b.t && !b.contentType) {
+                    return this.bookCard(b);
+                }
+                return this.fedBookmarkCard(b);
+            }).join('');
+        } else {
+            grid.style.display = 'block';
+            grid.innerHTML = `
+                <div class="empty-state" style="padding:3rem 1rem;">
+                    <div class="empty-state-title" style="font-size:1.05rem;">Tidak Ada Koleksi dalam Kategori Ini</div>
+                    <div class="empty-state-desc">Anda memiliki koleksi tersimpan di kategori lain. Pilih tab kategori "Semua" di atas untuk melihat seluruh daftar.</div>
+                    <div class="empty-state-actions" style="margin-top:1rem;">
+                        <button type="button" class="btn btn-brand" onclick="app.setBmTypeFilter('all')">Lihat Semua Koleksi</button>
                     </div>
                 </div>
             `;
@@ -1242,18 +1463,21 @@ const app = {
         const linkUrl = it.url || it.doi || '#';
         const pdfUrl = it.pdfUrl || it.pdf_url || '';
         const hasDirectPdf = Boolean(pdfUrl && pdfUrl.trim().length > 5 && pdfUrl !== linkUrl);
+        const isSubscribed = Boolean(it.isSubscribed);
+        const subscribedUrl = it.subscribedUrl || '';
 
         return `
-        <div class="fed-item fed-bm-card" style="margin-bottom:1rem; border-left:4px solid var(--brand); position:relative;">
+        <div class="fed-item fed-bm-card" style="margin-bottom:1rem; border-left:4px solid ${isSubscribed ? '#d97706' : 'var(--brand)'}; position:relative;">
             <div class="fed-item-header-row">
                 <div class="fed-item-num-title">
                     <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" class="fed-title-link" title="Klik untuk membuka modal detail artikel">${this.esc(title)}</a>
                 </div>
                 <div class="fed-item-badges">
+                    ${isSubscribed ? `<span class="fed-badge-subscribed" title="Jurnal ini dilanggan secara resmi oleh Perpustakaan UMS"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Langganan UMS</span>` : ''}
                     ${this.getSourceBadgeHtml(src)}
                     ${this.getOaBadgeHtml(isOa)}
                     ${yr ? `<span class="fed-badge-year">${this.esc(String(yr))}</span>` : ''}
-                    <button class="fed-star-btn active" data-fed-bm="${this.esc(rawId)}" onclick="app.toggleBookmark(${this.idAttr(rawId)})" title="Hapus dari Koleksi Saya" style="margin-left:0.5rem">⭐</button>
+                    <button class="fed-star-btn active" data-fed-bm="${this.esc(rawId)}" onclick="app.toggleBookmark(${this.idAttr(rawId)})" title="Hapus dari Koleksi Saya" style="margin-left:0.5rem">${this.starSvg(true)}</button>
                 </div>
             </div>
             <ul class="fed-meta-list" style="margin-bottom:0.75rem">
@@ -1262,21 +1486,30 @@ const app = {
                 ${it.doi ? `<li><span class="fed-meta-label">DOI :</span> ${this.esc(it.doi)}</li>` : ''}
             </ul>
             <div class="fed-actions-row">
-                <button type="button" class="btn btn-ghost" onclick="app.showArticleDetail(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; font-weight:600;" title="Buka modal detail artikel">
-                    📋 Detail Lengkap
+                <button type="button" class="btn btn-ghost" onclick="app.showArticleDetail(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; font-weight:600; display:inline-flex; align-items:center; gap:0.35rem;" title="Buka modal detail artikel">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <span>Detail Lengkap</span>
                 </button>
+                ${isSubscribed && subscribedUrl ? `
+                <a href="${this.esc(subscribedUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-subscribed-campus" title="Akses langsung melalui portal langganan institusi UMS">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 10v4"></path><path d="M15 10v4"></path></svg>
+                    <span>Akses Kampus UMS ↗</span>
+                </a>` : ''}
                 <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="font-size:0.75rem; padding:0.32rem 0.75rem">
                     Buka Dokumen ↗
                 </a>
                 ${hasDirectPdf ? `
-                <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem">
-                    📄 Baca / Unduh PDF
+                <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                    <span>Baca / Unduh PDF</span>
                 </button>` : ''}
-                <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.75rem; padding:0.32rem 0.75rem" title="Unduh file .RIS untuk Mendeley/Zotero">
-                    📥 .RIS
+                <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .RIS untuk Mendeley/Zotero">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <span>.RIS</span>
                 </button>
-                <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" style="font-size:0.75rem; padding:0.32rem 0.75rem" title="Unduh file .BIB untuk LaTeX/Overleaf">
-                    📥 BibTeX
+                <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .BIB untuk LaTeX/Overleaf">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <span>BibTeX</span>
                 </button>
                 <button type="button" class="btn btn-ghost" onclick="app.copyArticleCitation(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem">
                     Salin Sitasi
@@ -1303,6 +1536,9 @@ const app = {
         const type = article.contentType || 'Article';
         const src = article.source || 'International Journal';
         const isOa = article.openAccess || article.isOpenAccess || article.is_oa || article.openaccess;
+        const isSubscribed = Boolean(article.isSubscribed);
+        const subscribedUrl = article.subscribedUrl || '';
+
         let linkUrl = (article.url || article.doi || '#').trim();
         if (linkUrl.startsWith('https://openalex.org/https://openalex.org/')) {
             linkUrl = linkUrl.replace('https://openalex.org/https://openalex.org/', 'https://openalex.org/');
@@ -1315,7 +1551,7 @@ const app = {
         const hasDirectPdf = Boolean(pdfUrl && pdfUrl.trim().length > 5 && pdfUrl !== linkUrl);
         const citations = article.citationCount || article.cited_by_count || 0;
         const isBm = this.bookmarks && (this.bookmarks.has(rawId) || this.bookmarks.has(String(article.id)));
-        const bookmarkLbl = isBm ? '⭐ Tersimpan di Koleksi' : '☆ Simpan ke Koleksi';
+        const bookmarkLbl = `${this.starSvg(isBm)} <span>${isBm ? 'Tersimpan di Koleksi' : 'Simpan ke Koleksi'}</span>`;
         const bookmarkStyle = isBm ? 'color:var(--brand); font-weight:600;' : '';
 
         // Abstract formatting
@@ -1331,11 +1567,12 @@ const app = {
         <div class="detail fed-detail">
             <div class="detail-head" style="min-height: auto; padding-bottom: 1rem;">
                 <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; margin-bottom:0.75rem;">
+                    ${isSubscribed ? `<span class="fed-badge-subscribed" style="font-size:0.75rem; padding:0.25rem 0.65rem;"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Langganan Resmi UMS</span>` : ''}
                     ${this.getSourceBadgeHtml(src)}
                     ${this.getOaBadgeHtml(isOa, 'font-size:0.75rem; padding:0.25rem 0.65rem;')}
                     <span class="fed-badge-type" style="font-size:0.75rem; padding:0.25rem 0.65rem;">${this.esc(type)}</span>
                     ${date ? `<span class="fed-badge-year" style="font-size:0.75rem; padding:0.25rem 0.65rem;">${this.esc(String(date))}</span>` : ''}
-                    ${citations > 0 ? `<span style="background:var(--bg-3); color:var(--ink-1); font-size:0.75rem; padding:0.25rem 0.65rem; border-radius:999px; font-weight:600; border:1px solid var(--border)">📊 ${this.fmt(citations)} Sitasi Global</span>` : ''}
+                    ${citations > 0 ? `<span style="background:var(--bg-3); color:var(--ink-1); font-size:0.75rem; padding:0.25rem 0.65rem; border-radius:999px; font-weight:600; border:1px solid var(--border); display:inline-flex; align-items:center; gap:0.35rem;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg> ${this.fmt(citations)} Sitasi Global</span>` : ''}
                 </div>
                 <h2 class="detail-title" style="font-size:1.35rem; line-height:1.45; margin-bottom:0.5rem;">${this.esc(title)}</h2>
                 <p class="detail-author" style="font-size:0.95rem; color:var(--ink-2);">${this.esc(authors)}</p>
@@ -1347,7 +1584,7 @@ const app = {
                 <div><div class="d-label">Tipe Konten</div><div class="d-val">${this.esc(type)}</div></div>
                 <div><div class="d-label">Basis Data Indeks</div><div class="d-val">${this.esc(src)}</div></div>
                 ${article.doi ? `<div><div class="d-label">Digital Object Identifier (DOI)</div><div class="d-val"><a href="https://doi.org/${this.esc(article.doi.replace(/^https?:\/\/doi\.org\//, ''))}" target="_blank" rel="noopener noreferrer" style="color:var(--brand); word-break:break-all;">${this.esc(article.doi)}</a></div></div>` : ''}
-                <div><div class="d-label">Aksesibilitas Dokumen</div><div class="d-val">${isOa ? 'Open Access (Bebas Unduh)' : 'Subscription / Akses Institusi'}</div></div>
+                <div><div class="d-label">Aksesibilitas Dokumen</div><div class="d-val">${isSubscribed ? 'Dilanggan Resmi UMS (Full Text)' : (isOa ? 'Open Access (Bebas Unduh)' : 'Subscription / Akses Institusi')}</div></div>
                 ${citations > 0 ? `<div><div class="d-label">Metrik Sitasi Global</div><div class="d-val"><strong>${this.fmt(citations)}</strong> kali disitasi oleh karya ilmiah lain</div></div>` : ''}
             </div>
 
@@ -1367,14 +1604,20 @@ const app = {
 
             <!-- Action Buttons Row -->
             <div class="detail-actions" style="margin-bottom:1.5rem; flex-wrap:wrap; gap:0.65rem;">
+                ${isSubscribed && subscribedUrl ? `
+                <a href="${this.esc(subscribedUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-subscribed-campus" style="font-size:0.8rem; padding:0.45rem 1rem;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 10v4"></path><path d="M15 10v4"></path></svg>
+                    <span>Akses Kampus UMS ↗</span>
+                </a>` : ''}
                 <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand">
                     Buka Dokumen Asli / DOI ↗
                 </a>
                 ${hasDirectPdf ? `
-                <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})">
-                    📄 Baca / Unduh PDF
+                <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                    <span>Baca / Unduh PDF</span>
                 </button>` : ''}
-                <button id="btn-art-bm" class="btn btn-ghost" style="${bookmarkStyle}" onclick="app.toggleBookmark(${this.idAttr(rawId)})">
+                <button id="btn-art-bm" class="btn btn-ghost" style="${bookmarkStyle}; display:inline-flex; align-items:center; gap:0.35rem;" onclick="app.toggleBookmark(${this.idAttr(rawId)})">
                     ${bookmarkLbl}
                 </button>
                 <button type="button" class="btn btn-ghost" onclick="app.shareArticleById(${this.idAttr(rawId)})">
@@ -1403,13 +1646,19 @@ const app = {
                             <div class="cite-text">${this.esc(chiCite)}</div>
                         </div>
                         <div style="margin-top:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
-                            <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.8rem; padding:0.35rem 0.8rem" title="Unduh file .RIS untuk Mendeley, Zotero, EndNote">
-                                📥 Unduh .RIS (Mendeley/Zotero)
+                            <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.8rem; padding:0.35rem 0.8rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .RIS untuk Mendeley, Zotero, EndNote">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                <span>Unduh .RIS (Mendeley/Zotero)</span>
                             </button>
-                            <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" style="font-size:0.8rem; padding:0.35rem 0.8rem" title="Unduh file .BIB untuk LaTeX/Overleaf">
-                                📥 Unduh .BIB (LaTeX)
+                            <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" style="font-size:0.8rem; padding:0.35rem 0.8rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .BIB untuk LaTeX/Overleaf">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                <span>Unduh .BIB (LaTeX)</span>
                             </button>
                             <button type="button" class="btn btn-ghost" onclick="app.copyArticleCitation(${this.idAttr(rawId)})" style="font-size:0.8rem; padding:0.35rem 0.8rem">
+                                Salin Sitasi
+                            </button>
+                        </div>
+                    </div>
                                 Salin Sitasi
                             </button>
                         </div>
@@ -1525,24 +1774,33 @@ const app = {
         { id: 'etd', name: 'Skripsi, Tesis & Disertasi', subtitle: 'https://eprints.ums.ac.id', type: 'local_etd', label: 'Skripsi & ETD UMS' },
         { id: 'journal', name: 'Artikel Jurnal UMS', subtitle: 'https://journals.ums.ac.id', type: 'local_journal', label: 'Jurnal Ilmiah UMS' },
         { id: 'sibi', name: 'Buku Digital (SIBI)', subtitle: 'Katalog SIBI Kemdikbud', type: 'sibi_api', label: 'Buku Digital SIBI' },
-        { id: 'all_global', name: 'Seluruh Jurnal Global', subtitle: 'Agregasi Multi-Database', type: 'remote', remoteKey: 'all_global', domain: 'Scopus, S2, Lens, Crossref, OA' },
+        { id: 'all_global', name: 'Seluruh Jurnal Global', subtitle: 'Agregasi Multi-Database', type: 'remote', remoteKey: 'all_global', domain: 'Scopus, Springer, Emerald, S2, Lens, Crossref, OA' },
     ],
     _fedSourcesRow2: [
         { id: 'scopus', name: 'Scopus', subtitle: 'https://www.scopus.com', type: 'remote', remoteKey: 'scopus', domain: 'https://www.scopus.com' },
+        { id: 'springer', name: 'Springer', subtitle: 'https://link.springer.com', type: 'remote', remoteKey: 'springer', domain: 'https://link.springer.com' },
+        { id: 'emerald', name: 'Emerald Insight', subtitle: 'https://www.emerald.com', type: 'remote', remoteKey: 'emerald', domain: 'https://www.emerald.com' },
+        { id: 'openalex', name: 'OpenAlex Global OA', subtitle: 'https://openalex.org', type: 'remote', remoteKey: 'openalex', domain: 'https://openalex.org' },
         { id: 'semanticscholar', name: 'Semantic Scholar', subtitle: 'https://www.semanticscholar.org', type: 'remote', remoteKey: 'semanticscholar', domain: 'https://www.semanticscholar.org' },
         { id: 'lens', name: 'The Lens', subtitle: 'https://www.lens.org', type: 'remote', remoteKey: 'lens', domain: 'https://www.lens.org' },
-        { id: 'springer', name: 'Springer', subtitle: 'https://link.springer.com', type: 'remote', remoteKey: 'springer', domain: 'https://link.springer.com' },
-        { id: 'openalex', name: 'OpenAlex Global OA', subtitle: 'https://openalex.org', type: 'remote', remoteKey: 'openalex', domain: 'https://openalex.org' },
         { id: 'crossref', name: 'Crossref', subtitle: 'https://www.crossref.org', type: 'remote', remoteKey: 'crossref', domain: 'https://www.crossref.org' },
     ],
 
     get _allFedSources() {
-        return [...this._fedSourcesRow1, ...this._fedSourcesRow2];
+        const isMasterEnabled = !this.intlConfig || this.intlConfig.enabled !== false;
+        const sourcesConfig = (this.intlConfig && this.intlConfig.sources) || {};
+
+        const row1 = isMasterEnabled ? this._fedSourcesRow1 : this._fedSourcesRow1.filter(s => s.id !== 'all_global');
+        const row2 = isMasterEnabled ? this._fedSourcesRow2.filter(s => sourcesConfig[s.id] !== false) : [];
+        return [...row1, ...row2];
     },
 
     renderFederatedSourcesGrid() {
         const container = document.getElementById('fed-source-container');
         if (!container) return;
+
+        const isMasterEnabled = !this.intlConfig || this.intlConfig.enabled !== false;
+        const sourcesConfig = (this.intlConfig && this.intlConfig.sources) || {};
 
         const renderBtn = s => {
             const isActive = this._activeFedSource === s.id;
@@ -1555,13 +1813,17 @@ const app = {
             </button>`;
         };
 
+        const row1List = isMasterEnabled ? this._fedSourcesRow1 : this._fedSourcesRow1.filter(s => s.id !== 'all_global');
+        const row2List = isMasterEnabled ? this._fedSourcesRow2.filter(s => sourcesConfig[s.id] !== false) : [];
+
         container.innerHTML = `
             <div class="fed-row-1">
-                ${this._fedSourcesRow1.map(renderBtn).join('')}
+                ${row1List.map(renderBtn).join('')}
             </div>
+            ${row2List.length > 0 ? `
             <div class="fed-row-2">
-                ${this._fedSourcesRow2.map(renderBtn).join('')}
-            </div>
+                ${row2List.map(renderBtn).join('')}
+            </div>` : ''}
         `;
     },
 
@@ -2057,19 +2319,23 @@ const app = {
             const hasDirectPdf = Boolean(pdfUrl && pdfUrl.trim().length > 5 && pdfUrl !== linkUrl);
             const isBm = this.bookmarks && (this.bookmarks.has(rawId) || this.bookmarks.has(String(it.id)));
             const itemSource = it.source || (srcObj ? srcObj.name : '');
+            const isSubscribed = Boolean(it.isSubscribed);
+            const subscribedUrl = it.subscribedUrl || '';
+
             return `
-            <div class="fed-item">
+            <div class="fed-item${isSubscribed ? ' fed-item-subscribed' : ''}">
                 <div class="fed-item-header-row">
                     <div class="fed-item-num-title">
                         <span class="fed-item-idx">${itemNum}.</span>
                         <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" class="fed-title-link" title="Klik untuk membuka modal detail artikel, abstrak, dan sitasi">${safeTitle}</a>
                     </div>
                     <div class="fed-item-badges">
+                        ${isSubscribed ? `<span class="fed-badge-subscribed" title="Jurnal ini dilanggan secara resmi oleh Perpustakaan UMS"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Langganan UMS</span>` : ''}
                         ${itemSource ? this.getSourceBadgeHtml(itemSource) : ''}
                         ${this.getOaBadgeHtml(isOa)}
                         <span class="fed-badge-type">${safeType}</span>
                         ${safeDate ? `<span class="fed-badge-year">${safeDate}</span>` : ''}
-                        <button id="fed-bm-star-${this.esc(rawId)}" class="fed-star-btn ${isBm ? 'active' : ''}" data-fed-bm="${this.esc(rawId)}" onclick="event.stopPropagation(); app.toggleBookmark(${this.idAttr(rawId)})" title="${isBm ? 'Hapus dari Koleksi' : 'Simpan ke Koleksi'}">${isBm ? '⭐' : '☆'}</button>
+                        <button id="fed-bm-star-${this.esc(rawId)}" class="fed-star-btn ${isBm ? 'active' : ''}" data-fed-bm="${this.esc(rawId)}" onclick="event.stopPropagation(); app.toggleBookmark(${this.idAttr(rawId)})" title="${isBm ? 'Hapus dari Koleksi' : 'Simpan ke Koleksi'}">${this.starSvg(isBm)}</button>
                     </div>
                 </div>
                 <ul class="fed-meta-list">
@@ -2083,21 +2349,30 @@ const app = {
                         <span class="fed-meta-label">Abstract:</span> ${abstractText}
                     </div>` : ''}
                 <div class="fed-actions-row">
-                    <button type="button" class="btn btn-ghost" onclick="app.showArticleDetail(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; font-weight:600;" title="Buka modal detail artikel">
-                        📋 Detail & Sitasi
+                    <button type="button" class="btn btn-ghost" onclick="app.showArticleDetail(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; font-weight:600; display:inline-flex; align-items:center; gap:0.35rem;" title="Buka modal detail artikel">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        <span>Detail & Sitasi</span>
                     </button>
+                    ${isSubscribed && subscribedUrl ? `
+                    <a href="${this.esc(subscribedUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-subscribed-campus" title="Akses langsung melalui portal langganan institusi UMS">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 10v4"></path><path d="M15 10v4"></path></svg>
+                        <span>Akses Kampus UMS ↗</span>
+                    </a>` : ''}
                     <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="font-size:0.75rem; padding:0.32rem 0.75rem">
                         Buka Dokumen / DOI ↗
                     </a>
                     ${hasDirectPdf ? `
-                    <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem" title="Baca atau unduh PDF langsung">
-                        📄 Baca / Unduh PDF
+                    <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Baca atau unduh PDF langsung">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                        <span>Baca / Unduh PDF</span>
                     </button>` : ''}
-                    <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.75rem; padding:0.32rem 0.75rem" title="Unduh file .RIS untuk Mendeley/Zotero">
-                        📥 .RIS
+                    <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .RIS untuk Mendeley/Zotero">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        <span>.RIS</span>
                     </button>
-                    <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" style="font-size:0.75rem; padding:0.32rem 0.75rem" title="Unduh file .BIB untuk LaTeX/Overleaf">
-                        📥 BibTeX
+                    <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .BIB untuk LaTeX/Overleaf">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        <span>BibTeX</span>
                     </button>
                     <button type="button" class="btn btn-ghost" onclick="app.copyArticleCitation(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem">
                         Salin Sitasi
@@ -3435,7 +3710,7 @@ const app = {
         const titleHl = this.hl(b.t, q);
         const authorHl = b.a ? this.hl(b.a, q) : '';
         return `<div class="bk-card" style="--shelf-color:${c}" data-bid="${safeId}" data-url="${safeUrl}" onclick="app._cardClick(this)">
-            <button id="bm-star-${safeId}" class="bk-star" onclick="event.stopPropagation();app._bookmarkFromCard(this)" data-bid="${safeId}" title="${isBm ? this.t('btn_bookmarked') : this.t('btn_bookmark')}" style="color:${isBm ? 'var(--brand)' : 'var(--ink-3)'}">${isBm ? '⭐' : '☆'}</button>
+            <button id="bm-star-${safeId}" class="bk-star ${isBm ? 'active' : ''}" onclick="event.stopPropagation();app._bookmarkFromCard(this)" data-bid="${safeId}" title="${isBm ? this.t('btn_bookmarked') : this.t('btn_bookmark')}" style="color:${isBm ? 'var(--brand)' : 'var(--ink-3)'}">${this.starSvg(isBm)}</button>
             ${b.img ? `<div class="bk-cover" style="background-image:url('${b.img}')"></div>` : ''}
             <div class="bk-title">${titleHl}</div>
             ${authorHl ? `<div class="bk-author">${authorHl}</div>` : ''}
