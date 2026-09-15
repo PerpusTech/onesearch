@@ -1225,9 +1225,9 @@
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                             <span>Tambah Jurnal</span>
                         </button>
-                        <button type="button" class="btn btn-xs" onclick="openImportJournalModal()" style="display:inline-flex; align-items:center; gap:0.35rem;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            <span>Impor CSV</span>
+                        <button type="button" class="btn btn-xs" onclick="openImportJournalModal()" style="display:inline-flex; align-items:center; gap:0.35rem;" title="Copas langsung dari Excel/Sheets atau berkas CSV">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                            <span>Copas / Impor Data</span>
                         </button>
                         <button type="button" class="btn btn-xs" onclick="exportJournalsCsv()" style="display:inline-flex; align-items:center; gap:0.35rem;">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -1316,9 +1316,9 @@
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                             <span>+ Tambah E-Book</span>
                         </button>
-                        <button type="button" class="btn btn-xs" onclick="openImportEBookModal()" title="Impor data dari berkas CSV" style="display:inline-flex; align-items:center; gap:0.35rem;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            <span>Impor CSV</span>
+                        <button type="button" class="btn btn-xs" onclick="openImportEBookModal()" title="Copas data langsung dari Excel/Sheets atau berkas CSV" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                            <span>Copas / Impor Data</span>
                         </button>
                         <button type="button" class="btn btn-xs" onclick="exportEBooksCsv()" title="Ekspor seluruh data ke CSV" style="display:inline-flex; align-items:center; gap:0.35rem;">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -1374,20 +1374,18 @@
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th style="width:48px;">Cover</th>
-                                <th>Judul E-Book & ID</th>
-                                <th>Pengarang / Editor</th>
-                                <th>Penerbit & Tahun</th>
-                                <th>ISBN</th>
+                                <th>Judul E-Book &amp; Pengarang</th>
+                                <th>ISBN / Tahun</th>
+                                <th>Penerbit</th>
                                 <th>Subjek</th>
-                                <th>Akses</th>
+                                <th>Akses Kampus</th>
                                 <th>Aktif</th>
                                 <th style="text-align:right;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="ebooks-tbody">
                             <tr>
-                                <td colspan="9" style="text-align:center; padding:1.5rem; color:var(--text-muted);">
+                                <td colspan="7" style="text-align:center; padding:1.5rem; color:var(--text-muted);">
                                     Memuat daftar e-book langganan...
                                 </td>
                             </tr>
@@ -1716,30 +1714,46 @@
         </div>
     </div>
 
-    <!-- Modal: Impor Bulk CSV Jurnal -->
+    <!-- Modal: Copas & Impor Jurnal Langganan -->
     <div class="modal-backdrop" id="journal-import-modal" style="display:none;">
-        <div class="modal-dialog" style="max-width:500px;">
-            <h2 class="modal-title">Impor Massal Jurnal Langganan</h2>
-            <p class="modal-desc">Unggah file format CSV (.csv) untuk memperbarui atau menambahkan daftar jurnal langganan sekaligus.</p>
+        <div class="modal-dialog" style="max-width:680px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.25rem;">
+                <h2 class="modal-title" style="margin:0;">Copas / Impor Jurnal Langganan</h2>
+                <button type="button" class="btn btn-xs" onclick="closeImportJournalModal()" style="border:none; padding:0.2rem 0.5rem; background:transparent; font-size:1.1rem; line-height:1; color:var(--text-muted); cursor:pointer;">&times;</button>
+            </div>
+            <p class="modal-desc" style="margin-bottom:0.85rem;">Salin baris data dari Excel / Google Sheets (Ctrl+C) lalu tempelkan (Ctrl+V) langsung ke kotak di bawah ini.</p>
             
-            <div style="background:var(--bg-muted); border:1px solid var(--border-main); padding:0.85rem; border-radius:var(--radius-sm); margin-bottom:1rem; font-size:0.78rem; line-height:1.5;">
-                <div style="font-weight:600; margin-bottom:0.25rem;">Petunjuk Kolom CSV:</div>
-                <code>title, publisher, issn, eissn, url, access_type, subject, faculty, notes</code>
-                <div style="margin-top:0.4rem;">
-                    <a href="javascript:void(0)" onclick="downloadJournalTemplate()" style="color:var(--border-focus); text-decoration:underline;">Unduh file contoh template CSV</a>
+            <div style="background:var(--bg-muted); border:1px solid var(--border-main); padding:0.65rem 0.85rem; border-radius:var(--radius-sm); margin-bottom:0.85rem; font-size:0.75rem; line-height:1.5;">
+                <div style="font-weight:600; color:var(--text-main); margin-bottom:0.2rem;">Urutan Kolom (Dapat dengan baris judul/header atau tanpa header):</div>
+                <code style="font-size:0.75rem; background:var(--bg-surface); padding:0.2rem 0.4rem; border-radius:3px; display:inline-block; border:1px solid var(--border-main);">Judul  |  Penerbit  |  ISSN  |  E-ISSN  |  Subjek / Bidang  |  Akses (kampus/open)  |  URL Link  |  Fakultas  |  Catatan</code>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0.5rem;">
+                <label class="form-label" for="journal-paste-input" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>Tempel (Paste) Data Tabel di Sini:</span>
+                    <span style="font-size:0.72rem; font-weight:normal; color:var(--text-muted);">Pemisah Tab / Titik-koma / Koma otomatis dideteksi</span>
+                </label>
+                <textarea id="journal-paste-input" class="input" rows="8" 
+                    placeholder="Contoh salin langsung dari Excel (Ctrl+V di sini):&#10;Nature	Nature Publishing Group	0028-0836	1476-4687	Multidisciplinary	kampus	https://www.nature.com	Sains	Langganan 2026&#10;The Lancet	Elsevier	0140-6736	1474-547X	Medicine	kampus	https://www.thelancet.com	Kedokteran	Langganan 2026"
+                    style="font-family:monospace; font-size:0.78rem; line-height:1.45; white-space:pre; resize:vertical; min-height:160px;" 
+                    oninput="onJournalPasteInput()"></textarea>
+            </div>
+
+            <!-- Baris Status & Opsi File Alternatif -->
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-top:0.35rem; padding-top:0.35rem;">
+                <div id="journal-paste-counter" style="font-size:0.78rem; color:var(--text-muted);">
+                    Belum ada data yang ditempel.
+                </div>
+                <div style="display:flex; align-items:center; gap:0.85rem; font-size:0.75rem;">
+                    <label style="cursor:pointer; color:var(--text-muted); text-decoration:underline;">
+                        <input type="file" id="journal-csv-file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values" style="display:none;" onchange="handleJournalFilePaste(event)">
+                        <span>Atau muat dari file .csv / .txt</span>
+                    </label>
+                    <a href="javascript:void(0)" onclick="downloadJournalTemplate()" style="color:var(--text-muted); text-decoration:underline;" title="Download contoh CSV">Unduh Format CSV</a>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label" for="journal-csv-file">Pilih File CSV:</label>
-                <input type="file" id="journal-csv-file" accept=".csv,text/csv" class="input" onchange="handleJournalCsvFileSelect(event)">
-            </div>
-
-            <div id="csv-preview-info" style="display:none; font-size:0.8rem; padding:0.6rem; border-radius:var(--radius-sm); background:var(--status-idle-bg); color:var(--status-idle-text); border:1px solid var(--status-idle-border); margin-bottom:1rem;">
-                <!-- Preview info -->
-            </div>
-
-            <div style="display:flex; justify-content:flex-end; gap:0.4rem; margin-top:1.25rem;">
+            <div style="display:flex; justify-content:flex-end; gap:0.4rem; margin-top:1.25rem; padding-top:0.75rem; border-top:1px solid var(--border-main);">
                 <button type="button" class="btn btn-xs" onclick="closeImportJournalModal()">Batal</button>
                 <button type="button" class="btn btn-primary btn-xs" id="btn-submit-import" onclick="submitImportJournal()" disabled>
                     Mulai Impor Data
@@ -1848,30 +1862,46 @@
         </div>
     </div>
 
-    <!-- Modal: Impor Bulk CSV E-Book -->
+    <!-- Modal: Copas & Impor E-Book Langganan -->
     <div class="modal-backdrop" id="ebook-import-modal" style="display:none;">
-        <div class="modal-dialog" style="max-width:520px;">
-            <h2 class="modal-title">Impor Massal E-Book Langganan</h2>
-            <p class="modal-desc">Unggah file format CSV (.csv) untuk memperbarui atau menambahkan daftar e-book langganan sekaligus.</p>
+        <div class="modal-dialog" style="max-width:680px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.25rem;">
+                <h2 class="modal-title" style="margin:0;">Copas / Impor E-Book Langganan</h2>
+                <button type="button" class="btn btn-xs" onclick="closeImportEBookModal()" style="border:none; padding:0.2rem 0.5rem; background:transparent; font-size:1.1rem; line-height:1; color:var(--text-muted); cursor:pointer;">&times;</button>
+            </div>
+            <p class="modal-desc" style="margin-bottom:0.85rem;">Salin baris data e-book dari Excel / Google Sheets (Ctrl+C) lalu tempelkan (Ctrl+V) langsung ke kotak di bawah ini.</p>
             
-            <div style="background:var(--bg-muted); border:1px solid var(--border-main); padding:0.85rem; border-radius:var(--radius-sm); margin-bottom:1rem; font-size:0.78rem; line-height:1.5;">
-                <div style="font-weight:600; margin-bottom:0.25rem;">Petunjuk Kolom CSV:</div>
-                <code>title, author, publisher, year, isbn, url, cover_url, subject, access_type, notes</code>
-                <div style="margin-top:0.4rem;">
-                    <a href="javascript:void(0)" onclick="downloadEBookTemplate()" style="color:var(--border-focus); text-decoration:underline;">Unduh file contoh template CSV E-Book</a>
+            <div style="background:var(--bg-muted); border:1px solid var(--border-main); padding:0.65rem 0.85rem; border-radius:var(--radius-sm); margin-bottom:0.85rem; font-size:0.75rem; line-height:1.5;">
+                <div style="font-weight:600; color:var(--text-main); margin-bottom:0.2rem;">Urutan Kolom (Dapat dengan baris judul/header atau tanpa header):</div>
+                <code style="font-size:0.75rem; background:var(--bg-surface); padding:0.2rem 0.4rem; border-radius:3px; display:inline-block; border:1px solid var(--border-main);">Judul  |  Pengarang  |  Penerbit  |  Tahun  |  ISBN  |  Subjek  |  Akses (kampus/open)  |  URL Link  |  URL Cover  |  Catatan</code>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0.5rem;">
+                <label class="form-label" for="ebook-paste-input" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>Tempel (Paste) Data Tabel E-Book di Sini:</span>
+                    <span style="font-size:0.72rem; font-weight:normal; color:var(--text-muted);">Pemisah Tab / Titik-koma / Koma otomatis dideteksi</span>
+                </label>
+                <textarea id="ebook-paste-input" class="input" rows="8" 
+                    placeholder="Contoh salin langsung dari Excel (Ctrl+V di sini):&#10;Artificial Intelligence: A Modern Approach	Stuart Russell	Pearson	2020	978-0134610993	Computer Science	kampus	https://example.com/ai	https://.../cover.jpg	Edisi ke-4&#10;Clean Architecture	Robert C. Martin	Prentice Hall	2017	978-0134494166	Software Engineering	kampus	https://example.com/clean	https://.../cover.jpg	Koleksi Terbaru"
+                    style="font-family:monospace; font-size:0.78rem; line-height:1.45; white-space:pre; resize:vertical; min-height:160px;" 
+                    oninput="onEBookPasteInput()"></textarea>
+            </div>
+
+            <!-- Baris Status & Opsi File Alternatif -->
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-top:0.35rem; padding-top:0.35rem;">
+                <div id="ebook-paste-counter" style="font-size:0.78rem; color:var(--text-muted);">
+                    Belum ada data yang ditempel.
+                </div>
+                <div style="display:flex; align-items:center; gap:0.85rem; font-size:0.75rem;">
+                    <label style="cursor:pointer; color:var(--text-muted); text-decoration:underline;">
+                        <input type="file" id="ebook-csv-file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values" style="display:none;" onchange="handleEBookFilePaste(event)">
+                        <span>Atau muat dari file .csv / .txt</span>
+                    </label>
+                    <a href="javascript:void(0)" onclick="downloadEBookTemplate()" style="color:var(--text-muted); text-decoration:underline;" title="Download contoh CSV">Unduh Format CSV</a>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label" for="ebook-csv-file">Pilih File CSV:</label>
-                <input type="file" id="ebook-csv-file" accept=".csv,text/csv" class="input" onchange="handleEBookCsvFileSelect(event)">
-            </div>
-
-            <div id="ebook-csv-preview-info" style="display:none; font-size:0.8rem; padding:0.6rem; border-radius:var(--radius-sm); background:var(--status-idle-bg); color:var(--status-idle-text); border:1px solid var(--status-idle-border); margin-bottom:1rem;">
-                <!-- Preview info -->
-            </div>
-
-            <div style="display:flex; justify-content:flex-end; gap:0.4rem; margin-top:1.25rem;">
+            <div style="display:flex; justify-content:flex-end; gap:0.4rem; margin-top:1.25rem; padding-top:0.75rem; border-top:1px solid var(--border-main);">
                 <button type="button" class="btn btn-xs" onclick="closeImportEBookModal()">Batal</button>
                 <button type="button" class="btn btn-primary btn-xs" id="btn-submit-ebook-import" onclick="submitImportEBook()" disabled>
                     Mulai Impor Data
@@ -3074,12 +3104,19 @@
             );
         }
 
-        // ── CSV Import & Export ──
+        // ── Journal Copas / Import Logic ──
+        let pendingJournalPasteText = '';
+
         function openImportJournalModal() {
-            document.getElementById('journal-csv-file').value = '';
-            document.getElementById('csv-preview-info').style.display = 'none';
-            document.getElementById('btn-submit-import').disabled = true;
-            pendingCsvContent = '';
+            const textarea = document.getElementById('journal-paste-input');
+            if (textarea) textarea.value = '';
+            const counter = document.getElementById('journal-paste-counter');
+            if (counter) counter.innerHTML = '<span style="color:var(--text-muted);">Belum ada data yang ditempel. Silakan copy baris dari Excel/Sheets lalu paste di sini.</span>';
+            const btn = document.getElementById('btn-submit-import');
+            if (btn) btn.disabled = true;
+            const fileInp = document.getElementById('journal-csv-file');
+            if (fileInp) fileInp.value = '';
+            pendingJournalPasteText = '';
             document.getElementById('journal-import-modal').style.display = 'flex';
         }
 
@@ -3087,30 +3124,39 @@
             document.getElementById('journal-import-modal').style.display = 'none';
         }
 
-        function handleJournalCsvFileSelect(event) {
-            const file = event.target.files[0];
-            const previewEl = document.getElementById('csv-preview-info');
+        function onJournalPasteInput() {
+            const val = (document.getElementById('journal-paste-input')?.value || '').trim();
+            pendingJournalPasteText = val;
+            const counter = document.getElementById('journal-paste-counter');
             const submitBtn = document.getElementById('btn-submit-import');
-
-            if (!file) {
-                previewEl.style.display = 'none';
-                submitBtn.disabled = true;
-                pendingCsvContent = '';
+            if (!val) {
+                if (counter) counter.innerHTML = '<span style="color:var(--text-muted);">Belum ada data yang ditempel.</span>';
+                if (submitBtn) submitBtn.disabled = true;
                 return;
             }
+            const lines = val.split(/\r?\n/).filter(l => l.trim().length > 0);
+            let estCount = lines.length;
+            const firstLine = lines[0].toLowerCase();
+            if (firstLine.includes('judul') || firstLine.includes('title') || firstLine.includes('issn') || firstLine.includes('publisher')) {
+                estCount = Math.max(0, lines.length - 1);
+            }
+            if (counter) {
+                counter.innerHTML = `<strong style="color:var(--status-online-text, #10b981);">✓ Terdeteksi ${lines.length} baris</strong> (estimasi ~${estCount} judul jurnal siap diimpor)`;
+            }
+            if (submitBtn) submitBtn.disabled = lines.length === 0;
+        }
 
+        function handleJournalFilePaste(event) {
+            const file = event.target.files[0];
+            if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
-                pendingCsvContent = e.target.result;
-                const lines = pendingCsvContent.split(/\r?\n/).filter(line => line.trim().length > 0);
-                const rowCount = Math.max(0, lines.length - 1); // exclude header
-
-                previewEl.style.display = 'block';
-                previewEl.innerHTML = `
-                    <div style="font-weight:600;">✓ File Terbaca: ${esc(file.name)}</div>
-                    <div>Perkiraan baris jurnal yang akan diimpor: <strong>${rowCount} data</strong></div>
-                `;
-                submitBtn.disabled = rowCount === 0;
+                const txt = e.target.result || '';
+                const textarea = document.getElementById('journal-paste-input');
+                if (textarea) {
+                    textarea.value = txt;
+                    onJournalPasteInput();
+                }
             };
             reader.readAsText(file);
         }
@@ -3119,8 +3165,9 @@
             const isAuthed = await checkAuth();
             if (!isAuthed) return;
 
-            if (!pendingCsvContent) {
-                showToast('Pilih file CSV terlebih dahulu');
+            const text = (document.getElementById('journal-paste-input')?.value || pendingJournalPasteText || '').trim();
+            if (!text) {
+                showToast('Tempelkan data atau pilih berkas terlebih dahulu');
                 return;
             }
 
@@ -3132,15 +3179,15 @@
                 const res = await adminFetch('/api/admin/international/journals/import', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ csv: pendingCsvContent })
+                    body: JSON.stringify({ text: text })
                 });
                 const resData = await res.json();
                 if (res.ok) {
-                    showToast(resData.message || 'Impor CSV berhasil!');
+                    showToast(resData.message || 'Data jurnal berhasil diimpor!');
                     closeImportJournalModal();
                     loadSubscribedJournals();
                 } else {
-                    showToast(`Gagal: ${resData.error || 'Format CSV tidak valid'}`);
+                    showToast(`Gagal: ${resData.error || 'Format data tidak valid'}`);
                 }
             } catch (err) {
                 if (err.message !== 'Unauthorized') showToast(`Error: ${err.message}`);
@@ -3206,7 +3253,7 @@
             if (!tbody) return;
 
             if (!list || list.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:1.5rem; color:var(--text-muted);">Belum ada e-book langganan yang terdaftar. Klik "+ Tambah E-Book" atau "Impor CSV".</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--text-muted);">Belum ada e-book langganan yang terdaftar. Klik "+ Tambah E-Book" atau "Impor CSV".</td></tr>';
                 return;
             }
 
@@ -3214,45 +3261,44 @@
                 const isActive = it.active !== false;
                 const accessLabel = it.access_type === 'ezproxy' ? 'EZProxy SSO' : 
                                    (it.access_type === 'open' ? 'Open Access' : 'IP Kampus');
-                const coverImgHtml = it.cover_url ? 
-                    `<img src="${esc(it.cover_url)}" alt="Cover" style="width:32px; height:44px; object-fit:cover; border-radius:3px; border:1px solid var(--border-main);" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                     <div style="display:none; width:32px; height:44px; background:var(--bg-muted); border:1px solid var(--border-main); border-radius:3px; align-items:center; justify-content:center; font-size:0.65rem; color:var(--text-muted);">📚</div>` :
-                    `<div style="width:32px; height:44px; background:var(--bg-muted); border:1px solid var(--border-main); border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:0.65rem; color:var(--text-muted);">📚</div>`;
-                
+
                 return `
                     <tr>
-                        <td style="vertical-align:middle; text-align:center; padding:0.4rem;">
-                            ${coverImgHtml}
+                        <td>
+                            <div style="font-weight:600; color:var(--text-main); font-size:0.88rem;">${esc(it.title)}</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">
+                                <span style="font-family:var(--font-mono);">ID: ${esc(it.id)}</span>
+                                ${it.author ? ' • ' + esc(it.author) : ''}
+                                ${it.notes ? ' • ' + esc(it.notes) : ''}
+                            </div>
                         </td>
                         <td>
-                            <div style="font-weight:600; color:var(--text-main); line-height:1.35;">${esc(it.title)}</div>
-                            <div style="font-size:0.72rem; color:var(--text-muted); font-family:var(--font-mono); margin-top:2px;">ID: ${esc(it.id)}</div>
-                            ${it.notes ? `<div style="font-size:0.7rem; color:var(--border-focus); margin-top:1px;">ℹ ${esc(it.notes)}</div>` : ''}
+                            <span class="code-tag" style="font-family:var(--font-mono); font-size:0.75rem; white-space:nowrap;">${esc(it.isbn || '-')}</span>
+                            ${it.year ? `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Tahun: ${esc(String(it.year))}</div>` : ''}
                         </td>
-                        <td style="font-size:0.8rem; color:var(--text-main);">${esc(it.author || '-')}</td>
                         <td>
                             <div style="font-weight:500; font-size:0.82rem;">${esc(it.publisher || '-')}</div>
-                            <div style="font-size:0.75rem; color:var(--text-muted);">${esc(it.year ? String(it.year) : '-')}</div>
-                        </td>
-                        <td style="font-family:var(--font-mono); font-size:0.78rem;">${esc(it.isbn || '-')}</td>
-                        <td style="font-size:0.78rem;">${esc(it.subject || '-')}</td>
-                        <td>
-                            <span class="status-pill ${it.access_type === 'ezproxy' ? 'active' : 'idle'}" style="font-size:0.7rem; padding:1px 6px;">
-                                ${accessLabel}
-                            </span>
                         </td>
                         <td>
-                            <label class="switch" style="margin:0;" title="Klik untuk mengaktifkan/menonaktifkan e-book ini di pencarian">
+                            <div style="font-size:0.8rem;">${esc(it.subject || '-')}</div>
+                        </td>
+                        <td>
+                            <span class="type-badge" style="background:var(--bg-muted); white-space:nowrap;">${esc(accessLabel)}</span>
+                            ${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" style="font-size:0.72rem; display:block; color:var(--border-focus); margin-top:3px; text-decoration:none;">Buka Link ↗</a>` : ''}
+                        </td>
+                        <td>
+                            <label class="switch" title="Aktifkan/Nonaktifkan E-Book">
                                 <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleEBookActive('${esc(it.id)}')">
                                 <span class="switch-slider"></span>
                             </label>
                         </td>
                         <td style="text-align:right; white-space:nowrap;">
-                            <div style="display:inline-flex; gap:0.25rem;">
-                                ${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-xs" title="Buka URL E-Book" style="padding:2px 6px;">↗</a>` : ''}
-                                <button type="button" class="btn btn-xs" title="Edit Data" style="padding:2px 6px;" onclick="openEditEBookModal('${esc(it.id)}')">✏</button>
-                                <button type="button" class="btn btn-xs btn-danger" title="Hapus E-Book" style="padding:2px 6px;" onclick="deleteSubscribedEBook('${esc(it.id)}')">🗑</button>
-                            </div>
+                            <button type="button" class="btn btn-xs" onclick="openEditEBookModal('${esc(it.id)}')" title="Edit Data E-Book">
+                                Edit
+                            </button>
+                            <button type="button" class="btn btn-destructive btn-xs" onclick="deleteSubscribedEBook('${esc(it.id)}')" title="Hapus E-Book" style="margin-left:0.35rem;">
+                                Hapus
+                            </button>
                         </td>
                     </tr>
                 `;
@@ -3462,15 +3508,19 @@
             );
         }
 
-        // ── E-Book CSV Import & Export ──
+        // ── E-Book Copas / Import Logic ──
+        let pendingEBookPasteText = '';
+
         function openImportEBookModal() {
-            pendingEBookCsvContent = '';
-            const fileInp = document.getElementById('ebook-csv-file');
-            if (fileInp) fileInp.value = '';
-            const prev = document.getElementById('ebook-csv-preview-info');
-            if (prev) { prev.style.display = 'none'; prev.textContent = ''; }
+            const textarea = document.getElementById('ebook-paste-input');
+            if (textarea) textarea.value = '';
+            const counter = document.getElementById('ebook-paste-counter');
+            if (counter) counter.innerHTML = '<span style="color:var(--text-muted);">Belum ada data yang ditempel. Silakan copy baris dari Excel/Sheets lalu paste di sini.</span>';
             const btn = document.getElementById('btn-submit-ebook-import');
             if (btn) btn.disabled = true;
+            const fileInp = document.getElementById('ebook-csv-file');
+            if (fileInp) fileInp.value = '';
+            pendingEBookPasteText = '';
             document.getElementById('ebook-import-modal').style.display = 'flex';
         }
 
@@ -3478,31 +3528,53 @@
             document.getElementById('ebook-import-modal').style.display = 'none';
         }
 
-        function handleEBookCsvFileSelect(e) {
-            const file = e.target.files[0];
-            const prev = document.getElementById('ebook-csv-preview-info');
+        function onEBookPasteInput() {
+            const val = (document.getElementById('ebook-paste-input')?.value || '').trim();
+            pendingEBookPasteText = val;
+            const counter = document.getElementById('ebook-paste-counter');
             const submitBtn = document.getElementById('btn-submit-ebook-import');
-
-            if (!file) {
-                prev.style.display = 'none';
-                submitBtn.disabled = true;
+            if (!val) {
+                if (counter) counter.innerHTML = '<span style="color:var(--text-muted);">Belum ada data yang ditempel.</span>';
+                if (submitBtn) submitBtn.disabled = true;
                 return;
             }
+            const lines = val.split(/\r?\n/).filter(l => l.trim().length > 0);
+            let estCount = lines.length;
+            const firstLine = lines[0].toLowerCase();
+            if (firstLine.includes('judul') || firstLine.includes('title') || firstLine.includes('isbn') || firstLine.includes('author')) {
+                estCount = Math.max(0, lines.length - 1);
+            }
+            if (counter) {
+                counter.innerHTML = `<strong style="color:var(--status-online-text, #10b981);">✓ Terdeteksi ${lines.length} baris</strong> (estimasi ~${estCount} judul e-book siap diimpor)`;
+            }
+            if (submitBtn) submitBtn.disabled = lines.length === 0;
+        }
 
+        function handleEBookFilePaste(event) {
+            const file = event.target.files[0];
+            if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(evt) {
-                pendingEBookCsvContent = evt.target.result;
-                const lines = pendingEBookCsvContent.split(/\r?\n/).filter(l => l.trim().length > 0);
-                const count = Math.max(0, lines.length - 1);
-                prev.textContent = `File "${file.name}" siap diimpor: terdeteksi ${count} baris judul e-book.`;
-                prev.style.display = 'block';
-                submitBtn.disabled = count === 0;
+            reader.onload = (e) => {
+                const txt = e.target.result || '';
+                const textarea = document.getElementById('ebook-paste-input');
+                if (textarea) {
+                    textarea.value = txt;
+                    onEBookPasteInput();
+                }
             };
             reader.readAsText(file);
         }
 
         async function submitImportEBook() {
-            if (!pendingEBookCsvContent) return;
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+
+            const text = (document.getElementById('ebook-paste-input')?.value || pendingEBookPasteText || '').trim();
+            if (!text) {
+                showToast('Tempelkan data atau pilih berkas terlebih dahulu');
+                return;
+            }
+
             const submitBtn = document.getElementById('btn-submit-ebook-import');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Mengimpor...';
@@ -3511,15 +3583,15 @@
                 const res = await adminFetch('/api/admin/international/ebooks/import', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ csv: pendingEBookCsvContent })
+                    body: JSON.stringify({ text: text })
                 });
                 const resData = await res.json();
                 if (res.ok) {
-                    showToast(resData.message || 'Impor e-book berhasil selesai.');
+                    showToast(resData.message || 'Data e-book berhasil diimpor!');
                     closeImportEBookModal();
                     loadSubscribedEBooks();
                 } else {
-                    showToast(`Gagal: ${resData.error || 'Format CSV tidak valid'}`);
+                    showToast(`Gagal: ${resData.error || 'Format data tidak valid'}`);
                 }
             } catch (err) {
                 if (err.message !== 'Unauthorized') showToast(`Error: ${err.message}`);

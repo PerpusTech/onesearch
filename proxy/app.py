@@ -1682,28 +1682,77 @@ def admin_toggle_subscribed_journal():
     return jsonify({"error": f"Jurnal dengan ID {jrn_id} tidak ditemukan."}), 404
 
 
+def _parse_tabular_records(raw_text, default_columns):
+    """
+    Parses pasted text from Excel/Google Sheets (Tab-separated) or CSV (comma/semicolon).
+    Supports:
+    1. Headers automatically recognized (Title/Judul, Author/Pengarang, Publisher/Penerbit, etc.)
+    2. Positional columns if pasted without headers.
+    """
+    if not raw_text or not raw_text.strip():
+        return []
+
+    lines = [line.strip() for line in raw_text.strip().splitlines() if line.strip()]
+    if not lines:
+        return []
+
+    first_line = lines[0]
+    # Detect delimiter
+    delimiter = ','
+    if '\t' in first_line:
+        delimiter = '\t'
+    elif ';' in first_line and first_line.count(';') >= first_line.count(','):
+        delimiter = ';'
+
+    # Check if first line contains common header names
+    lower_tokens = [tok.strip().lower() for tok in first_line.split(delimiter)]
+    header_keywords = {'title', 'judul', 'publisher', 'penerbit', 'author', 'pengarang', 'penulis', 'issn', 'isbn', 'subject', 'subjek', 'url', 'link'}
+    has_header = any(any(kw in tok for kw in header_keywords) for tok in lower_tokens)
+
+    records = []
+    if has_header:
+        reader = csv.DictReader(io.StringIO(raw_text), delimiter=delimiter)
+        for row in reader:
+            records.append({k.strip(): (v or '').strip() for k, v in row.items() if k})
+    else:
+        reader = csv.reader(io.StringIO(raw_text), delimiter=delimiter)
+        for row in reader:
+            if not row or not any(field.strip() for field in row):
+                continue
+            rec = {}
+            for col_idx, col_name in enumerate(default_columns):
+                rec[col_name] = row[col_idx].strip() if col_idx < len(row) else ''
+            records.append(rec)
+
+    return records
+
+
 @app.route('/api/admin/international/journals/import', methods=['POST'])
 def admin_import_subscribed_journals():
-    """Bulk import subscribed journals from CSV file or JSON payload."""
+    """Bulk import subscribed journals from direct paste (TSV/CSV) or file payload."""
     if not _check_admin_auth():
         return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
 
-    raw_csv_text = ''
+    raw_text = ''
     if 'file' in request.files:
         file = request.files['file']
         if file and file.filename != '':
             try:
-                raw_csv_text = file.read().decode('utf-8-sig', errors='ignore')
+                raw_text = file.read().decode('utf-8-sig', errors='ignore')
             except Exception as e:
                 return jsonify({"error": f"Gagal membaca file: {str(e)}"}), 400
     else:
         data = request.get_json(silent=True) or {}
-        raw_csv_text = data.get('csv', '')
+        raw_text = data.get('csv', '') or data.get('text', '') or data.get('pasted', '')
 
-    if not raw_csv_text:
-        return jsonify({"error": "Tidak ada data CSV yang diunggah."}), 400
+    if not raw_text.strip():
+        return jsonify({"error": "Tidak ada data yang ditempel (paste) atau diunggah."}), 400
 
-    reader = csv.DictReader(io.StringIO(raw_csv_text))
+    default_columns = ['title', 'publisher', 'issn', 'eissn', 'subject', 'access_type', 'url', 'faculty', 'notes']
+    rows = _parse_tabular_records(raw_text, default_columns)
+    if not rows:
+        return jsonify({"error": "Tidak ada baris data valid yang terdeteksi."}), 400
+
     items = _load_subscribed_journals()
     existing_by_title_or_issn = {}
     for it in items:
@@ -1721,13 +1770,15 @@ def admin_import_subscribed_journals():
     updated_count = 0
     now_str = datetime.now().isoformat()
 
-    for idx, row in enumerate(reader):
+    for idx, row in enumerate(rows):
         title = (row.get('Title') or row.get('Judul') or row.get('title') or row.get('judul') or '').strip()
         issn = (row.get('ISSN') or row.get('issn') or row.get('Print ISSN') or row.get('p_issn') or '').strip()
         eissn = (row.get('E-ISSN') or row.get('eissn') or row.get('e_issn') or row.get('Online ISSN') or '').strip()
         publisher = (row.get('Publisher') or row.get('Penerbit') or row.get('publisher') or row.get('Database') or '').strip()
         url = (row.get('URL') or row.get('Url') or row.get('Link') or row.get('Akses') or row.get('url') or '').strip()
         subject = (row.get('Subject') or row.get('Subjek') or row.get('Fakultas') or row.get('subject') or '').strip()
+        access_type = (row.get('Access') or row.get('access_type') or row.get('Akses') or 'kampus').strip().lower()
+        faculty = (row.get('Faculty') or row.get('Fakultas') or row.get('faculty') or '').strip()
         notes = (row.get('Notes') or row.get('Catatan') or row.get('notes') or '').strip()
 
         if not title and not issn:
@@ -1743,6 +1794,8 @@ def admin_import_subscribed_journals():
             if publisher: existing['publisher'] = publisher
             if url: existing['url'] = url
             if subject: existing['subject'] = subject
+            if access_type: existing['accessType'] = access_type
+            if faculty: existing['faculty'] = faculty
             if notes: existing['notes'] = notes
             existing['updated_at'] = now_str
             updated_count += 1
@@ -1754,8 +1807,10 @@ def admin_import_subscribed_journals():
                 "issn": issn,
                 "eissn": eissn,
                 "publisher": publisher or "Other",
+                "accessType": access_type,
                 "url": url,
                 "subject": subject,
+                "faculty": faculty,
                 "notes": notes or "Impor Massal",
                 "active": True,
                 "updated_at": now_str
@@ -2001,26 +2056,30 @@ def admin_toggle_subscribed_ebook():
 
 @app.route('/api/admin/international/ebooks/import', methods=['POST'])
 def admin_import_subscribed_ebooks():
-    """Bulk import subscribed e-books from CSV file or JSON payload."""
+    """Bulk import subscribed e-books from direct paste (TSV/CSV) or file payload."""
     if not _check_admin_auth():
         return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
 
-    raw_csv_text = ''
+    raw_text = ''
     if 'file' in request.files:
         file = request.files['file']
         if file and file.filename != '':
             try:
-                raw_csv_text = file.read().decode('utf-8-sig', errors='ignore')
+                raw_text = file.read().decode('utf-8-sig', errors='ignore')
             except Exception as e:
                 return jsonify({"error": f"Gagal membaca file: {str(e)}"}), 400
     else:
         data = request.get_json(silent=True) or {}
-        raw_csv_text = data.get('csv', '')
+        raw_text = data.get('csv', '') or data.get('text', '') or data.get('pasted', '')
 
-    if not raw_csv_text:
-        return jsonify({"error": "Tidak ada data CSV yang diunggah."}), 400
+    if not raw_text.strip():
+        return jsonify({"error": "Tidak ada data yang ditempel (paste) atau diunggah."}), 400
 
-    reader = csv.DictReader(io.StringIO(raw_csv_text))
+    default_columns = ['title', 'author', 'publisher', 'year', 'isbn', 'subject', 'access_type', 'url', 'cover_url', 'notes']
+    rows = _parse_tabular_records(raw_text, default_columns)
+    if not rows:
+        return jsonify({"error": "Tidak ada baris data valid yang terdeteksi."}), 400
+
     items = _load_subscribed_ebooks()
     existing_by_title_or_isbn = {}
     for it in items:
@@ -2035,7 +2094,7 @@ def admin_import_subscribed_ebooks():
     updated_count = 0
     now_str = datetime.now().isoformat()
 
-    for idx, row in enumerate(reader):
+    for idx, row in enumerate(rows):
         title = (row.get('Title') or row.get('Judul') or row.get('title') or row.get('judul') or '').strip()
         author = (row.get('Author') or row.get('Pengarang') or row.get('Penulis') or row.get('author') or row.get('penulis') or '').strip()
         publisher = (row.get('Publisher') or row.get('Penerbit') or row.get('publisher') or '').strip()
@@ -2083,10 +2142,10 @@ def admin_import_subscribed_ebooks():
                 "url": url,
                 "cover_url": cover_url,
                 "subject": subject,
-                "access_type": access_type,
+                "access_type": access_type or "kampus",
                 "notes": notes or "Impor Massal",
                 "active": True,
-                "updated_at": now_str
+                "created_at": now_str
             }
             items.insert(0, new_b)
             if match_key:
@@ -2096,11 +2155,9 @@ def admin_import_subscribed_ebooks():
     _save_subscribed_ebooks(items)
     return jsonify({
         "status": "SUCCESS",
-        "message": f"Berhasil mengimpor {imported_count} e-book baru dan memperbarui {updated_count} e-book yang ada.",
+        "message": f"Berhasil mengimpor {imported_count} e-book baru dan memperbarui {updated_count} judul yang sudah ada.",
         "imported": imported_count,
-        "updated": updated_count,
-        "total": len(items),
-        "items": items
+        "updated": updated_count
     })
 
 

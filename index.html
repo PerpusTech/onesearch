@@ -23,7 +23,7 @@
         rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
 
-    <link rel="stylesheet" href="css/style.css?v=90">
+    <link rel="stylesheet" href="css/style.css?v=92">
 </head>
 
 <body>
@@ -639,7 +639,7 @@
         // Inisialisasi Service Worker untuk offline PWA caching & caching data discovery
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=90').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=92').then(reg => {
                     console.log('BookFinder Service Worker terdaftar:', reg.scope);
                 }).catch(err => {
                     console.warn('Gagal mendaftarkan Service Worker:', err);
