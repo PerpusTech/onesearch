@@ -23,7 +23,7 @@
         rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
 
-    <link rel="stylesheet" href="css/style.css?v=86">
+    <link rel="stylesheet" href="css/style.css?v=90">
 </head>
 
 <body>
@@ -61,13 +61,6 @@
                         <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
                     </svg>
                     <span data-i18n="explore">Jelajahi</span>
-                </a>
-                <a href="#" data-page="ejournals" onclick="app.showEJournalDirectory();return false" id="nav-ejournals">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                    </svg>
-                    <span>E-Journal UMS</span>
                 </a>
                 <a href="#" data-page="bookmarks" onclick="app.showBookmarks();return false" id="nav-bookmarks">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -109,13 +102,6 @@
                 <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
             </svg>
             <span data-i18n="explore">Jelajahi</span>
-        </a>
-        <a href="#" data-page="ejournals" onclick="app.showEJournalDirectory();app.toggleMobileMenu(true);return false">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-            </svg>
-            <span>E-Journal Langganan UMS</span>
         </a>
         <a href="#" data-page="bookmarks" onclick="app.showBookmarks();app.toggleMobileMenu(true);return false">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -187,6 +173,26 @@
                             <div class="suggest" id="suggest-box"></div>
                         </div>
 
+                        <!-- Shortcut Chips: Jelajahi E-Journal & E-Book Langganan UMS -->
+                        <div style="display:flex; justify-content:center; gap:0.6rem; flex-wrap:wrap; margin-top:0.65rem;">
+                            <button type="button" class="hero-chip-browse-ejrn" onclick="app.showEJournalDirectory()"
+                                title="Lihat katalog seluruh jurnal ilmiah yang dilanggan Perpustakaan UMS">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                                    <polygon
+                                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                </svg>
+                                <span>Jelajahi E-Journal Langganan</span>
+                            </button>
+                            <button type="button" class="hero-chip-browse-ejrn hero-chip-browse-ebk" onclick="app.showEBookDirectory()"
+                                title="Lihat katalog buku elektronik (e-book) yang dilanggan Perpustakaan UMS">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                                </svg>
+                                <span>Jelajahi E-Book Langganan</span>
+                            </button>
+                        </div>
+
                         <!-- Smart Academic Concept Suggestions -->
                         <div id="smart-topics-wrap" class="smart-topics-wrap" style="display:none"></div>
 
@@ -203,10 +209,17 @@
                 <!-- Federated International Results Container -->
                 <div id="fed-results-wrap" class="fed-results-wrap" style="display:none">
                     <div class="fed-results-header" id="fed-header"></div>
-                    <div id="fed-filter-bar"></div>
-                    <div class="fed-pagination-wrap" id="fed-pagination-top"></div>
+
+                    <!-- 3-Mode Segmented Tabs (Semua Jurnal | Langganan UMS ★ | Jurnal Global) -->
+                    <div id="fed-subscription-modes" class="fed-subscription-modes" style="display:none"></div>
+
+                    <!-- Sorotan Jurnal Langganan UMS (Jika kata kunci cocok dengan judul jurnal langganan) -->
+                    <div id="fed-subscribed-highlight" class="fed-subscribed-highlight" style="display:none"></div>
+
+                    <div id="fed-filter-bar" class="fed-filter-bar" style="display:none; margin-bottom:1.5rem;"></div>
+                    <div class="fed-pagination-wrap fed-pagination" id="fed-pagination-top" style="margin-top:1.5rem; margin-bottom:1.25rem;"></div>
                     <div class="fed-items-list" id="fed-items-list"></div>
-                    <div class="fed-pagination-wrap" id="fed-pagination-bottom"></div>
+                    <div class="fed-pagination-wrap fed-pagination" id="fed-pagination-bottom" style="margin-top:2rem; margin-bottom:2rem;"></div>
                 </div>
 
                 <!-- Local Results Layout (Original) -->
@@ -256,15 +269,19 @@
             <div class="wrap">
                 <div class="page-top">
                     <h1 data-i18n="browse_collection">Jelajahi Koleksi</h1>
-                    <p data-i18n="browse_subtitle">Telusuri berdasarkan klasifikasi Dewey Decimal atau Program Studi UMS</p>
+                    <p data-i18n="browse_subtitle">Telusuri berdasarkan klasifikasi Dewey Decimal atau Program Studi UMS
+                    </p>
                 </div>
 
                 <!-- Browse Mode Switcher Tabs -->
-                <div class="browse-tabs-bar" style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:2px solid var(--border); padding-bottom:0.5rem;">
-                    <button type="button" id="tab-browse-ddc" class="btn btn-brand" onclick="app.setBrowseMode('ddc')" style="font-size:0.85rem; padding:0.4rem 1rem;">
+                <div class="browse-tabs-bar"
+                    style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:2px solid var(--border); padding-bottom:0.5rem;">
+                    <button type="button" id="tab-browse-ddc" class="btn btn-brand" onclick="app.setBrowseMode('ddc')"
+                        style="font-size:0.85rem; padding:0.4rem 1rem;">
                         Dewey Decimal (DDC)
                     </button>
-                    <button type="button" id="tab-browse-prodi" class="btn btn-ghost" onclick="app.setBrowseMode('prodi')" style="font-size:0.85rem; padding:0.4rem 1rem;">
+                    <button type="button" id="tab-browse-prodi" class="btn btn-ghost"
+                        onclick="app.setBrowseMode('prodi')" style="font-size:0.85rem; padding:0.4rem 1rem;">
                         Program Studi & Fakultas
                     </button>
                 </div>
@@ -276,27 +293,32 @@
                     <div class="browse-grid" id="browse-content"></div>
                     <div class="bk-grid" id="browse-books" style="display:none"></div>
                     <div class="load-more-wrap" id="browse-more" style="display:none">
-                        <button class="btn btn-ghost" onclick="app.loadMoreDDC()" data-i18n="load_more">Muat Lebih Banyak</button>
+                        <button class="btn btn-ghost" onclick="app.loadMoreDDC()" data-i18n="load_more">Muat Lebih
+                            Banyak</button>
                     </div>
                 </div>
 
                 <!-- Prodi & Fakultas View -->
                 <div id="browse-prodi-wrap" style="display:none">
                     <!-- Filter Fakultas Chips -->
-                    <div id="prodi-fak-filter" style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:1.25rem;"></div>
+                    <div id="prodi-fak-filter" style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:1.25rem;">
+                    </div>
                     <!-- Prodi Cards Grid -->
                     <div class="browse-grid" id="prodi-grid"></div>
                     <!-- Prodi Books Panel (when clicked) -->
                     <div id="prodi-books-panel" style="display:none">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
                             <h2 id="prodi-books-title" style="font-size:1.15rem; font-weight:700; margin:0"></h2>
-                            <button type="button" class="btn btn-ghost" onclick="app.closeProdiBooks()" style="font-size:0.8rem; padding:0.3rem 0.75rem;">
+                            <button type="button" class="btn btn-ghost" onclick="app.closeProdiBooks()"
+                                style="font-size:0.8rem; padding:0.3rem 0.75rem;">
                                 ← Kembali ke Daftar Prodi
                             </button>
                         </div>
                         <div class="bk-grid" id="prodi-books-grid"></div>
                         <div class="load-more-wrap" id="prodi-books-more" style="display:none">
-                            <button class="btn btn-ghost" onclick="app.loadMoreProdiBooks()" data-i18n="load_more">Muat Lebih Banyak</button>
+                            <button class="btn btn-ghost" onclick="app.loadMoreProdiBooks()" data-i18n="load_more">Muat
+                                Lebih Banyak</button>
                         </div>
                     </div>
                 </div>
@@ -306,17 +328,38 @@
         <!-- E-JOURNAL DIRECTORY (PUBLIC CATALOG) -->
         <section id="page-ejournals" class="page">
             <div class="wrap">
-                <div class="page-top">
-                    <h1>Katalog E-Journal Langganan UMS</h1>
-                    <p>Daftar resmi jurnal internasional dan pangkalan data ilmiah yang dilanggan oleh Perpustakaan UMS untuk sivitas akademika.</p>
+                <div class="page-top"
+                    style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+                    <div>
+                        <h1>Katalog E-Journal Langganan UMS</h1>
+                        <p>Daftar resmi jurnal internasional dan pangkalan data ilmiah yang dilanggan oleh Perpustakaan
+                            UMS untuk sivitas akademika.</p>
+                    </div>
+                    <button type="button" class="btn btn-ghost" onclick="app.showHome()"
+                        style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.45rem 0.9rem; font-size:0.82rem;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                        <span>Kembali ke Pencarian</span>
+                    </button>
                 </div>
-                <div class="card" style="padding:1.15rem; margin-bottom:1.5rem; background:var(--bg-2); border:1px solid var(--border); border-radius:var(--r-md);">
+                <div class="card"
+                    style="padding:1.15rem; margin-bottom:1.5rem; background:var(--bg-2); border:1px solid var(--border); border-radius:var(--r-md);">
                     <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
-                        <input type="text" id="ejrn-search-input" class="input" placeholder="Cari judul e-journal, ISSN, subjek, atau penerbit..." style="flex:1; min-width:240px; padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink);" oninput="app.filterEJournalDirectory()">
-                        <select id="ejrn-filter-publisher" class="select" style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:180px;" onchange="app.filterEJournalDirectory()">
+                        <input type="text" id="ejrn-search-input" class="input"
+                            placeholder="Cari judul e-journal, ISSN, subjek, atau penerbit..."
+                            style="flex:1; min-width:240px; padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink);"
+                            oninput="app.filterEJournalDirectory()">
+                        <select id="ejrn-filter-publisher" class="select"
+                            style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:180px;"
+                            onchange="app.filterEJournalDirectory()">
                             <option value="all">Semua Penerbit</option>
                         </select>
-                        <select id="ejrn-filter-access" class="select" style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:160px;" onchange="app.filterEJournalDirectory()">
+                        <select id="ejrn-filter-access" class="select"
+                            style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:160px;"
+                            onchange="app.filterEJournalDirectory()">
                             <option value="all">Semua Akses</option>
                             <option value="kampus">IP Kampus / Eduroam</option>
                             <option value="ezproxy">EZProxy SSO</option>
@@ -332,17 +375,76 @@
             </div>
         </section>
 
+        <!-- E-BOOK DIRECTORY (PUBLIC CATALOG) -->
+        <section id="page-ebooks" class="page">
+            <div class="wrap">
+                <div class="page-top"
+                    style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+                    <div>
+                        <h1>Katalog E-Book Langganan UMS</h1>
+                        <p>Daftar resmi buku elektronik dan monograf ilmiah internasional yang dilanggan oleh Perpustakaan
+                            UMS untuk sivitas akademika.</p>
+                    </div>
+                    <button type="button" class="btn btn-ghost" onclick="app.showHome()"
+                        style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.45rem 0.9rem; font-size:0.82rem;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                        <span>Kembali ke Beranda</span>
+                    </button>
+                </div>
+                <div class="card"
+                    style="padding:1.15rem; margin-bottom:1.5rem; background:var(--bg-2); border:1px solid var(--border); border-radius:var(--r-md);">
+                    <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+                        <input type="text" id="ebk-search-input" class="input"
+                            placeholder="Cari judul e-book, pengarang, ISBN, subjek, atau penerbit..."
+                            style="flex:1; min-width:240px; padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink);"
+                            oninput="app.filterEBookDirectory()">
+                        <select id="ebk-filter-publisher" class="select"
+                            style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:180px;"
+                            onchange="app.filterEBookDirectory()">
+                            <option value="all">Semua Penerbit</option>
+                        </select>
+                        <select id="ebk-filter-subject" class="select"
+                            style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:170px;"
+                            onchange="app.filterEBookDirectory()">
+                            <option value="all">Semua Subjek</option>
+                        </select>
+                        <select id="ebk-filter-access" class="select"
+                            style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:160px;"
+                            onchange="app.filterEBookDirectory()">
+                            <option value="all">Semua Akses</option>
+                            <option value="kampus">IP Kampus / Eduroam</option>
+                            <option value="ezproxy">EZProxy SSO</option>
+                            <option value="open">Open Access</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="ebk-loading" style="display:none; text-align:center; padding:3rem 1rem; color:var(--ink-3);">
+                    <div class="ld-spinner" style="margin:0 auto 1rem; width:28px; height:28px;"></div>
+                    <p>Memuat daftar e-book langganan...</p>
+                </div>
+                <div id="ebk-grid" class="ebook-grid"></div>
+            </div>
+        </section>
+
         <!-- BOOKMARKS / SAVED ITEMS -->
         <section id="page-bookmarks" class="page">
             <div class="wrap">
                 <div class="page-top">
                     <div class="page-title-row">
                         <div class="page-title-icon-badge">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+                            </svg>
                         </div>
                         <div>
                             <h1 data-i18n="nav_bookmarks">Koleksi Saya</h1>
-                            <p data-i18n="bookmarks_desc">Daftar literatur dan referensi yang Anda simpan di perangkat ini</p>
+                            <p data-i18n="bookmarks_desc">Daftar literatur dan referensi yang Anda simpan di perangkat
+                                ini</p>
                         </div>
                     </div>
                 </div>
@@ -351,21 +453,35 @@
                     <div class="bm-panel-header">
                         <div class="bm-panel-left">
                             <span id="bm-count-badge" class="bm-count-badge">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+                                </svg>
                                 <span id="bm-count-text">0 item tersimpan</span>
                             </span>
                             <div class="bm-filter-tabs" id="bm-filter-tabs">
-                                <button type="button" class="bm-filter-chip active" onclick="app.setBmTypeFilter('all', this)" data-filter="all">Semua</button>
-                                <button type="button" class="bm-filter-chip" onclick="app.setBmTypeFilter('book', this)" data-filter="book">Buku</button>
-                                <button type="button" class="bm-filter-chip" onclick="app.setBmTypeFilter('thesis', this)" data-filter="thesis">Skripsi & TA</button>
-                                <button type="button" class="bm-filter-chip" onclick="app.setBmTypeFilter('article', this)" data-filter="article">Jurnal Internasional</button>
+                                <button type="button" class="bm-filter-chip active"
+                                    onclick="app.setBmTypeFilter('all', this)" data-filter="all">Semua</button>
+                                <button type="button" class="bm-filter-chip" onclick="app.setBmTypeFilter('book', this)"
+                                    data-filter="book">Buku</button>
+                                <button type="button" class="bm-filter-chip"
+                                    onclick="app.setBmTypeFilter('thesis', this)" data-filter="thesis">Skripsi &
+                                    TA</button>
+                                <button type="button" class="bm-filter-chip"
+                                    onclick="app.setBmTypeFilter('article', this)" data-filter="article">Jurnal
+                                    Internasional</button>
                             </div>
                         </div>
 
                         <div class="bm-panel-right">
                             <div class="bm-sort-control">
                                 <label for="bm-sort-sel" data-i18n="bm_sort_label">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="13" x2="11" y1="18" y2="18"/></svg>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="21" x2="3" y1="6" y2="6" />
+                                        <line x1="17" x2="7" y1="12" y2="12" />
+                                        <line x1="13" x2="11" y1="18" y2="18" />
+                                    </svg>
                                     Urutkan:
                                 </label>
                                 <select id="bm-sort-sel" class="bm-select" onchange="app.setBmSort(this.value)">
@@ -378,28 +494,49 @@
 
                             <div class="bm-actions-group">
                                 <div class="bm-export-dropdown-wrap">
-                                    <button type="button" class="bm-btn bm-btn-export" onclick="app.toggleBmExportMenu(event)">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                                    <button type="button" class="bm-btn bm-btn-export"
+                                        onclick="app.toggleBmExportMenu(event)">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="7 10 12 15 17 10" />
+                                            <line x1="12" x2="12" y1="15" y2="3" />
+                                        </svg>
                                         Ekspor Sitasi
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <polyline points="6 9 12 15 18 9" />
+                                        </svg>
                                     </button>
                                     <div class="bm-export-menu" id="bm-export-menu" style="display:none">
-                                        <button type="button" class="bm-export-item" onclick="app.exportBookmarks('ris');app.closeBmExportMenu()">
+                                        <button type="button" class="bm-export-item"
+                                            onclick="app.exportBookmarks('ris');app.closeBmExportMenu()">
                                             <span class="bm-export-fmt">Format RIS (.ris)</span>
                                             <span class="bm-export-desc">Untuk Mendeley, Zotero, EndNote</span>
                                         </button>
-                                        <button type="button" class="bm-export-item" onclick="app.exportBookmarks('bib');app.closeBmExportMenu()">
+                                        <button type="button" class="bm-export-item"
+                                            onclick="app.exportBookmarks('bib');app.closeBmExportMenu()">
                                             <span class="bm-export-fmt">Format BibTeX (.bib)</span>
                                             <span class="bm-export-desc">Untuk LaTeX, Overleaf, TeXmaker</span>
                                         </button>
-                                        <button type="button" class="bm-export-item" onclick="app.exportBookmarks('csv');app.closeBmExportMenu()">
+                                        <button type="button" class="bm-export-item"
+                                            onclick="app.exportBookmarks('csv');app.closeBmExportMenu()">
                                             <span class="bm-export-fmt">Tabel Excel / CSV (.csv)</span>
                                             <span class="bm-export-desc">Daftar pustaka dalam format spreadsheet</span>
                                         </button>
                                     </div>
                                 </div>
-                                <button type="button" class="bm-btn bm-btn-danger" onclick="app.clearAllBookmarks()" data-i18n="bm_clear_all" title="Hapus seluruh koleksi yang disimpan">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                                <button type="button" class="bm-btn bm-btn-danger" onclick="app.clearAllBookmarks()"
+                                    data-i18n="bm_clear_all" title="Hapus seluruh koleksi yang disimpan">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6" />
+                                        <path
+                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                        <line x1="10" x2="10" y1="11" y2="17" />
+                                        <line x1="14" x2="14" y1="11" y2="17" />
+                                    </svg>
                                     Hapus Semua
                                 </button>
                             </div>
@@ -432,15 +569,18 @@
         </div>
 
         <!-- Quick PDF Viewer Modal -->
-        <div class="modal-bg" id="pdf-modal" style="display:none" onclick="if(event.target===this) app.closePdfViewer()">
+        <div class="modal-bg" id="pdf-modal" style="display:none"
+            onclick="if(event.target===this) app.closePdfViewer()">
             <div class="pdf-modal-box" onclick="event.stopPropagation()">
                 <div class="pdf-modal-header">
                     <span class="pdf-modal-title" id="pdf-modal-title">Pratinjau Dokumen PDF</span>
                     <div class="pdf-modal-actions">
-                        <button type="button" class="btn btn-brand" id="pdf-modal-direct-btn" style="font-size:0.8rem; padding:0.35rem 0.8rem;">
+                        <button type="button" class="btn btn-brand" id="pdf-modal-direct-btn"
+                            style="font-size:0.8rem; padding:0.35rem 0.8rem;">
                             Buka di Tab Baru ↗
                         </button>
-                        <button class="modal-x" style="position:static; margin:0;" onclick="app.closePdfViewer()">✕</button>
+                        <button class="modal-x" style="position:static; margin:0;"
+                            onclick="app.closePdfViewer()">✕</button>
                     </div>
                 </div>
                 <div class="pdf-modal-body">
@@ -455,12 +595,12 @@
         <div class="wrap site-footer-inner"
             style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
             <p>© <span id="footer-year"></span> Developed by <strong>IT UMS Library</strong></p>
-            <div style="display:flex; align-items:center; gap:1rem;">
+            <!-- <div style="display:flex; align-items:center; gap:1rem;">
                 <a href="/admin.html" target="_blank" rel="noopener noreferrer" style="color:var(--ink-3); text-decoration:none; font-size:0.8rem; display:inline-flex; align-items:center; gap:0.35rem; transition:color 0.2s;" onmouseover="this.style.color='var(--brand)'" onmouseout="this.style.color='var(--ink-3)'">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     <span>Portal Admin</span>
                 </a>
-            </div>
+            </div> -->
         </div>
     </footer>
     <!-- Floating FAB Group: lang + theme + scroll-to-top -->
@@ -494,12 +634,12 @@
     </div>
     <script src="js/search.js?v=18"></script>
     <script src="js/recommender.js?v=17"></script>
-    <script src="js/app.js?v=87"></script>
+    <script src="js/app.js?v=90"></script>
     <script>
         // Inisialisasi Service Worker untuk offline PWA caching & caching data discovery
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=87').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=90').then(reg => {
                     console.log('BookFinder Service Worker terdaftar:', reg.scope);
                 }).catch(err => {
                     console.warn('Gagal mendaftarkan Service Worker:', err);

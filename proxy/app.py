@@ -52,6 +52,7 @@ LOGS_DIR = os.path.join(BASE_DIR, 'logs', 'harvest')
 STATE_FILE = os.path.join(DATA_DIR, 'scheduler_state.json')
 INTERNATIONAL_CONFIG_FILE = os.path.join(DATA_DIR, 'international_config.json')
 SUBSCRIBED_JOURNALS_FILE = os.path.join(DATA_DIR, 'subscribed_journals.json')
+SUBSCRIBED_EBOOKS_FILE = os.path.join(DATA_DIR, 'subscribed_ebooks.json')
 
 DEFAULT_INTERNATIONAL_CONFIG = {
     "enabled": True,
@@ -197,6 +198,30 @@ def _norm_issn(issn_str):
     if not issn_str:
         return ""
     return re.sub(r'[^0-9xX]', '', str(issn_str)).upper()
+
+
+def _norm_isbn(isbn_str):
+    if not isbn_str:
+        return ""
+    return re.sub(r'[^0-9xX]', '', str(isbn_str)).upper()
+
+
+def _load_subscribed_ebooks():
+    if os.path.exists(SUBSCRIBED_EBOOKS_FILE):
+        try:
+            with open(SUBSCRIBED_EBOOKS_FILE, 'r', encoding='utf-8') as f:
+                items = json.load(f)
+                if isinstance(items, list):
+                    return items
+        except Exception:
+            pass
+    return []
+
+
+def _save_subscribed_ebooks(items):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(SUBSCRIBED_EBOOKS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(items, f, indent=2)
 
 
 def _norm_title_key(title_str):
@@ -1806,6 +1831,336 @@ def admin_template_subscribed_journals():
         mimetype='text/csv',
         as_attachment=True,
         download_name="template_jurnal_langganan_ums.csv"
+    )
+
+
+# ── SUBSCRIBED E-BOOKS MANAGEMENT & PUBLIC DISCOVERY ──
+
+@app.route('/api/international/ebooks')
+def api_international_ebooks_public():
+    """Public A-Z listing of subscribed international e-books with search & filter support."""
+    ebooks = _load_subscribed_ebooks()
+    active_only = [b for b in ebooks if b.get('active', True)]
+
+    q = request.args.get('q', '').strip().lower()
+    subject = request.args.get('subject', '').strip().lower()
+    publisher = request.args.get('publisher', '').strip().lower()
+    access = request.args.get('access', '').strip().lower()
+
+    filtered = []
+    for b in active_only:
+        if q:
+            match_q = (
+                q in b.get('title', '').lower() or
+                q in b.get('author', '').lower() or
+                q in b.get('isbn', '').lower() or
+                q in b.get('publisher', '').lower() or
+                q in b.get('subject', '').lower() or
+                q in str(b.get('year', '')).lower() or
+                q in b.get('notes', '').lower()
+            )
+            if not match_q:
+                continue
+        if subject and subject != 'all' and subject not in b.get('subject', '').lower():
+            continue
+        if publisher and publisher != 'all' and publisher not in b.get('publisher', '').lower():
+            continue
+        if access and access != 'all' and access not in b.get('access_type', '').lower():
+            continue
+        filtered.append(b)
+
+    filtered.sort(key=lambda x: x.get('title', '').lower())
+    return jsonify({
+        "items": filtered,
+        "total": len(filtered),
+        "total_all": len(active_only)
+    })
+
+
+@app.route('/api/admin/international/ebooks', methods=['GET', 'POST'])
+def admin_subscribed_ebooks():
+    """List or Add/Update subscribed international e-books."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    if request.method == 'GET':
+        ebooks = _load_subscribed_ebooks()
+        return jsonify({
+            "items": ebooks,
+            "total": len(ebooks),
+            "active_count": sum(1 for b in ebooks if b.get('active', True))
+        })
+
+    data = request.get_json(silent=True) or {}
+    ebk_id = str(data.get('id', '')).strip().upper()
+    title = str(data.get('title', '')).strip()
+    author = str(data.get('author', '')).strip()
+    publisher = str(data.get('publisher', '')).strip()
+    year = data.get('year')
+    try:
+        year = int(year) if year else None
+    except Exception:
+        year = None
+    isbn = str(data.get('isbn', '')).strip()
+    url = str(data.get('url', '')).strip()
+    cover_url = str(data.get('cover_url', '')).strip()
+    subject = str(data.get('subject', '')).strip()
+    access_type = str(data.get('access_type', 'kampus')).strip()
+    notes = str(data.get('notes', '')).strip()
+    active = bool(data.get('active', True))
+
+    if not title:
+        return jsonify({"error": "Judul E-Book wajib diisi."}), 400
+
+    items = _load_subscribed_ebooks()
+
+    if not ebk_id:
+        ebk_id = f"EBK-{int(time.time())}"
+
+    existing_idx = next((i for i, item in enumerate(items) if item.get('id', '').upper() == ebk_id), -1)
+
+    new_obj = {
+        "id": ebk_id,
+        "title": title,
+        "author": author,
+        "publisher": publisher,
+        "year": year,
+        "isbn": isbn,
+        "url": url,
+        "cover_url": cover_url,
+        "subject": subject,
+        "access_type": access_type,
+        "notes": notes,
+        "active": active,
+        "updated_at": datetime.now().isoformat()
+    }
+
+    if existing_idx >= 0:
+        items[existing_idx] = new_obj
+        msg = f"E-Book '{title}' berhasil diperbarui."
+    else:
+        items.insert(0, new_obj)
+        msg = f"E-Book '{title}' berhasil ditambahkan ke daftar langganan."
+
+    _save_subscribed_ebooks(items)
+    return jsonify({
+        "status": "SUCCESS",
+        "message": msg,
+        "item": new_obj,
+        "items": items,
+        "total": len(items)
+    })
+
+
+@app.route('/api/admin/international/ebooks/<ebk_id>', methods=['DELETE'])
+def admin_delete_subscribed_ebook(ebk_id):
+    """Delete a subscribed e-book."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    ebk_id = ebk_id.strip().upper()
+    items = _load_subscribed_ebooks()
+    new_items = [it for it in items if it.get('id', '').upper() != ebk_id]
+
+    if len(new_items) == len(items):
+        return jsonify({"error": f"E-Book dengan ID {ebk_id} tidak ditemukan."}), 404
+
+    _save_subscribed_ebooks(new_items)
+    return jsonify({
+        "status": "SUCCESS",
+        "message": "E-Book berhasil dihapus dari daftar langganan.",
+        "items": new_items,
+        "total": len(new_items)
+    })
+
+
+@app.route('/api/admin/international/ebooks/toggle', methods=['POST'])
+def admin_toggle_subscribed_ebook():
+    """Toggle active state of a subscribed e-book."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    data = request.get_json(silent=True) or {}
+    ebk_id = str(data.get('id', '')).strip().upper()
+    items = _load_subscribed_ebooks()
+
+    for it in items:
+        if it.get('id', '').upper() == ebk_id:
+            it['active'] = not it.get('active', True)
+            it['updated_at'] = datetime.now().isoformat()
+            _save_subscribed_ebooks(items)
+            return jsonify({
+                "status": "SUCCESS",
+                "message": f"Status '{it.get('title')}' diubah menjadi {'Aktif' if it['active'] else 'Nonaktif'}.",
+                "active": it['active'],
+                "items": items
+            })
+
+    return jsonify({"error": f"E-Book dengan ID {ebk_id} tidak ditemukan."}), 404
+
+
+@app.route('/api/admin/international/ebooks/import', methods=['POST'])
+def admin_import_subscribed_ebooks():
+    """Bulk import subscribed e-books from CSV file or JSON payload."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    raw_csv_text = ''
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and file.filename != '':
+            try:
+                raw_csv_text = file.read().decode('utf-8-sig', errors='ignore')
+            except Exception as e:
+                return jsonify({"error": f"Gagal membaca file: {str(e)}"}), 400
+    else:
+        data = request.get_json(silent=True) or {}
+        raw_csv_text = data.get('csv', '')
+
+    if not raw_csv_text:
+        return jsonify({"error": "Tidak ada data CSV yang diunggah."}), 400
+
+    reader = csv.DictReader(io.StringIO(raw_csv_text))
+    items = _load_subscribed_ebooks()
+    existing_by_title_or_isbn = {}
+    for it in items:
+        t_key = _norm_title_key(it.get('title', ''))
+        if t_key:
+            existing_by_title_or_isbn[t_key] = it
+        isbn1 = _norm_isbn(it.get('isbn', ''))
+        if isbn1:
+            existing_by_title_or_isbn[isbn1] = it
+
+    imported_count = 0
+    updated_count = 0
+    now_str = datetime.now().isoformat()
+
+    for idx, row in enumerate(reader):
+        title = (row.get('Title') or row.get('Judul') or row.get('title') or row.get('judul') or '').strip()
+        author = (row.get('Author') or row.get('Pengarang') or row.get('Penulis') or row.get('author') or row.get('penulis') or '').strip()
+        publisher = (row.get('Publisher') or row.get('Penerbit') or row.get('publisher') or '').strip()
+        year_val = (row.get('Year') or row.get('Tahun') or row.get('year') or row.get('tahun') or '').strip()
+        year = None
+        try:
+            if year_val: year = int(re.sub(r'\D', '', year_val)[:4])
+        except Exception:
+            pass
+        isbn = (row.get('ISBN') or row.get('isbn') or row.get('eISBN') or row.get('eisbn') or '').strip()
+        url = (row.get('URL') or row.get('Url') or row.get('Link') or row.get('Akses') or row.get('url') or '').strip()
+        cover_url = (row.get('Cover') or row.get('cover_url') or row.get('cover') or '').strip()
+        subject = (row.get('Subject') or row.get('Subjek') or row.get('Kategori') or row.get('subject') or '').strip()
+        access_type = (row.get('Access') or row.get('access_type') or row.get('Akses') or 'kampus').strip().lower()
+        notes = (row.get('Notes') or row.get('Catatan') or row.get('notes') or '').strip()
+
+        if not title and not isbn:
+            continue
+
+        match_key = _norm_isbn(isbn) or _norm_title_key(title)
+        existing = existing_by_title_or_isbn.get(match_key)
+
+        if existing:
+            existing['title'] = title or existing['title']
+            if author: existing['author'] = author
+            if publisher: existing['publisher'] = publisher
+            if year: existing['year'] = year
+            if isbn: existing['isbn'] = isbn
+            if url: existing['url'] = url
+            if cover_url: existing['cover_url'] = cover_url
+            if subject: existing['subject'] = subject
+            if access_type: existing['access_type'] = access_type
+            if notes: existing['notes'] = notes
+            existing['updated_at'] = now_str
+            updated_count += 1
+        else:
+            new_id = f"EBK-{int(time.time())}-{idx+1}"
+            new_b = {
+                "id": new_id,
+                "title": title or f"E-Book {isbn}",
+                "author": author or "Anonim",
+                "publisher": publisher or "Other",
+                "year": year,
+                "isbn": isbn,
+                "url": url,
+                "cover_url": cover_url,
+                "subject": subject,
+                "access_type": access_type,
+                "notes": notes or "Impor Massal",
+                "active": True,
+                "updated_at": now_str
+            }
+            items.insert(0, new_b)
+            if match_key:
+                existing_by_title_or_isbn[match_key] = new_b
+            imported_count += 1
+
+    _save_subscribed_ebooks(items)
+    return jsonify({
+        "status": "SUCCESS",
+        "message": f"Berhasil mengimpor {imported_count} e-book baru dan memperbarui {updated_count} e-book yang ada.",
+        "imported": imported_count,
+        "updated": updated_count,
+        "total": len(items),
+        "items": items
+    })
+
+
+@app.route('/api/admin/international/ebooks/export')
+def admin_export_subscribed_ebooks():
+    """Export subscribed e-books as CSV file."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    ebooks = _load_subscribed_ebooks()
+    si = io.StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['ID', 'Title', 'Author', 'Publisher', 'Year', 'ISBN', 'URL', 'Cover URL', 'Subject', 'Access Type', 'Notes', 'Status'])
+
+    for b in ebooks:
+        writer.writerow([
+            b.get('id', ''),
+            b.get('title', ''),
+            b.get('author', ''),
+            b.get('publisher', ''),
+            b.get('year', ''),
+            b.get('isbn', ''),
+            b.get('url', ''),
+            b.get('cover_url', ''),
+            b.get('subject', ''),
+            b.get('access_type', 'kampus'),
+            b.get('notes', ''),
+            'Aktif' if b.get('active', True) else 'Nonaktif'
+        ])
+
+    output = io.BytesIO()
+    output.write(si.getvalue().encode('utf-8-sig'))
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f"ums_subscribed_ebooks_{datetime.now().strftime('%Y%m%d')}.csv"
+    )
+
+
+@app.route('/api/admin/international/ebooks/template')
+def admin_template_subscribed_ebooks():
+    """Download sample CSV template for bulk e-book import."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+    si = io.StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['Title', 'Author', 'Publisher', 'Year', 'ISBN', 'URL', 'Cover URL', 'Subject', 'Access Type', 'Notes'])
+    writer.writerow(['Artificial Intelligence: A Modern Approach', 'Stuart Russell, Peter Norvig', 'Pearson', '2021', '978-0134610993', 'https://www.pearson.com/', '', 'Informatika & Komputer', 'kampus', 'Langganan UMS 2026'])
+    writer.writerow(['Research Design', 'John W. Creswell', 'SAGE Publications', '2023', '978-1071817940', 'https://us.sagepub.com/', '', 'Metodologi Penelitian', 'ezproxy', 'Akses Sivitas UMS'])
+
+    output = io.BytesIO()
+    output.write(si.getvalue().encode('utf-8-sig'))
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name="template_ebook_langganan_ums.csv"
     )
 
 

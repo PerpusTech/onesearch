@@ -26,6 +26,7 @@ const app = {
     lang: localStorage.getItem('bf-lang') || 'id',
     intlConfig: null,
     _ejournalsList: [],
+    _ebooksList: [],
 
     translations: {
         id: {
@@ -525,6 +526,10 @@ const app = {
                 this.intlConfig = { enabled: true, sources: {} };
             }
 
+            // Pre-load subscribed journals & ebooks data for unified search & highlighting
+            this.getSubscribedJournalsList();
+            this.getSubscribedEBooksList();
+
             txt.textContent = this.t('building_index');
             this.searchEngine.build(this.books);
             this.recommender = new Recommender(this.searchEngine);
@@ -560,6 +565,23 @@ const app = {
                 const queryId = queryParams.get('id');
                 const querySearch = queryParams.get('q');
                 const queryField = queryParams.get('field');
+                const querySrc = queryParams.get('src');
+                const querySubMode = queryParams.get('submode');
+                const queryPage = queryParams.get('page');
+
+                if (queryPage === 'ejournals' || querySrc === 'ejournals') {
+                    this.showEJournalDirectory();
+                    return;
+                }
+
+                if (querySubMode) {
+                    this._fedSubscriptionMode = querySubMode;
+                }
+
+                if (querySrc && querySrc !== 'local') {
+                    this._activeFedSource = querySrc;
+                    this.renderFederatedSourcesGrid();
+                }
 
                 if (queryId) {
                     // Try to parse as integer if possible, else use string
@@ -576,6 +598,8 @@ const app = {
                     }
                     this.showPage('home');
                     this.doSearch(querySearch);
+                } else if (querySrc && querySrc !== 'local') {
+                    this.selectFedSource(querySrc);
                 }
             }, 350);
         } catch (e) {
@@ -758,13 +782,33 @@ const app = {
     showStats() { this.showPage('stats'); this.renderStats(); },
 
     // ──── Public E-Journal Directory (Langganan Resmi UMS) ────
+    async getSubscribedJournalsList() {
+        if (this._ejournalsList && this._ejournalsList.length > 0) {
+            this.populateEJournalFilters(this._ejournalsList);
+            return this._ejournalsList;
+        }
+        try {
+            const res = await fetch('/api/international/journals');
+            if (res.ok) {
+                const data = await res.json();
+                this._ejournalsList = Array.isArray(data) ? data : (data.items || []);
+                this.populateEJournalFilters(this._ejournalsList);
+                return this._ejournalsList;
+            }
+        } catch (e) {
+            console.error('Error fetching subscribed journals:', e);
+        }
+        return [];
+    },
+
     async showEJournalDirectory() {
         this.showPage('ejournals');
         const grid = document.getElementById('ejrn-grid');
         const loading = document.getElementById('ejrn-loading');
 
         if (this._ejournalsList && this._ejournalsList.length > 0) {
-            this.renderEJournalDirectory(this._ejournalsList);
+            this.populateEJournalFilters(this._ejournalsList);
+            this.filterEJournalDirectory();
             return;
         }
 
@@ -772,13 +816,9 @@ const app = {
         if (grid) grid.innerHTML = '';
 
         try {
-            const res = await fetch('/api/international/journals');
-            if (res.ok) {
-                const data = await res.json();
-                this._ejournalsList = Array.isArray(data) ? data : (data.items || []);
-                this.populateEJournalFilters(this._ejournalsList);
-                this.renderEJournalDirectory(this._ejournalsList);
-            }
+            await this.getSubscribedJournalsList();
+            this.populateEJournalFilters(this._ejournalsList);
+            this.filterEJournalDirectory();
         } catch (e) {
             console.error('Error fetching subscribed journals:', e);
             if (grid) {
@@ -792,22 +832,44 @@ const app = {
     populateEJournalFilters(list) {
         const pubSel = document.getElementById('ejrn-filter-publisher');
         if (!pubSel) return;
+        const curVal = pubSel.value || 'all';
         const safeList = Array.isArray(list) ? list : (list && Array.isArray(list.items) ? list.items : []);
-        const publishers = Array.from(new Set(safeList.map(it => it.publisher).filter(Boolean))).sort();
-        pubSel.innerHTML = '<option value="all">Semua Penerbit</option>' + 
-            publishers.map(p => `<option value="${this.esc(p)}">${this.esc(p)}</option>`).join('');
+        
+        // Extract unique publisher names cleanly
+        const pubMap = new Map();
+        safeList.forEach(it => {
+            const p = (it.publisher || '').trim();
+            if (p && !pubMap.has(p.toLowerCase())) {
+                pubMap.set(p.toLowerCase(), p);
+            }
+        });
+        const publishers = Array.from(pubMap.values()).sort((a, b) => a.localeCompare(b));
+
+        let html = '<option value="all">Semua Penerbit</option>';
+        publishers.forEach(p => {
+            const isSel = (curVal.toLowerCase() === p.toLowerCase()) ? ' selected' : '';
+            html += `<option value="${this.esc(p)}"${isSel}>${this.esc(p)}</option>`;
+        });
+        pubSel.innerHTML = html;
     },
 
     filterEJournalDirectory() {
         const q = (document.getElementById('ejrn-search-input')?.value || '').toLowerCase().trim();
-        const pubFilter = document.getElementById('ejrn-filter-publisher')?.value || 'all';
-        const accessFilter = document.getElementById('ejrn-filter-access')?.value || 'all';
+        const pubFilter = (document.getElementById('ejrn-filter-publisher')?.value || 'all').toLowerCase().trim();
+        const accessFilter = (document.getElementById('ejrn-filter-access')?.value || 'all').toLowerCase().trim();
 
         const safeList = Array.isArray(this._ejournalsList) ? this._ejournalsList : [];
         const filtered = safeList.filter(it => {
-            const matchPub = pubFilter === 'all' || it.publisher === pubFilter;
-            const matchAccess = accessFilter === 'all' || it.accessType === accessFilter;
-            const searchStr = `${it.title || ''} ${it.publisher || ''} ${it.issn || ''} ${it.eissn || ''} ${it.subject || ''} ${it.faculty || ''}`.toLowerCase();
+            const itPub = (it.publisher || '').toLowerCase().trim();
+            const matchPub = pubFilter === 'all' || itPub === pubFilter;
+            
+            const itAccess = (it.accessType || it.access || '').toLowerCase().trim();
+            const matchAccess = accessFilter === 'all' || 
+                (accessFilter === 'kampus' && (itAccess.includes('kampus') || itAccess.includes('eduroam') || !itAccess || it.notes?.toLowerCase().includes('kampus'))) ||
+                (accessFilter === 'ezproxy' && (itAccess.includes('ezproxy') || itAccess.includes('sso') || it.url?.toLowerCase().includes('ezproxy'))) ||
+                (accessFilter === 'open' && (itAccess.includes('open') || it.openAccess));
+
+            const searchStr = `${it.title || ''} ${it.publisher || ''} ${it.issn || ''} ${it.eissn || ''} ${it.subject || ''} ${it.faculty || ''} ${it.notes || ''}`.toLowerCase();
             const matchQ = !q || searchStr.includes(q);
             return matchPub && matchAccess && matchQ;
         });
@@ -880,6 +942,318 @@ const app = {
                 </div>
             </div>`;
         }).join('');
+    },
+
+    // ──── Public E-Book Directory (Buku Elektronik Resmi UMS) ────
+    async getSubscribedEBooksList() {
+        if (this._ebooksList && this._ebooksList.length > 0) {
+            this.populateEBookFilters(this._ebooksList);
+            return this._ebooksList;
+        }
+        try {
+            const res = await fetch('/api/international/ebooks');
+            if (res.ok) {
+                const data = await res.json();
+                this._ebooksList = Array.isArray(data) ? data : (data.items || []);
+                this.populateEBookFilters(this._ebooksList);
+                return this._ebooksList;
+            }
+        } catch (e) {
+            console.error('Error fetching subscribed ebooks:', e);
+        }
+        return [];
+    },
+
+    async showEBookDirectory() {
+        this.showPage('ebooks');
+        const grid = document.getElementById('ebk-grid');
+        const loading = document.getElementById('ebk-loading');
+
+        if (this._ebooksList && this._ebooksList.length > 0) {
+            this.populateEBookFilters(this._ebooksList);
+            this.filterEBookDirectory();
+            return;
+        }
+
+        if (loading) loading.style.display = 'block';
+        if (grid) grid.innerHTML = '';
+
+        try {
+            await this.getSubscribedEBooksList();
+            this.populateEBookFilters(this._ebooksList);
+            this.filterEBookDirectory();
+        } catch (e) {
+            console.error('Error fetching subscribed ebooks:', e);
+            if (grid) {
+                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:2rem; color:var(--ink-3);">Gagal memuat katalog e-book. Silakan coba sesaat lagi.</div>';
+            }
+        } finally {
+            if (loading) loading.style.display = 'none';
+        }
+    },
+
+    populateEBookFilters(list) {
+        const pubSel = document.getElementById('ebk-filter-publisher');
+        const subSel = document.getElementById('ebk-filter-subject');
+        if (!pubSel || !subSel) return;
+
+        const curPub = pubSel.value || 'all';
+        const curSub = subSel.value || 'all';
+        const safeList = Array.isArray(list) ? list : (list && Array.isArray(list.items) ? list.items : []);
+
+        const pubMap = new Map();
+        const subMap = new Map();
+
+        safeList.forEach(it => {
+            const p = (it.publisher || '').trim();
+            if (p && !pubMap.has(p.toLowerCase())) {
+                pubMap.set(p.toLowerCase(), p);
+            }
+            const s = (it.subject || '').trim();
+            if (s && !subMap.has(s.toLowerCase())) {
+                subMap.set(s.toLowerCase(), s);
+            }
+        });
+
+        const publishers = Array.from(pubMap.values()).sort((a, b) => a.localeCompare(b));
+        const subjects = Array.from(subMap.values()).sort((a, b) => a.localeCompare(b));
+
+        let pubHtml = '<option value="all">Semua Penerbit</option>';
+        publishers.forEach(p => {
+            const isSel = (curPub.toLowerCase() === p.toLowerCase()) ? ' selected' : '';
+            pubHtml += `<option value="${this.esc(p)}"${isSel}>${this.esc(p)}</option>`;
+        });
+        pubSel.innerHTML = pubHtml;
+
+        let subHtml = '<option value="all">Semua Subjek</option>';
+        subjects.forEach(s => {
+            const isSel = (curSub.toLowerCase() === s.toLowerCase()) ? ' selected' : '';
+            subHtml += `<option value="${this.esc(s)}"${isSel}>${this.esc(s)}</option>`;
+        });
+        subSel.innerHTML = subHtml;
+    },
+
+    filterEBookDirectory() {
+        const q = (document.getElementById('ebk-search-input')?.value || '').toLowerCase().trim();
+        const pubFilter = (document.getElementById('ebk-filter-publisher')?.value || 'all').toLowerCase().trim();
+        const subFilter = (document.getElementById('ebk-filter-subject')?.value || 'all').toLowerCase().trim();
+        const accessFilter = (document.getElementById('ebk-filter-access')?.value || 'all').toLowerCase().trim();
+
+        const safeList = Array.isArray(this._ebooksList) ? this._ebooksList : [];
+        const filtered = safeList.filter(it => {
+            const itPub = (it.publisher || '').toLowerCase().trim();
+            const matchPub = pubFilter === 'all' || itPub === pubFilter;
+
+            const itSub = (it.subject || '').toLowerCase().trim();
+            const matchSub = subFilter === 'all' || itSub === subFilter;
+
+            const itAccess = (it.access_type || it.accessType || '').toLowerCase().trim();
+            const matchAccess = accessFilter === 'all' ||
+                (accessFilter === 'kampus' && (itAccess.includes('kampus') || itAccess.includes('eduroam') || !itAccess || (it.notes && it.notes.toLowerCase().includes('kampus')))) ||
+                (accessFilter === 'ezproxy' && (itAccess.includes('ezproxy') || itAccess.includes('sso') || (it.url && it.url.toLowerCase().includes('ezproxy')))) ||
+                (accessFilter === 'open' && (itAccess.includes('open') || it.openAccess));
+
+            const searchStr = `${it.title || ''} ${it.author || ''} ${it.publisher || ''} ${it.isbn || ''} ${it.subject || ''} ${it.year || ''} ${it.notes || ''}`.toLowerCase();
+            const matchQ = !q || searchStr.includes(q);
+            return matchPub && matchSub && matchAccess && matchQ;
+        });
+
+        this.renderEBookDirectory(filtered);
+    },
+
+    renderEBookDirectory(list) {
+        const grid = document.getElementById('ebk-grid');
+        if (!grid) return;
+
+        const safeList = Array.isArray(list) ? list : (list && Array.isArray(list.items) ? list.items : []);
+
+        if (!safeList || safeList.length === 0) {
+            grid.innerHTML = `
+                <div style="grid-column:1/-1; text-align:center; padding:3rem 1.5rem; color:var(--ink-3); background:var(--bg-2); border:1px solid var(--border); border-radius:var(--r-md);">
+                    <p style="font-size:1.05rem; font-weight:600; color:var(--ink); margin-bottom:0.35rem;">Tidak Ada E-Book yang Sesuai</p>
+                    <p style="font-size:0.85rem;">Coba sesuaikan kata kunci pencarian atau filter penerbit dan subjek.</p>
+                </div>`;
+            return;
+        }
+
+        grid.innerHTML = safeList.map(it => {
+            const accessType = it.access_type || it.accessType || 'kampus';
+            const accessBadge = accessType === 'ezproxy' ?
+                '<span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">EZProxy SSO</span>' :
+                (accessType === 'open' ?
+                '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
+                '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
+
+            const directUrl = it.url || '#';
+            const yearStr = it.year ? String(it.year) : '';
+            const isbnStr = it.isbn || '-';
+            const authorStr = it.author || 'Penulis Tidak Disebutkan';
+
+            let coverImgHtml = '';
+            if (it.cover_url) {
+                coverImgHtml = `<img src="${this.esc(it.cover_url)}" alt="Cover ${this.esc(it.title)}" class="ebk-cover-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" loading="lazy">
+                <div class="ebk-cover-fallback" style="display:none;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <span>E-Book</span>
+                </div>`;
+            } else {
+                coverImgHtml = `
+                <div class="ebk-cover-fallback">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <span>E-Book</span>
+                </div>`;
+            }
+
+            return `
+            <div class="ebk-card">
+                <div class="ebk-card-main">
+                    <div class="ebk-cover-box">
+                        ${coverImgHtml}
+                    </div>
+                    <div class="ebk-info-box">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem; margin-bottom:0.4rem; flex-wrap:wrap;">
+                            <span class="fed-badge-subscribed" style="font-size:0.68rem;">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                E-Book Langganan
+                            </span>
+                            ${accessBadge}
+                        </div>
+                        <h3 class="ebk-title" title="${this.esc(it.title)}">
+                            ${this.esc(it.title)}
+                        </h3>
+                        <div class="ebk-author">
+                            ${this.esc(authorStr)}
+                        </div>
+                        <div class="ebk-pub">
+                            <span>${this.esc(it.publisher || 'Penerbit Internasional')}</span>
+                            ${yearStr ? `<span>• ${yearStr}</span>` : ''}
+                        </div>
+                        <div class="ebk-meta-row">
+                            <span>ISBN: <code>${this.esc(isbnStr)}</code></span>
+                            ${it.subject ? `<span class="ebk-subject-chip">${this.esc(it.subject)}</span>` : ''}
+                        </div>
+                        ${it.notes ? `
+                        <div class="ebk-notes">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                            <span>${this.esc(it.notes)}</span>
+                        </div>` : ''}
+                    </div>
+                </div>
+                <div class="ebk-card-footer">
+                    <button type="button" class="btn btn-ghost ebk-btn-detail" onclick="app.showEBookDetail(${this.idAttr(it.id)})">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        <span>Detail & Sitasi</span>
+                    </button>
+                    <a href="${this.esc(directUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-brand ebk-btn-read">
+                        <span>Buka E-Book ↗</span>
+                    </a>
+                </div>
+            </div>`;
+        }).join('');
+    },
+
+    showEBookDetail(rawId) {
+        const item = (this._ebooksList || []).find(b => String(b.id) === String(rawId));
+        if (!item) {
+            this.showAlert('Data e-book tidak ditemukan.');
+            return;
+        }
+
+        const directUrl = item.url || '#';
+        const yearStr = item.year ? String(item.year) : '';
+        const authorStr = item.author || 'Penulis Tidak Disebutkan';
+        const pubStr = item.publisher || 'Penerbit Internasional';
+        const isbnStr = item.isbn || '-';
+        const accessType = item.access_type || item.accessType || 'kampus';
+
+        // Format APA 7th Edition Citation
+        const apaCitation = `${authorStr} (${yearStr || 'n.d.'}). ${item.title}. ${pubStr}.${item.url ? ' ' + item.url : ''}`;
+
+        let coverImgHtml = '';
+        if (item.cover_url) {
+            coverImgHtml = `<img src="${this.esc(item.cover_url)}" alt="Cover ${this.esc(item.title)}" style="max-width:140px; border-radius:6px; border:1px solid var(--border); box-shadow:0 4px 12px rgba(0,0,0,0.15); object-fit:cover;" onerror="this.style.display='none'">`;
+        }
+
+        const modalBody = document.getElementById('modal-body');
+        if (!modalBody) return;
+
+        modalBody.innerHTML = `
+        <div class="detail">
+            <div class="detail-head" style="display:flex; gap:1.25rem; align-items:flex-start;">
+                ${coverImgHtml}
+                <div style="flex:1;">
+                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; flex-wrap:wrap;">
+                        <span class="fed-badge-subscribed">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            E-Book Langganan Resmi UMS
+                        </span>
+                        <span class="chip" style="background:var(--bg-3); font-weight:600;">${this.esc(accessType.toUpperCase())}</span>
+                    </div>
+                    <h2 class="detail-title" style="margin-top:0.25rem;">${this.esc(item.title)}</h2>
+                    <p class="detail-author" style="margin-top:0.25rem;">${this.esc(authorStr)}</p>
+                </div>
+            </div>
+
+            <div class="detail-grid" style="margin-top:1.25rem;">
+                <div><div class="d-label">Penerbit</div><div class="d-val">${this.esc(pubStr)}</div></div>
+                ${yearStr ? `<div><div class="d-label">Tahun Terbit</div><div class="d-val">${yearStr}</div></div>` : ''}
+                <div><div class="d-label">ISBN</div><div class="d-val">${this.esc(isbnStr)}</div></div>
+                <div><div class="d-label">Format / Tipe</div><div class="d-val">Buku Elektronik (E-Book)</div></div>
+                ${item.subject ? `<div><div class="d-label">Subjek / Bidang Ilmu</div><div class="d-val">${this.esc(item.subject)}</div></div>` : ''}
+                <div><div class="d-label">Akses Kampus</div><div class="d-val">${this.esc(accessType === 'ezproxy' ? 'EZProxy SSO (Luar Jaringan Kampus)' : (accessType === 'open' ? 'Open Access' : 'IP Kampus / Eduroam UMS'))}</div></div>
+            </div>
+
+            ${item.notes ? `
+            <div style="margin-top:1.25rem; padding:0.85rem 1rem; background:var(--bg-2); border-left:3px solid var(--brand); border-radius:var(--r-sm);">
+                <div style="font-size:0.78rem; font-weight:700; color:var(--ink); margin-bottom:0.2rem;">Petunjuk Akses / Catatan:</div>
+                <div style="font-size:0.82rem; color:var(--ink-2); line-height:1.45;">${this.esc(item.notes)}</div>
+            </div>` : ''}
+
+            <!-- Sitasi APA Section -->
+            <div style="margin-top:1.25rem; padding:1rem; background:var(--bg-2); border:1px solid var(--border); border-radius:var(--r-md);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; flex-wrap:wrap; gap:0.5rem;">
+                    <span style="font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-2);">Sitasi Format APA (7th Edition)</span>
+                    <button type="button" class="btn btn-ghost" style="padding:0.25rem 0.65rem; font-size:0.75rem;" onclick="app.copyEBookCitation(${this.idAttr(item.id)})">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        <span>Salin Sitasi</span>
+                    </button>
+                </div>
+                <div id="ebk-citation-text-${this.esc(String(item.id))}" style="font-size:0.82rem; color:var(--ink); font-style:italic; line-height:1.45; background:var(--bg-1); padding:0.6rem 0.8rem; border-radius:var(--r-sm); border:1px solid var(--border);">
+                    ${this.esc(apaCitation)}
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:0.75rem; flex-wrap:wrap;">
+                <button type="button" class="btn btn-ghost" onclick="app.closeBookDetail()">Tutup</button>
+                <a href="${this.esc(directUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.55rem 1.25rem;">
+                    <span>Buka E-Book di Platform Resmi ↗</span>
+                </a>
+            </div>
+        </div>`;
+
+        document.getElementById('modal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    },
+
+    copyEBookCitation(rawId) {
+        const item = (this._ebooksList || []).find(b => String(b.id) === String(rawId));
+        if (!item) return;
+
+        const yearStr = item.year ? String(item.year) : '';
+        const authorStr = item.author || 'Penulis Tidak Disebutkan';
+        const pubStr = item.publisher || 'Penerbit Internasional';
+        const apaCitation = `${authorStr} (${yearStr || 'n.d.'}). ${item.title}. ${pubStr}.${item.url ? ' ' + item.url : ''}`;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(apaCitation).then(() => {
+                this.showAlert('Sitasi APA disalin ke clipboard!');
+            }).catch(() => {
+                prompt('Salin sitasi APA:', apaCitation);
+            });
+        } else {
+            prompt('Salin sitasi APA:', apaCitation);
+        }
     },
     toggleMobileMenu(forceClose) {
         const m = document.getElementById('mob-menu');
@@ -1923,6 +2297,8 @@ const app = {
     // ──── Federated International Journal Discovery & Filtering ────
     _fedRawItems: [],
     _fedCurrentSrcObj: null,
+    _fedSubscriptionMode: 'all', // 'all' | 'subscribed' | 'international'
+    _fedMatchedJournals: [],
     _fedFilters: {
         openAccessOnly: false,
         contentType: 'all',
@@ -1931,12 +2307,199 @@ const app = {
         sources: new Set()
     },
 
-    fetchFederatedDiscovery(srcObj, query, page = 1) {
+    findMatchingSubscribedJournals(query) {
+        if (!query || !query.trim()) return [];
+        const qTrim = query.toLowerCase().trim();
+        const qTokens = qTrim.split(/\s+/).filter(t => t.length > 1);
+        const journals = Array.isArray(this._ejournalsList) ? this._ejournalsList : [];
+
+        return journals.filter(j => {
+            if (j.active === false) return false;
+            const title = (j.title || '').toLowerCase();
+            const publisher = (j.publisher || '').toLowerCase();
+            const subject = (j.subject || '').toLowerCase();
+            const faculty = (j.faculty || '').toLowerCase();
+            const issn = (j.issn || '').toLowerCase();
+            const eissn = (j.eissn || '').toLowerCase();
+            const fullText = `${title} ${publisher} ${subject} ${faculty} ${issn} ${eissn}`;
+
+            if (fullText.includes(qTrim)) return true;
+            if (qTokens.length > 0 && qTokens.every(tok => fullText.includes(tok))) return true;
+            return false;
+        });
+    },
+
+    findMatchingSubscribedEBooks(query) {
+        if (!query || !query.trim()) return [];
+        const qTrim = query.toLowerCase().trim();
+        const qTokens = qTrim.split(/\s+/).filter(t => t.length > 1);
+        const ebooks = Array.isArray(this._ebooksList) ? this._ebooksList : [];
+
+        return ebooks.filter(b => {
+            if (b.active === false) return false;
+            const title = (b.title || '').toLowerCase();
+            const author = (b.author || '').toLowerCase();
+            const publisher = (b.publisher || '').toLowerCase();
+            const subject = (b.subject || '').toLowerCase();
+            const isbn = (b.isbn || '').toLowerCase().replace(/[^0-9x]/gi, '');
+            const qNormIsbn = qTrim.replace(/[^0-9x]/gi, '');
+            const year = String(b.year || '');
+            const fullText = `${title} ${author} ${publisher} ${subject} ${year}`;
+
+            if (qNormIsbn.length >= 8 && isbn.includes(qNormIsbn)) return true;
+            if (fullText.includes(qTrim)) return true;
+            if (qTokens.length > 0 && qTokens.every(tok => fullText.includes(tok))) return true;
+            return false;
+        });
+    },
+
+    setFedSubscriptionMode(mode) {
+        this._fedSubscriptionMode = mode;
+        this.renderFedSubscriptionModesBar(this._fedCurrentSrcObj);
+        this.renderFedSubscribedHighlight();
+        this.applyFedFiltersAndRender(this._fedCurrentPage);
+    },
+
+    renderFedSubscriptionModesBar(srcObj) {
+        const modesEl = document.getElementById('fed-subscription-modes');
+        if (!modesEl) return;
+
+        const rawItems = this._fedRawItems || [];
+        const matchedJrn = this._fedMatchedJournals || [];
+        const matchedEbk = this._fedMatchedEBooks || [];
+        const subArticles = rawItems.filter(it => Boolean(it.isSubscribed)).length;
+        const subCount = subArticles + matchedJrn.length + matchedEbk.length;
+        const totalCount = rawItems.length;
+        const curMode = this._fedSubscriptionMode || 'all';
+
+        modesEl.style.display = 'flex';
+        modesEl.innerHTML = `
+            <button type="button" class="fed-mode-pill ${curMode === 'all' ? 'active' : ''}" onclick="app.setFedSubscriptionMode('all')" title="Tampilkan seluruh artikel dan jurnal langganan">
+                <span>Semua Jurnal</span>
+                <span class="fed-mode-count">${totalCount}</span>
+            </button>
+            <button type="button" class="fed-mode-pill mode-subscribed ${curMode === 'subscribed' ? 'active' : ''}" onclick="app.setFedSubscriptionMode('subscribed')" title="Tampilkan hanya jurnal dan artikel yang dilanggan resmi oleh UMS">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <span>Langganan Resmi UMS</span>
+                <span class="fed-mode-count">${subCount}</span>
+            </button>
+            <button type="button" class="fed-mode-pill ${curMode === 'international' ? 'active' : ''}" onclick="app.setFedSubscriptionMode('international')" title="Tampilkan artikel pangkalan data internasional">
+                <span>Jurnal Internasional Global</span>
+                <span class="fed-mode-count">${totalCount}</span>
+            </button>
+        `;
+    },
+
+    renderFedSubscribedHighlight() {
+        const el = document.getElementById('fed-subscribed-highlight');
+        if (!el) return;
+
+        const hasJournals = this._fedSubscriptionMode !== 'international' && this._fedMatchedJournals && this._fedMatchedJournals.length > 0;
+        const hasEBooks = this._fedSubscriptionMode !== 'international' && this._fedMatchedEBooks && this._fedMatchedEBooks.length > 0;
+
+        if (!hasJournals && !hasEBooks) {
+            el.style.display = 'none';
+            el.innerHTML = '';
+            return;
+        }
+
+        el.style.display = 'flex';
+        let html = '';
+
+        if (hasJournals) {
+            html += this._fedMatchedJournals.map(j => {
+                const issns = [j.issn, j.eissn].filter(Boolean).join(' / ') || '-';
+                const accessBadge = j.accessType === 'ezproxy' ? 
+                    '<span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">EZProxy SSO</span>' :
+                    (j.accessType === 'open' ? 
+                    '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
+                    '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
+
+                return `
+                <div class="fed-journal-highlight-card">
+                    <div class="fed-jrn-highlight-top">
+                        <span class="fed-jrn-highlight-badge">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            Jurnal Langganan Resmi UMS
+                        </span>
+                        <div>${accessBadge}</div>
+                    </div>
+                    <div>
+                        <h3 class="fed-jrn-highlight-title">${this.esc(j.title)}</h3>
+                        <div class="fed-jrn-highlight-meta">
+                            <span>Penerbit: <strong>${this.esc(j.publisher || 'Internasional')}</strong></span>
+                            <span>•</span>
+                            <span>ISSN: <code>${this.esc(issns)}</code></span>
+                            ${j.subject ? `<span>•</span><span>Subjek: ${this.esc(j.subject)} ${j.faculty ? `(Fak: ${this.esc(j.faculty)})` : ''}</span>` : ''}
+                        </div>
+                        ${j.notes ? `<div style="font-size:0.75rem; color:var(--ink-3); margin-top:0.35rem;">Catatan: ${this.esc(j.notes)}</div>` : ''}
+                    </div>
+                    <div class="fed-jrn-highlight-actions">
+                        <span style="font-size:0.78rem; color:var(--ink-2);">Tersedia akses teks lengkap untuk sivitas akademika Universitas Muhammadiyah Surakarta</span>
+                        <a href="${this.esc(j.url || '#')}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access">
+                            <span>Buka Laman Jurnal (Akses Kampus / SSO) ↗</span>
+                        </a>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        if (hasEBooks) {
+            html += this._fedMatchedEBooks.map(b => {
+                const accessType = b.access_type || b.accessType || 'kampus';
+                const accessBadge = accessType === 'ezproxy' ? 
+                    '<span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">EZProxy SSO</span>' :
+                    (accessType === 'open' ? 
+                    '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
+                    '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
+
+                return `
+                <div class="fed-journal-highlight-card" style="border-color:rgba(37, 99, 235, 0.45);">
+                    <div class="fed-jrn-highlight-top">
+                        <span class="fed-jrn-highlight-badge" style="background:#2563eb;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            E-Book Langganan Resmi UMS Terkait
+                        </span>
+                        <div>${accessBadge}</div>
+                    </div>
+                    <div>
+                        <h3 class="fed-jrn-highlight-title">${this.esc(b.title)}</h3>
+                        <div class="fed-jrn-highlight-meta">
+                            <span>Penulis: <strong>${this.esc(b.author || 'Penulis')}</strong></span>
+                            <span>•</span>
+                            <span>Penerbit: <strong>${this.esc(b.publisher || 'Internasional')}</strong></span>
+                            ${b.year ? `<span>•</span><span>Tahun: ${b.year}</span>` : ''}
+                            ${b.isbn ? `<span>•</span><span>ISBN: <code>${this.esc(b.isbn)}</code></span>` : ''}
+                        </div>
+                        ${b.notes ? `<div style="font-size:0.75rem; color:var(--ink-3); margin-top:0.35rem;">Catatan: ${this.esc(b.notes)}</div>` : ''}
+                    </div>
+                    <div class="fed-jrn-highlight-actions">
+                        <button type="button" class="btn btn-ghost" style="padding:0.35rem 0.75rem; font-size:0.78rem;" onclick="app.showEBookDetail(${this.idAttr(b.id)})">
+                            <span>Detail & Sitasi</span>
+                        </button>
+                        <a href="${this.esc(b.url || '#')}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access">
+                            <span>Buka E-Book di Platform Resmi ↗</span>
+                        </a>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        el.innerHTML = html;
+    },
+
+    async fetchFederatedDiscovery(srcObj, query, page = 1) {
         if (!query || !query.trim()) return;
         query = query.trim();
         this._fedCurrentQuery = query;
         this._fedCurrentPage = page;
         this._fedCurrentSrcObj = srcObj;
+
+        // Ensure subscribed journals and ebooks are loaded for matching
+        await this.getSubscribedJournalsList();
+        await this.getSubscribedEBooksList();
+        this._fedMatchedJournals = this.findMatchingSubscribedJournals(query);
+        this._fedMatchedEBooks = this.findMatchingSubscribedEBooks(query);
 
         // Fetch smart academic topic concepts
         this.fetchAndRenderSmartTopics(query);
@@ -2006,8 +2569,12 @@ const app = {
                     <div class="fed-header-count">Hasil Pencarian : ${this.fmt(total)} record</div>
                 `;
 
+                // Render 3-Mode Segmented Tabs & Matched Subscribed Journal Highlight Card
+                this.renderFedSubscriptionModesBar(srcObj);
+                this.renderFedSubscribedHighlight();
+
                 // Render Items
-                if (items.length === 0) {
+                if (items.length === 0 && (!this._fedMatchedJournals || this._fedMatchedJournals.length === 0)) {
                     listEl.innerHTML = `
                         <div class="empty-state">
                             <div class="empty-state-icon-wrap">
@@ -2221,7 +2788,12 @@ const app = {
         let filtered = [...(this._fedRawItems || [])];
         const totalRaw = filtered.length;
 
-        // 0. Filter Source Databases (if specific sources chosen on all_global)
+        // 0. Subscription Mode Filter: [all | subscribed | international]
+        if (this._fedSubscriptionMode === 'subscribed') {
+            filtered = filtered.filter(it => Boolean(it.isSubscribed));
+        }
+
+        // 0b. Filter Source Databases (if specific sources chosen on all_global)
         if (this._fedFilters.sources && this._fedFilters.sources.size > 0) {
             filtered = filtered.filter(it => this._fedFilters.sources.has(it.source));
         }
@@ -2265,7 +2837,7 @@ const app = {
         // Update Filter Status Info
         if (statusEl) {
             const hasActiveSourceFilters = this._fedFilters.sources && this._fedFilters.sources.size > 0;
-            const hasActiveFilters = this._fedFilters.openAccessOnly || this._fedFilters.contentType !== 'all' || this._fedFilters.yearRange !== 'all' || this._fedFilters.sort !== 'default' || hasActiveSourceFilters;
+            const hasActiveFilters = this._fedSubscriptionMode !== 'all' || this._fedFilters.openAccessOnly || this._fedFilters.contentType !== 'all' || this._fedFilters.yearRange !== 'all' || this._fedFilters.sort !== 'default' || hasActiveSourceFilters;
             if (hasActiveFilters) {
                 statusEl.innerHTML = `<span>Menampilkan <strong>${filtered.length}</strong> dari <strong>${totalRaw}</strong> artikel pada halaman ini</span>`;
                 statusEl.style.display = 'block';
@@ -2276,15 +2848,28 @@ const app = {
 
         // Empty state when filtered out
         if (filtered.length === 0) {
+            if (this._fedSubscriptionMode === 'subscribed' && this._fedMatchedJournals && this._fedMatchedJournals.length > 0) {
+                listEl.innerHTML = `
+                    <div class="empty-state" style="padding:1.5rem; background:var(--bg-2); border:1px solid var(--border); border-radius:var(--r-md); margin-top:0.5rem;">
+                        <div class="empty-state-title" style="font-size:0.95rem;">Jurnal Langganan Resmi Ditampilkan di Atas</div>
+                        <div class="empty-state-desc">Penerbit atau judul jurnal langganan resmi UMS yang cocok dengan kata kunci Anda telah ditampilkan pada kartu sorotan di atas. Belum ada artikel individual pada halaman saat ini yang cocok dengan kriteria filter tambahan.</div>
+                        <div class="empty-state-actions" style="margin-top:0.85rem;">
+                            <button type="button" class="btn btn-brand" onclick="app.setFedSubscriptionMode('all')">Tampilkan Semua Jurnal & Artikel Global</button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
             listEl.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon-wrap">
                         ${this.getEmptyStateSvg('filter')}
                     </div>
                     <div class="empty-state-title">Tidak Ada Artikel yang Cocok</div>
-                    <div class="empty-state-desc">Tidak ada artikel pada halaman ini yang sesuai dengan filter yang dipilih. Coba hilangkan centang Open Access atau ubah pilihan tipe/tahun.</div>
+                    <div class="empty-state-desc">Tidak ada artikel pada halaman ini yang sesuai dengan filter yang dipilih. Coba hilangkan centang Open Access, ubah pilihan tipe/tahun, atau beralih ke tab <strong>Semua Jurnal</strong>.</div>
                     <div class="empty-state-actions">
-                        <button type="button" class="btn btn-brand" onclick="app.resetFedFilters()">✕ Reset Filter</button>
+                        <button type="button" class="btn btn-brand" onclick="app.resetFedFilters(); app.setFedSubscriptionMode('all');">✕ Reset Filter</button>
                     </div>
                 </div>
             `;
@@ -2693,6 +3278,69 @@ const app = {
                 return;
             }
 
+            // Check matching subscribed journals and ebooks for this query
+            const matchedSubJournals = this.findMatchingSubscribedJournals(q);
+            const matchedSubEBooks = this.findMatchingSubscribedEBooks(q);
+            let matchedJournalsBannerHtml = '';
+            if (matchedSubJournals && matchedSubJournals.length > 0) {
+                const j = matchedSubJournals[0];
+                const issns = [j.issn, j.eissn].filter(Boolean).join(' / ') || '-';
+                matchedJournalsBannerHtml += `
+                    <div class="fed-journal-highlight-card" style="margin-bottom:1rem; border-color:rgba(217, 119, 6, 0.4);">
+                        <div class="fed-jrn-highlight-top">
+                            <span class="fed-jrn-highlight-badge">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                Jurnal Langganan Resmi UMS Terkait
+                            </span>
+                            <span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">Akses Sivitas UMS</span>
+                        </div>
+                        <h4 class="fed-jrn-highlight-title" style="font-size:0.98rem; margin:0.35rem 0;">${this.esc(j.title)}</h4>
+                        <div class="fed-jrn-highlight-meta">
+                            <span>Penerbit: <strong>${this.esc(j.publisher || 'Internasional')}</strong></span>
+                            <span>•</span>
+                            <span>ISSN: <code>${this.esc(issns)}</code></span>
+                            ${j.subject ? `<span>•</span><span>Subjek: ${this.esc(j.subject)}</span>` : ''}
+                        </div>
+                        <div class="fed-jrn-highlight-actions" style="margin-top:0.6rem;">
+                            <a href="${this.esc(j.url || '#')}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access">
+                                <span>Buka Laman Jurnal (Akses Kampus / SSO) ↗</span>
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (matchedSubEBooks && matchedSubEBooks.length > 0) {
+                const b = matchedSubEBooks[0];
+                matchedJournalsBannerHtml += `
+                    <div class="fed-journal-highlight-card" style="margin-bottom:1rem; border-color:rgba(37, 99, 235, 0.45);">
+                        <div class="fed-jrn-highlight-top">
+                            <span class="fed-jrn-highlight-badge" style="background:#2563eb;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                E-Book Langganan Resmi UMS Terkait
+                            </span>
+                            <span class="chip" style="background:rgba(37, 99, 235, 0.12); color:#2563eb; font-weight:600;">Akses Sivitas UMS</span>
+                        </div>
+                        <h4 class="fed-jrn-highlight-title" style="font-size:0.98rem; margin:0.35rem 0;">${this.esc(b.title)}</h4>
+                        <div class="fed-jrn-highlight-meta">
+                            <span>Penulis: <strong>${this.esc(b.author || 'Penulis')}</strong></span>
+                            <span>•</span>
+                            <span>Penerbit: <strong>${this.esc(b.publisher || 'Internasional')}</strong></span>
+                            ${b.year ? `<span>•</span><span>Tahun: ${b.year}</span>` : ''}
+                            ${b.isbn ? `<span>•</span><span>ISBN: <code>${this.esc(b.isbn)}</code></span>` : ''}
+                        </div>
+                        <div class="fed-jrn-highlight-actions" style="margin-top:0.6rem;">
+                            <button type="button" class="btn btn-ghost" style="padding:0.35rem 0.75rem; font-size:0.78rem;" onclick="app.showEBookDetail(${this.idAttr(b.id)})">
+                                <span>Detail & Sitasi</span>
+                            </button>
+                            <a href="${this.esc(b.url || '#')}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access">
+                                <span>Buka E-Book di Platform Resmi ↗</span>
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+
             // Combine top items from each source
             const featuredItems = [];
             if (scopusData.items) featuredItems.push(...scopusData.items.slice(0, 2).map(i => ({ ...i, badgeCls: 'badge-scopus', srcName: 'Scopus' })));
@@ -2731,11 +3379,16 @@ const app = {
                 const journalStr = it.publicationName || it.journal || '';
                 const doiUrl = it.doi || it.url || (it.doi ? `https://doi.org/${it.doi}` : '#');
                 const abstractStr = it.abstract ? it.abstract.substring(0, 220) + (it.abstract.length > 220 ? '...' : '') : '';
+                const isSubscribed = Boolean(it.isSubscribed);
+                const subUrl = it.subscribedUrl || '';
 
                 return `
-                    <div class="fed-insight-card">
+                    <div class="fed-insight-card${isSubscribed ? ' fed-insight-card-subscribed' : ''}">
                         <div class="fed-card-top">
-                            ${this.getSourceBadgeHtml(it.srcName)}
+                            <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.35rem;">
+                                ${this.getSourceBadgeHtml(it.srcName)}
+                                ${isSubscribed ? `<span class="fed-badge-subscribed" style="font-size:0.65rem; padding:1px 6px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Langganan UMS</span>` : ''}
+                            </div>
                             <div class="fed-card-title">
                                 <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" class="fed-title-link" title="Klik untuk membuka modal detail artikel">${this.esc(it.title)}</a>
                             </div>
@@ -2747,6 +3400,7 @@ const app = {
                         </div>
                         <div class="fed-card-footer">
                             <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.75rem; font-weight:600" onclick="app.showArticleDetail(${this.idAttr(rawId)})">📋 Detail & Sitasi</button>
+                            ${isSubscribed && subUrl ? `<a href="${this.esc(subUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-subscribed-campus" style="padding:2px 8px; font-size:.72rem;">Akses Kampus UMS ↗</a>` : ''}
                             <a href="${doiUrl}" target="_blank" rel="noopener noreferrer" class="fed-card-doi-link">Buka DOI ↗</a>
                             <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.72rem" onclick="app.shareArticleById(${this.idAttr(rawId)})">Share</button>
                         </div>
@@ -2756,6 +3410,7 @@ const app = {
 
             container.innerHTML = `
                 ${zeroBannerHtml}
+                ${matchedJournalsBannerHtml}
                 <div class="fed-insights-header">
                     <div class="fed-insights-title-group">
                         <h3>Literatur Ilmiah Internasional Terkait "${this.esc(q)}"</h3>
