@@ -571,6 +571,29 @@ const app = {
 
                 if (queryPage === 'ejournals' || querySrc === 'ejournals') {
                     this.showEJournalDirectory();
+                    if (querySearch) {
+                        setTimeout(() => {
+                            const jrnInp = document.getElementById('ejrn-search-input');
+                            if (jrnInp) {
+                                jrnInp.value = querySearch;
+                                this.filterEJournalDirectory();
+                            }
+                        }, 200);
+                    }
+                    return;
+                }
+
+                if (queryPage === 'ebooks' || querySrc === 'ebooks') {
+                    this.showEBookDirectory();
+                    if (querySearch) {
+                        setTimeout(() => {
+                            const ebkInp = document.getElementById('ebk-search-input');
+                            if (ebkInp) {
+                                ebkInp.value = querySearch;
+                                this.filterEBookDirectory();
+                            }
+                        }, 200);
+                    }
                     return;
                 }
 
@@ -683,7 +706,7 @@ const app = {
             }, { passive: true });
         }
 
-        // Close mobile menu on outside click
+        // Close mobile menu, suggestion box, and dropdowns on outside click
         document.addEventListener('click', e => {
             const mobMenu = document.getElementById('mob-menu');
             const mobBtn = document.querySelector('.mob-btn');
@@ -700,6 +723,12 @@ const app = {
                 if (!expWrap || !expWrap.contains(e.target)) {
                     expMenu.style.display = 'none';
                 }
+            }
+
+            // Close search suggestion box on outside click
+            const searchWrap = document.getElementById('search-wrap');
+            if (searchWrap && !searchWrap.contains(e.target)) {
+                this.hideSuggest();
             }
         });
     },
@@ -834,7 +863,7 @@ const app = {
         if (!pubSel) return;
         const curVal = pubSel.value || 'all';
         const safeList = Array.isArray(list) ? list : (list && Array.isArray(list.items) ? list.items : []);
-        
+
         // Extract unique publisher names cleanly
         const pubMap = new Map();
         safeList.forEach(it => {
@@ -862,9 +891,9 @@ const app = {
         const filtered = safeList.filter(it => {
             const itPub = (it.publisher || '').toLowerCase().trim();
             const matchPub = pubFilter === 'all' || itPub === pubFilter;
-            
+
             const itAccess = (it.accessType || it.access || '').toLowerCase().trim();
-            const matchAccess = accessFilter === 'all' || 
+            const matchAccess = accessFilter === 'all' ||
                 (accessFilter === 'kampus' && (itAccess.includes('kampus') || itAccess.includes('eduroam') || !itAccess || it.notes?.toLowerCase().includes('kampus'))) ||
                 (accessFilter === 'ezproxy' && (itAccess.includes('ezproxy') || itAccess.includes('sso') || it.url?.toLowerCase().includes('ezproxy'))) ||
                 (accessFilter === 'open' && (itAccess.includes('open') || it.openAccess));
@@ -901,11 +930,11 @@ const app = {
 
         grid.innerHTML = safeList.map(it => {
             const issns = [it.issn, it.eissn].filter(Boolean).join(' / ') || '-';
-            const accessBadge = it.accessType === 'ezproxy' ? 
+            const accessBadge = it.accessType === 'ezproxy' ?
                 '<span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">EZProxy SSO</span>' :
-                (it.accessType === 'open' ? 
-                '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
-                '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
+                (it.accessType === 'open' ?
+                    '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
+                    '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
 
             const directUrl = it.url || '#';
 
@@ -1081,8 +1110,8 @@ const app = {
             const accessBadge = accessType === 'ezproxy' ?
                 '<span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">EZProxy SSO</span>' :
                 (accessType === 'open' ?
-                '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
-                '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
+                    '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
+                    '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
 
             const directUrl = it.url || '#';
             const yearStr = it.year ? String(it.year) : '';
@@ -1410,6 +1439,21 @@ const app = {
         this.toast(this.lang === 'id' ? 'Seluruh koleksi tersimpan telah dibersihkan.' : 'All bookmarks cleared.');
     },
 
+    // ──── DOI Sanitizer & Helpers ────
+    getCleanDoi(rawDoi) {
+        if (!rawDoi || typeof rawDoi !== 'string') return '';
+        const trimmed = rawDoi.trim();
+        const m = trimmed.match(/(10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+)/i);
+        if (m) {
+            return m[1].replace(/[,.;]+$/, '');
+        }
+        return '';
+    },
+    getDoiUrl(rawDoi) {
+        const clean = this.getCleanDoi(rawDoi);
+        return clean ? `https://doi.org/${clean}` : '';
+    },
+
     // ──── Citation & Reference Manager Generators (.RIS & .BIB) ────
     generateRIS(item) {
         if (!item) return '';
@@ -1425,9 +1469,8 @@ const app = {
         }
         const yr = item.yr || item.year || '';
         const pub = item.pub || item.publicationName || '';
-        const doi = item.doi || '';
-        const cleanDoi = doi.replace(/^https?:\/\/doi\.org\//, '');
-        const url = item.url || (doi ? `https://doi.org/${cleanDoi}` : '');
+        const cleanDoi = this.getCleanDoi(item.doi);
+        const url = item.url || (cleanDoi ? `https://doi.org/${cleanDoi}` : '');
         const desc = item.desc || item.abstract || '';
         const isBook = item.type === 'book' || (!item.contentType && item.ddc);
         const isThesis = (item.type || '').includes('thesis') || (item.src || '').includes('eprints');
@@ -1465,9 +1508,8 @@ const app = {
         const rawAuthors = (item.a || item.authors || 'Anonim').replace(/[{}]/g, '');
         const yr = item.yr || item.year || '2024';
         const pub = (item.pub || item.publicationName || 'Universitas Muhammadiyah Surakarta').replace(/[{}]/g, '');
-        const doi = item.doi || '';
-        const cleanDoi = doi.replace(/^https?:\/\/doi\.org\//, '');
-        const url = item.url || (doi ? `https://doi.org/${cleanDoi}` : '');
+        const cleanDoi = this.getCleanDoi(item.doi);
+        const url = item.url || (cleanDoi ? `https://doi.org/${cleanDoi}` : '');
         const isBook = item.type === 'book' || (!item.contentType && item.ddc);
         const isThesis = (item.type || '').includes('thesis') || (item.src || '').includes('eprints');
 
@@ -1737,7 +1779,7 @@ const app = {
     getSourceLogoSvg(sourceName, size = 14) {
         if (!sourceName) return '';
         const s = String(sourceName).toLowerCase();
-        
+
         if (s.includes('springer')) {
             // Springer Nature Knight Icon
             return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px"><path d="M19 22H5a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1zM18 16H6c0-3.5 1.8-5.5 2.8-7.2C7.9 7.6 7.2 6.5 7 5c0-.6.4-1 1-1h2.5c1.4 0 2.5 1.1 2.5 2.5 0 .5-.2 1-.5 1.4.9.4 1.7 1 2.3 1.8 1.4 1.8 2.2 3.6 2.2 5.3 0 .6.4 1 1 1z"/></svg>`;
@@ -1834,7 +1876,8 @@ const app = {
         const yr = it.year || it.yr || '';
         const src = it.source || it.publicationType || 'Global Journal';
         const isOa = it.openAccess || it.isOpenAccess || it.is_oa || it.openaccess;
-        const linkUrl = it.url || it.doi || '#';
+        const validDoi = this.getCleanDoi(it.doi);
+        const linkUrl = it.url || (validDoi ? `https://doi.org/${validDoi}` : '#');
         const pdfUrl = it.pdfUrl || it.pdf_url || '';
         const hasDirectPdf = Boolean(pdfUrl && pdfUrl.trim().length > 5 && pdfUrl !== linkUrl);
         const isSubscribed = Boolean(it.isSubscribed);
@@ -1857,7 +1900,7 @@ const app = {
             <ul class="fed-meta-list" style="margin-bottom:0.75rem">
                 <li><span class="fed-meta-label">Creator :</span> ${this.esc(authors)}</li>
                 <li><span class="fed-meta-label">Publication :</span> ${this.esc(pub)}</li>
-                ${it.doi ? `<li><span class="fed-meta-label">DOI :</span> ${this.esc(it.doi)}</li>` : ''}
+                ${validDoi ? `<li><span class="fed-meta-label">DOI :</span> ${this.esc(validDoi)}</li>` : ''}
             </ul>
             <div class="fed-actions-row">
                 <button type="button" class="btn btn-ghost" onclick="app.showArticleDetail(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; font-weight:600; display:inline-flex; align-items:center; gap:0.35rem;" title="Buka modal detail artikel">
@@ -1913,13 +1956,17 @@ const app = {
         const isSubscribed = Boolean(article.isSubscribed);
         const subscribedUrl = article.subscribedUrl || '';
 
-        let linkUrl = (article.url || article.doi || '#').trim();
+        const validDoi = this.getCleanDoi(article.doi);
+        const doiUrl = validDoi ? `https://doi.org/${validDoi}` : '';
+        let linkUrl = (article.url || doiUrl || '#').trim();
         if (linkUrl.startsWith('https://openalex.org/https://openalex.org/')) {
             linkUrl = linkUrl.replace('https://openalex.org/https://openalex.org/', 'https://openalex.org/');
         } else if (linkUrl.startsWith('https://openalex.org/http://') || linkUrl.startsWith('https://openalex.org/https://')) {
             linkUrl = linkUrl.replace('https://openalex.org/', '');
         } else if (linkUrl.startsWith('https://doi.org/https://doi.org/')) {
             linkUrl = linkUrl.replace('https://doi.org/https://doi.org/', 'https://doi.org/');
+        } else if (linkUrl.startsWith('https://doi.org/http://') || linkUrl.startsWith('https://doi.org/https://')) {
+            linkUrl = linkUrl.replace('https://doi.org/', '');
         }
         const pdfUrl = article.pdfUrl || article.pdf_url || '';
         const hasDirectPdf = Boolean(pdfUrl && pdfUrl.trim().length > 5 && pdfUrl !== linkUrl);
@@ -1933,7 +1980,7 @@ const app = {
         const hasRealAbstract = Boolean(article.abstract && article.abstract.trim().length > 10);
 
         // APA / MLA / Chicago citation formats
-        const apaCite = `${this.cleanAuth(authors)}. (${yr || 'n.d.'}). ${title}. ${pub !== '-' ? pub + '.' : ''} ${article.doi ? 'https://doi.org/' + article.doi.replace(/^https?:\/\/doi\.org\//, '') : linkUrl}`;
+        const apaCite = `${this.cleanAuth(authors)}. (${yr || 'n.d.'}). ${title}. ${pub !== '-' ? pub + '.' : ''} ${validDoi ? 'https://doi.org/' + validDoi : linkUrl}`;
         const mlaCite = `${this.cleanAuth(authors)}. "${title}." ${pub !== '-' ? pub + ', ' : ''}${yr ? yr + '.' : ''} ${linkUrl}`;
         const chiCite = `${this.cleanAuth(authors)}. "${title}." ${pub !== '-' ? pub : 'Publication'} (${yr || 'n.d.'}). ${linkUrl}`;
 
@@ -1957,7 +2004,7 @@ const app = {
                 <div><div class="d-label">Tahun Terbit</div><div class="d-val">${this.esc(String(yr || '-'))}</div></div>
                 <div><div class="d-label">Tipe Konten</div><div class="d-val">${this.esc(type)}</div></div>
                 <div><div class="d-label">Basis Data Indeks</div><div class="d-val">${this.esc(src)}</div></div>
-                ${article.doi ? `<div><div class="d-label">Digital Object Identifier (DOI)</div><div class="d-val"><a href="https://doi.org/${this.esc(article.doi.replace(/^https?:\/\/doi\.org\//, ''))}" target="_blank" rel="noopener noreferrer" style="color:var(--brand); word-break:break-all;">${this.esc(article.doi)}</a></div></div>` : ''}
+                ${validDoi ? `<div><div class="d-label">Digital Object Identifier (DOI)</div><div class="d-val"><a href="https://doi.org/${this.esc(validDoi)}" target="_blank" rel="noopener noreferrer" style="color:var(--brand); word-break:break-all;">https://doi.org/${this.esc(validDoi)}</a></div></div>` : ''}
                 <div><div class="d-label">Aksesibilitas Dokumen</div><div class="d-val">${isSubscribed ? 'Dilanggan Resmi UMS (Full Text)' : (isOa ? 'Open Access (Bebas Unduh)' : 'Subscription / Akses Institusi')}</div></div>
                 ${citations > 0 ? `<div><div class="d-label">Metrik Sitasi Global</div><div class="d-val"><strong>${this.fmt(citations)}</strong> kali disitasi oleh karya ilmiah lain</div></div>` : ''}
             </div>
@@ -1984,7 +2031,7 @@ const app = {
                     <span>Akses Kampus UMS ↗</span>
                 </a>` : ''}
                 <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand">
-                    Buka Dokumen Asli / DOI ↗
+                    ${validDoi ? 'Buka Dokumen Asli / DOI ↗' : 'Buka Dokumen Asli ↗'}
                 </a>
                 ${hasDirectPdf ? `
                 <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})" style="display:inline-flex; align-items:center; gap:0.35rem;">
@@ -2145,7 +2192,7 @@ const app = {
     _fedTotalPages: 0,
     _fedSourcesRow1: [
         { id: 'koha', name: 'Katalog Buku', subtitle: 'Koha UMS & Mitra SLiMS', type: 'local_koha', label: 'Katalog Buku' },
-        { id: 'etd', name: 'Skripsi, Tesis & Disertasi', subtitle: 'https://eprints.ums.ac.id', type: 'local_etd', label: 'Skripsi & ETD UMS' },
+        { id: 'etd', name: 'Repository Eprints', subtitle: 'https://eprints.ums.ac.id', type: 'local_etd', label: 'Skripsi & ETD UMS' },
         { id: 'journal', name: 'Artikel Jurnal UMS', subtitle: 'https://journals.ums.ac.id', type: 'local_journal', label: 'Jurnal Ilmiah UMS' },
         { id: 'sibi', name: 'Buku Digital (SIBI)', subtitle: 'Katalog SIBI Kemdikbud', type: 'sibi_api', label: 'Buku Digital SIBI' },
         { id: 'all_global', name: 'Seluruh Jurnal Global', subtitle: 'Agregasi Multi-Database', type: 'remote', remoteKey: 'all_global', domain: 'Scopus, Springer, Emerald, S2, Lens, Crossref, OA' },
@@ -2409,11 +2456,11 @@ const app = {
         if (hasJournals) {
             html += this._fedMatchedJournals.map(j => {
                 const issns = [j.issn, j.eissn].filter(Boolean).join(' / ') || '-';
-                const accessBadge = j.accessType === 'ezproxy' ? 
+                const accessBadge = j.accessType === 'ezproxy' ?
                     '<span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">EZProxy SSO</span>' :
-                    (j.accessType === 'open' ? 
-                    '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
-                    '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
+                    (j.accessType === 'open' ?
+                        '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
+                        '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
 
                 return `
                 <div class="fed-journal-highlight-card">
@@ -2447,11 +2494,11 @@ const app = {
         if (hasEBooks) {
             html += this._fedMatchedEBooks.map(b => {
                 const accessType = b.access_type || b.accessType || 'kampus';
-                const accessBadge = accessType === 'ezproxy' ? 
+                const accessBadge = accessType === 'ezproxy' ?
                     '<span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">EZProxy SSO</span>' :
-                    (accessType === 'open' ? 
-                    '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
-                    '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
+                    (accessType === 'open' ?
+                        '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
+                        '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
 
                 return `
                 <div class="fed-journal-highlight-card" style="border-color:rgba(37, 99, 235, 0.45);">
@@ -2890,13 +2937,17 @@ const app = {
             const safeType = this.esc(it.contentType || 'Article');
             const safePubType = this.esc(it.publicationType || srcObj.name);
             const safeDate = it.date ? this.esc(it.date) : (it.year ? this.esc(String(it.year)) : '');
-            let linkUrl = (it.url || it.doi || '#').trim();
+            const validDoi = this.getCleanDoi(it.doi);
+            const doiUrl = validDoi ? `https://doi.org/${validDoi}` : '';
+            let linkUrl = (it.url || doiUrl || '#').trim();
             if (linkUrl.startsWith('https://openalex.org/https://openalex.org/')) {
                 linkUrl = linkUrl.replace('https://openalex.org/https://openalex.org/', 'https://openalex.org/');
             } else if (linkUrl.startsWith('https://openalex.org/http://') || linkUrl.startsWith('https://openalex.org/https://')) {
                 linkUrl = linkUrl.replace('https://openalex.org/', '');
             } else if (linkUrl.startsWith('https://doi.org/https://doi.org/')) {
                 linkUrl = linkUrl.replace('https://doi.org/https://doi.org/', 'https://doi.org/');
+            } else if (linkUrl.startsWith('https://doi.org/http://') || linkUrl.startsWith('https://doi.org/https://')) {
+                linkUrl = linkUrl.replace('https://doi.org/', '');
             }
             const abstractText = it.abstract ? this.hl(it.abstract, q) : '';
             const isOa = it.openAccess || it.isOpenAccess || it.is_oa || it.openaccess;
@@ -2944,7 +2995,7 @@ const app = {
                         <span>Akses Kampus UMS ↗</span>
                     </a>` : ''}
                     <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="font-size:0.75rem; padding:0.32rem 0.75rem">
-                        Buka Dokumen / DOI ↗
+                        ${validDoi ? 'Buka Dokumen / DOI ↗' : 'Buka Dokumen ↗'}
                     </a>
                     ${hasDirectPdf ? `
                     <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Baca atau unduh PDF langsung">
@@ -3076,7 +3127,11 @@ const app = {
         box.innerHTML = html;
         box.classList.add('open');
     },
-    hideSuggest() { document.getElementById('suggest-box').classList.remove('open'); },
+    hideSuggest() {
+        clearTimeout(this.debounce);
+        const box = document.getElementById('suggest-box');
+        if (box) box.classList.remove('open');
+    },
     searchGlobalFromSuggest(q) {
         this.hideSuggest();
         this.selectFedSource('openalex');
@@ -3122,6 +3177,7 @@ const app = {
         this.doSearch(keyword);
     },
     doSearch(q) {
+        this.hideSuggest();
         if (!q) return;
 
         this._currentSearchQuery = q;
@@ -3377,7 +3433,9 @@ const app = {
                 const authors = it.authors || it.author || it.publicationName || '';
                 const yearStr = it.year ? `(${it.year})` : '';
                 const journalStr = it.publicationName || it.journal || '';
-                const doiUrl = it.doi || it.url || (it.doi ? `https://doi.org/${it.doi}` : '#');
+                const validDoi = this.getCleanDoi(it.doi);
+                const doiUrl = validDoi ? `https://doi.org/${validDoi}` : (it.url || '#');
+                const doiBtnLabel = validDoi ? 'Buka DOI ↗' : 'Buka Dokumen ↗';
                 const abstractStr = it.abstract ? it.abstract.substring(0, 220) + (it.abstract.length > 220 ? '...' : '') : '';
                 const isSubscribed = Boolean(it.isSubscribed);
                 const subUrl = it.subscribedUrl || '';
@@ -3401,7 +3459,7 @@ const app = {
                         <div class="fed-card-footer">
                             <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.75rem; font-weight:600" onclick="app.showArticleDetail(${this.idAttr(rawId)})">📋 Detail & Sitasi</button>
                             ${isSubscribed && subUrl ? `<a href="${this.esc(subUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-subscribed-campus" style="padding:2px 8px; font-size:.72rem;">Akses Kampus UMS ↗</a>` : ''}
-                            <a href="${doiUrl}" target="_blank" rel="noopener noreferrer" class="fed-card-doi-link">Buka DOI ↗</a>
+                            <a href="${doiUrl}" target="_blank" rel="noopener noreferrer" class="fed-card-doi-link">${doiBtnLabel}</a>
                             <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.72rem" onclick="app.shareArticleById(${this.idAttr(rawId)})">Share</button>
                         </div>
                     </div>

@@ -435,6 +435,17 @@ def clean_html_tags(raw_html):
     return clean_text
 
 
+def clean_doi(val):
+    """Extract a genuine standard DOI (10.xxxx/...) or return empty string."""
+    if not val or not isinstance(val, str):
+        return ""
+    val = val.strip()
+    m = re.search(r'(10\.\d{4,9}/[-._;()/:A-Za-z0-9]+)', val)
+    if m:
+        return m.group(1).rstrip(',.;')
+    return ""
+
+
 def clean_title(title_str, container_str=None):
     """Clean and sanitize article/chapter titles, eliminating OCR glitches."""
     if not title_str:
@@ -511,7 +522,8 @@ def _fetch_openalex_fallback(query, page, rows, badge_source="OpenAlex", venue_t
                 auth_str = extract_openalex_authors(work.get('authorships'))
                 clean_id = str(work.get('id', '')).split('/')[-1]
                 title_clean = clean_title(work.get('title') or 'Untitled')
-                doi_url = work.get('doi') or work.get('id') or ''
+                doi_clean = clean_doi(work.get('doi') or '')
+                doi_url = f"https://doi.org/{doi_clean}" if doi_clean else ""
                 src_name = extract_openalex_source_name(work.get('primary_location'), venue_title_hint or 'International Journal')
                 oa_info = work.get('open_access') or {}
                 best_oa = work.get('best_oa_location') or {}
@@ -529,8 +541,8 @@ def _fetch_openalex_fallback(query, page, rows, badge_source="OpenAlex", venue_t
                     "publicationType": f"{badge_source} Indexed",
                     "date": work.get('publication_date', ''),
                     "year": work.get('publication_year', 0),
-                    "doi": doi_url,
-                    "url": doi_url or f"https://openalex.org/{clean_id}",
+                    "doi": doi_clean,
+                    "url": doi_url or (f"https://openalex.org/{clean_id}" if clean_id else ""),
                     "pdfUrl": pdf_link or (oa_info.get('oa_url') if (oa_info.get('oa_url') or '').endswith('.pdf') else ""),
                     "abstract": reconstruct_openalex_abstract(work.get('abstract_inverted_index')),
                     "openAccess": is_oa,
@@ -597,9 +609,9 @@ def _fetch_single_source(source, query, page, rows):
                         container = it.get('container-title', [])
                         pub_name = container[0] if container else it.get('publisher', 'Springer')
 
-                        doi = it.get('DOI', '')
-                        doi_url = f"https://doi.org/{doi}" if doi else it.get('URL', '')
-                        springer_url = f"https://link.springer.com/doi/{doi}" if doi else doi_url
+                        doi = clean_doi(it.get('DOI', ''))
+                        doi_url = f"https://doi.org/{doi}" if doi else ""
+                        springer_url = f"https://link.springer.com/doi/{doi}" if doi else (it.get('URL') or doi_url)
 
                         abstract_raw = it.get('abstract', '')
                         abstract_clean = clean_html_tags(abstract_raw)
@@ -625,8 +637,8 @@ def _fetch_single_source(source, query, page, rows):
                             "publicationType": "Springer Nature",
                             "date": date_str,
                             "year": year,
-                            "doi": doi_url,
-                            "url": springer_url,
+                            "doi": doi,
+                            "url": springer_url or doi_url or (it.get('URL') or ''),
                             "pdfUrl": next((l.get('URL', '') for l in it.get('link', []) if 'pdf' in str(l.get('content-type', '')).lower() or str(l.get('URL', '')).endswith('.pdf')), '') if is_oa else '',
                             "abstract": abstract_clean,
                             "openAccess": is_oa,
@@ -698,9 +710,9 @@ def _fetch_single_source(source, query, page, rows):
                         container = it.get('container-title', [])
                         pub_name = container[0] if container else it.get('publisher', 'Emerald Insight')
 
-                        doi = it.get('DOI', '')
-                        doi_url = f"https://doi.org/{doi}" if doi else it.get('URL', '')
-                        emerald_url = f"https://www.emerald.com/insight/content/doi/{doi}" if doi else doi_url
+                        doi = clean_doi(it.get('DOI', ''))
+                        doi_url = f"https://doi.org/{doi}" if doi else ""
+                        emerald_url = f"https://www.emerald.com/insight/content/doi/{doi}" if doi else (it.get('URL') or doi_url)
 
                         abstract_clean = clean_html_tags(it.get('abstract', ''))
 
@@ -723,8 +735,8 @@ def _fetch_single_source(source, query, page, rows):
                             "publicationType": "Emerald Insight",
                             "date": date_str,
                             "year": year,
-                            "doi": doi_url,
-                            "url": emerald_url,
+                            "doi": doi,
+                            "url": emerald_url or doi_url or (it.get('URL') or ''),
                             "pdfUrl": next((l.get('URL', '') for l in it.get('link', []) if 'pdf' in str(l.get('content-type', '')).lower() or str(l.get('URL', '')).endswith('.pdf')), '') if is_oa else '',
                             "abstract": abstract_clean,
                             "openAccess": is_oa,
@@ -880,8 +892,8 @@ def _fetch_single_source(source, query, page, rows):
                         container = it.get('container-title', [])
                         pub_name = container[0] if container else it.get('publisher', 'Crossref Registry')
 
-                        doi = it.get('DOI', '')
-                        doi_url = f"https://doi.org/{doi}" if doi else it.get('URL', '')
+                        doi = clean_doi(it.get('DOI', ''))
+                        doi_url = f"https://doi.org/{doi}" if doi else (it.get('URL') or '')
 
                         abstract_clean = clean_html_tags(it.get('abstract', ''))
                         raw_type = it.get('type', 'article')
@@ -897,7 +909,7 @@ def _fetch_single_source(source, query, page, rows):
                             "publicationType": "Academic Publisher",
                             "date": date_str,
                             "year": year,
-                            "doi": doi_url,
+                            "doi": doi,
                             "url": doi_url,
                             "pdfUrl": next((l.get('URL', '') for l in it.get('link', []) if 'pdf' in str(l.get('content-type', '')).lower() or str(l.get('URL', '')).endswith('.pdf')), '') if is_oa else '',
                             "abstract": abstract_clean,
@@ -959,10 +971,9 @@ def _fetch_single_source(source, query, page, rows):
                             if link.get('@ref') == 'scopus':
                                 item_url = link.get('@href', '')
                                 break
-                        if not item_url:
-                            doi_val = item.get('prism:doi', '')
-                            if doi_val:
-                                item_url = "https://doi.org/" + doi_val
+                        doi_val = clean_doi(item.get('prism:doi', ''))
+                        if not item_url and doi_val:
+                            item_url = "https://doi.org/" + doi_val
 
                         cover_date = item.get('prism:coverDate', '')
                         yr = int(cover_date[:4]) if cover_date else 0
@@ -977,8 +988,8 @@ def _fetch_single_source(source, query, page, rows):
                             "publicationType": "Scopus",
                             "date": cover_date,
                             "year": yr,
-                            "doi": item_url,
-                            "url": item_url or "https://www.scopus.com",
+                            "doi": doi_val,
+                            "url": item_url or (f"https://doi.org/{doi_val}" if doi_val else "https://www.scopus.com"),
                             "abstract": item.get('dc:description', ''),
                             "openAccess": is_oa,
                             "source": "Scopus"
@@ -1008,8 +1019,8 @@ def _fetch_single_source(source, query, page, rows):
                     for item in sd_entries:
                         if 'error' in item:
                             continue
-                        doi_val = item.get('prism:doi', '')
-                        item_url = "https://doi.org/" + doi_val if doi_val else ""
+                        doi_val = clean_doi(item.get('prism:doi', ''))
+                        item_url = f"https://doi.org/{doi_val}" if doi_val else ""
                         if not item_url:
                             for link in item.get('link', []):
                                 if link.get('@ref') == 'scidir':
@@ -1028,8 +1039,8 @@ def _fetch_single_source(source, query, page, rows):
                             "publicationType": "Scopus",
                             "date": cover_date,
                             "year": yr,
-                            "doi": item_url,
-                            "url": item_url or "https://www.scopus.com",
+                            "doi": doi_val,
+                            "url": item_url or (f"https://doi.org/{doi_val}" if doi_val else "https://www.scopus.com"),
                             "abstract": item.get('dc:description', ''),
                             "openAccess": is_oa,
                             "source": "Scopus"
@@ -1090,7 +1101,7 @@ def _fetch_single_source(source, query, page, rows):
                         date_str = it.get('publicationDate') or str(year or "")
                         venue = it.get('venue') or 'Semantic Scholar'
                         ext_ids = it.get('externalIds') or {}
-                        doi = ext_ids.get('DOI', '')
+                        doi = clean_doi(ext_ids.get('DOI', ''))
                         doi_url = f"https://doi.org/{doi}" if doi else ""
                         oa_pdf = (it.get('openAccessPdf') or {}).get('url', '')
                         paper_id = it.get('paperId', '')
@@ -1113,7 +1124,7 @@ def _fetch_single_source(source, query, page, rows):
                             "publicationType": "Semantic Scholar AI",
                             "date": date_str,
                             "year": year,
-                            "doi": doi_url or doi,
+                            "doi": doi,
                             "url": direct_url,
                             "pdfUrl": oa_pdf,
                             "abstract": it.get('abstract', '') or '',
@@ -1184,9 +1195,10 @@ def _fetch_single_source(source, query, page, rows):
                         authors_str = "; ".join(authors_list[:5]) if authors_list else "Unknown"
 
                         ext_ids = work.get('external_ids', [])
-                        doi = next((e.get('value') for e in ext_ids if e.get('type') == 'doi'), '')
-                        doi_url = f"https://doi.org/{doi}" if doi else f"https://www.lens.org/lens/work/{lens_id}"
-                        lens_url = f"https://www.lens.org/lens/work/{lens_id}" if lens_id else doi_url
+                        raw_doi = next((e.get('value') for e in ext_ids if e.get('type') == 'doi'), '')
+                        doi = clean_doi(raw_doi)
+                        doi_url = f"https://doi.org/{doi}" if doi else ""
+                        lens_url = f"https://www.lens.org/lens/work/{lens_id}" if lens_id else (doi_url or "https://www.lens.org")
 
                         source_info = work.get('source') or {}
                         pub_name = source_info.get('title', 'The Lens Repository')
@@ -1208,7 +1220,7 @@ def _fetch_single_source(source, query, page, rows):
                             "publicationType": "The Lens",
                             "date": pub_date,
                             "year": pub_year,
-                            "doi": doi_url,
+                            "doi": doi,
                             "url": lens_url,
                             "pdfUrl": oa_pdf,
                             "abstract": clean_html_tags(work.get('abstract', '')),

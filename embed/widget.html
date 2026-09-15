@@ -340,6 +340,10 @@
             <button type="button" class="ums-os-tab-btn active" data-src="local" onclick="umsOsSetSource('local', this)">
                 <span>Katalog Buku</span>
             </button>
+            <button type="button" class="ums-os-tab-btn" data-src="ebooks" onclick="umsOsSetSource('ebooks', this)">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                <span>E-Book UMS</span>
+            </button>
             <button type="button" class="ums-os-tab-btn" data-src="all_global" onclick="umsOsSetSource('all_global', this)">
                 <span>Jurnal Global</span>
             </button>
@@ -382,8 +386,12 @@
 
         <!-- Footer -->
         <div class="ums-os-footer">
-            <span>Terhubung ke Katalog Koha, EPrints, Scopus, Springer & Jurnal Langganan</span>
-            <a href="javascript:void(0)" onclick="umsOsOpenDirectory()">Jelajahi Direktori Jurnal UMS →</a>
+            <span>Terhubung ke Katalog Koha, E-Book, EPrints, Scopus & Jurnal Langganan</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <a href="javascript:void(0)" onclick="umsOsOpenDirectory('ejournals')">Direktori Jurnal →</a>
+                <span>•</span>
+                <a href="javascript:void(0)" onclick="umsOsOpenDirectory('ebooks')">Direktori E-Book →</a>
+            </div>
         </div>
     </div>
 
@@ -425,7 +433,9 @@
             if (btn) btn.classList.add('active');
 
             const inp = document.getElementById('ums-os-query');
-            if (sourceKey === 'all_global') {
+            if (sourceKey === 'ebooks') {
+                inp.placeholder = 'Cari judul e-book internasional, pengarang, ISBN...';
+            } else if (sourceKey === 'all_global') {
                 inp.placeholder = 'Cari artikel ilmiah global (Scopus, Springer, Crossref)...';
             } else if (sourceKey === 'subscribed') {
                 inp.placeholder = 'Cari jurnal dan artikel langganan resmi UMS...';
@@ -462,7 +472,9 @@
             if (q) params.set('q', q);
             if (field && field !== 'all') params.set('field', field);
 
-            if (src === 'subscribed') {
+            if (src === 'ebooks') {
+                params.set('page', 'ebooks');
+            } else if (src === 'subscribed') {
                 params.set('src', 'all_global');
                 params.set('submode', 'subscribed');
             } else if (src && src !== 'local') {
@@ -473,9 +485,10 @@
             window.open(targetUrl, window.UMS_ONESEARCH_TARGET || '_blank');
         }
 
-        function umsOsOpenDirectory() {
+        function umsOsOpenDirectory(page) {
             const baseUrl = (window.UMS_ONESEARCH_BASE_URL || window.location.origin).replace(/\/$/, '');
-            window.open(baseUrl + '?page=ejournals', window.UMS_ONESEARCH_TARGET || '_blank');
+            const p = page === 'ebooks' ? 'ebooks' : 'ejournals';
+            window.open(baseUrl + '?page=' + p, window.UMS_ONESEARCH_TARGET || '_blank');
         }
     </script>
 </body>

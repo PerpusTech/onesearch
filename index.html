@@ -165,7 +165,7 @@
                                     <option value="isbn" data-i18n="sf_isbn">ISBN</option>
                                 </select>
                                 <button class="search-find-btn"
-                                    onclick="app.doSearch(document.getElementById('search-input').value.trim())"
+                                    onclick="app.hideSuggest(); app.doSearch(document.getElementById('search-input').value.trim())"
                                     data-i18n="btn_search">
                                     Cari
                                 </button>
@@ -634,12 +634,12 @@
     </div>
     <script src="js/search.js?v=18"></script>
     <script src="js/recommender.js?v=17"></script>
-    <script src="js/app.js?v=90"></script>
+    <script src="js/app.js?v=95"></script>
     <script>
         // Inisialisasi Service Worker untuk offline PWA caching & caching data discovery
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=92').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=95').then(reg => {
                     console.log('BookFinder Service Worker terdaftar:', reg.scope);
                 }).catch(err => {
                     console.warn('Gagal mendaftarkan Service Worker:', err);
