@@ -1939,6 +1939,250 @@ def api_international_ebooks_public():
     })
 
 
+# ── INTERNATIONAL OPEN ACCESS E-BOOKS HARVESTER & DISCOVERY ──
+INTL_EBOOKS_CACHE = TTLCache(maxsize=1000, default_ttl=7200)
+
+
+def _fetch_doab_ebooks(query, page=1, limit=15):
+    """Fetch open-access academic books from Directory of Open Access Books (DOAB)."""
+    items = []
+    try:
+        offset = max(0, (page - 1) * limit)
+        url = "https://directory.doabooks.org/rest/search"
+        params = {
+            "query": query,
+            "expand": "metadata",
+            "limit": limit,
+            "offset": offset
+        }
+        headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
+        resp = HTTP_SESSION.get(url, params=params, headers=headers, timeout=(3.0, 5.5))
+        if resp.status_code == 200:
+            data = resp.json()
+            raw_items = data if isinstance(data, list) else []
+            for it in raw_items:
+                metadata = it.get('metadata', [])
+                meta_map = {}
+                for m in metadata:
+                    k = m.get('key', '')
+                    v = m.get('value', '')
+                    if k not in meta_map:
+                        meta_map[k] = []
+                    meta_map[k].append(v)
+
+                title = (meta_map.get('dc.title') or ['Untitled'])[0]
+                authors = ', '.join(meta_map.get('dc.contributor.author') or meta_map.get('dc.creator') or ['Unknown Author'])
+                publisher = (meta_map.get('publisher.name') or meta_map.get('dc.publisher') or ['Academic Publisher'])[0]
+                year_str = (meta_map.get('dc.date.issued') or meta_map.get('dc.date.copyright') or [''])[0]
+                year = year_str[:4] if len(year_str) >= 4 and year_str[:4].isdigit() else ''
+                abstract = (meta_map.get('dc.description.abstract') or meta_map.get('dc.description') or [''])[0]
+                subject = ', '.join((meta_map.get('dc.subject') or meta_map.get('dc.subject.other') or [])[:3])
+                language = (meta_map.get('dc.language') or ['English'])[0]
+
+                handle = it.get('handle', '')
+                detail_url = f"https://directory.doabooks.org/handle/{handle}" if handle else ""
+
+                pdf_urls = meta_map.get('oapen.relation.isAvailableAs') or meta_map.get('dc.identifier.uri') or []
+                pdf_url = ""
+                for u in pdf_urls:
+                    if u.lower().endswith('.pdf') or 'pdf' in u.lower():
+                        pdf_url = u
+                        break
+                if not pdf_url and pdf_urls:
+                    pdf_url = pdf_urls[0]
+
+                dois = meta_map.get('oapen.identifier.doi') or []
+                doi_url = f"https://doi.org/{dois[0]}" if dois else ""
+
+                items.append({
+                    "id": f"doab-{it.get('id') or handle or hash(title)}",
+                    "title": title,
+                    "authors": authors,
+                    "publisher": publisher,
+                    "year": year,
+                    "subject": subject or "Academic / Scientific",
+                    "language": language,
+                    "source": "DOAB (Directory of Open Access Books)",
+                    "source_badge": "DOAB",
+                    "cover_url": "",
+                    "pdf_url": pdf_url or detail_url,
+                    "url": doi_url or detail_url or pdf_url,
+                    "abstract": abstract[:350] + '...' if len(abstract) > 350 else abstract,
+                    "is_oa": True,
+                    "access_type": "open"
+                })
+    except Exception as e:
+        print(f"[DOAB EBOOKS] Error: {e}")
+    return items
+
+
+def _fetch_openlibrary_ebooks(query, page=1, limit=15):
+    """Fetch free full-text ebooks from Open Library (Internet Archive)."""
+    items = []
+    try:
+        url = "https://openlibrary.org/search.json"
+        params = {
+            "q": query,
+            "page": page,
+            "limit": limit,
+            "mode": "ebooks"
+        }
+        headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
+        resp = HTTP_SESSION.get(url, params=params, headers=headers, timeout=(3.0, 5.0))
+        if resp.status_code == 200:
+            data = resp.json()
+            docs = data.get('docs', [])
+            for doc in docs:
+                title = doc.get('title') or 'Untitled'
+                authors = ', '.join(doc.get('author_name', [])[:3]) or 'Unknown Author'
+                year = str(doc.get('first_publish_year') or '')
+                publishers = doc.get('publisher', [])
+                publisher = publishers[0] if publishers else 'Open Library'
+                cover_i = doc.get('cover_i')
+                cover_url = f"https://covers.openlibrary.org/b/id/{cover_i}-M.jpg" if cover_i else ""
+
+                ia_ids = doc.get('ia', [])
+                key = doc.get('key', '')
+
+                read_url = f"https://archive.org/details/{ia_ids[0]}" if ia_ids else f"https://openlibrary.org{key}"
+                pdf_url = f"https://archive.org/download/{ia_ids[0]}/{ia_ids[0]}.pdf" if ia_ids else read_url
+
+                subjects = doc.get('subject', [])
+                subject = ', '.join(subjects[:3]) if subjects else "General Literature"
+                clean_id = (ia_ids[0] if ia_ids else key.replace('/', '_')).strip('_')
+
+                items.append({
+                    "id": f"ol-{clean_id}",
+                    "title": title,
+                    "authors": authors,
+                    "publisher": publisher,
+                    "year": year,
+                    "subject": subject,
+                    "language": (doc.get('language', ['eng']) or ['eng'])[0],
+                    "source": "Open Library (Internet Archive)",
+                    "source_badge": "Open Library",
+                    "cover_url": cover_url,
+                    "pdf_url": pdf_url,
+                    "url": read_url,
+                    "abstract": f"E-book bebas akses dari pangkalan pustaka Open Library & Internet Archive (Tahun: {year})." if year else "Koleksi e-book digital Open Library.",
+                    "is_oa": True,
+                    "access_type": "open"
+                })
+    except Exception as e:
+        print(f"[OPEN LIBRARY EBOOKS] Error: {e}")
+    return items
+
+
+def _fetch_openalex_ebooks(query, page=1, limit=15):
+    """Fetch Open Access books and monographs from OpenAlex."""
+    items = []
+    try:
+        url = "https://api.openalex.org/works"
+        params = {
+            "search": query,
+            "filter": "type:book,is_oa:true",
+            "per-page": limit,
+            "page": page,
+            "mailto": "perpustakaan@ums.ac.id"
+        }
+        headers = {'User-Agent': 'UMSLibraryOneSearch/1.0 (mailto:perpustakaan@ums.ac.id)'}
+        resp = HTTP_SESSION.get(url, params=params, headers=headers, timeout=(3.0, 5.0))
+        if resp.status_code == 200:
+            data = resp.json()
+            for work in data.get('results', []):
+                clean_id = str(work.get('id', '')).split('/')[-1]
+                title = clean_title(work.get('title') or 'Untitled')
+                authors = extract_openalex_authors(work.get('authorships'))
+                doi_clean = clean_doi(work.get('doi') or '')
+                doi_url = f"https://doi.org/{doi_clean}" if doi_clean else ""
+
+                src_name = extract_openalex_source_name(work.get('primary_location'), "Academic Publisher")
+                oa_info = work.get('open_access') or {}
+                best_oa = work.get('best_oa_location') or {}
+                pdf_link = best_oa.get('pdf_url') or (oa_info.get('oa_url') if (oa_info.get('oa_url') or '').endswith('.pdf') else '')
+                landing_url = best_oa.get('landing_page_url') or oa_info.get('oa_url') or doi_url or f"https://openalex.org/{clean_id}"
+
+                abstract = reconstruct_openalex_abstract(work.get('abstract_inverted_index'))
+
+                items.append({
+                    "id": f"oa-bk-{clean_id}",
+                    "title": title,
+                    "authors": authors,
+                    "publisher": src_name,
+                    "year": str(work.get('publication_year') or ''),
+                    "subject": "Monograph / Academic Book",
+                    "language": "English",
+                    "source": "OpenAlex Books",
+                    "source_badge": "OpenAlex",
+                    "cover_url": "",
+                    "pdf_url": pdf_link or landing_url,
+                    "url": landing_url,
+                    "abstract": abstract[:350] + '...' if len(abstract) > 350 else abstract,
+                    "is_oa": True,
+                    "access_type": "open"
+                })
+    except Exception as e:
+        print(f"[OPENALEX EBOOKS] Error: {e}")
+    return items
+
+
+@app.route('/api/international/ebooks/search')
+def api_search_international_ebooks():
+    """Live unified search across global Open Access e-book repositories (DOAB, Open Library, OpenAlex)."""
+    q = request.args.get('q', '').strip()
+    source = request.args.get('source', 'all').strip().lower()
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 15))
+
+    if not q:
+        q = "science"
+
+    cache_key = f"intl_ebk_{source}_{q.lower()}_{page}_{limit}"
+    cached = INTL_EBOOKS_CACHE.get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+
+    results = []
+    futures = {}
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        if source in ('all', 'doab'):
+            futures[executor.submit(_fetch_doab_ebooks, q, page, limit)] = 'doab'
+        if source in ('all', 'openlibrary'):
+            futures[executor.submit(_fetch_openlibrary_ebooks, q, page, limit)] = 'openlibrary'
+        if source in ('all', 'openalex'):
+            futures[executor.submit(_fetch_openalex_ebooks, q, page, limit)] = 'openalex'
+
+        for future in as_completed(futures):
+            try:
+                items = future.result()
+                if items:
+                    results.extend(items)
+            except Exception as e:
+                print(f"[INTL EBOOKS] Worker error: {e}")
+
+    seen_titles = set()
+    deduped = []
+    for it in results:
+        norm = re.sub(r'[^a-z0-9]', '', (it.get('title') or '').lower())
+        if norm and norm in seen_titles:
+            continue
+        seen_titles.add(norm)
+        deduped.append(it)
+
+    resp_data = {
+        "ok": True,
+        "query": q,
+        "source": source,
+        "page": page,
+        "total": len(deduped),
+        "items": deduped
+    }
+
+    INTL_EBOOKS_CACHE.set(cache_key, resp_data)
+    return jsonify(resp_data)
+
+
 @app.route('/api/ebooks/<ebk_id>/pdf')
 def api_ebook_stream_pdf(ebk_id):
     """Stream PDF for inline reading inside modal/iframe with permissive frame headers."""

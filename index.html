@@ -386,9 +386,8 @@
                 <div class="page-top"
                     style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
                     <div>
-                        <h1>Katalog E-Book Langganan UMS</h1>
-                        <p>Daftar resmi buku elektronik dan monograf ilmiah internasional yang dilanggan oleh Perpustakaan
-                            UMS untuk sivitas akademika.</p>
+                        <h1 id="ebk-main-heading">Katalog E-Book & Monograf Digital</h1>
+                        <p id="ebk-main-desc">Akses buku elektronik ilmiah resmi langganan Perpustakaan UMS dan jutaan e-book akademik internasional bebas unduh (Open Access).</p>
                     </div>
                     <button type="button" class="btn btn-ghost" onclick="app.showHome()"
                         style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.45rem 0.9rem; font-size:0.82rem;">
@@ -400,38 +399,126 @@
                         <span>Kembali ke Beranda</span>
                     </button>
                 </div>
-                <div class="card"
-                    style="padding:1.15rem; margin-bottom:1.5rem; background:var(--bg-2); border:1px solid var(--border); border-radius:var(--r-md);">
-                    <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
-                        <input type="text" id="ebk-search-input" class="input"
-                            placeholder="Cari judul e-book, pengarang, ISBN, subjek, atau penerbit..."
-                            style="flex:1; min-width:240px; padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink);"
-                            oninput="app.filterEBookDirectory()">
-                        <select id="ebk-filter-publisher" class="select"
-                            style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:180px;"
-                            onchange="app.filterEBookDirectory()">
-                            <option value="all">Semua Penerbit</option>
-                        </select>
-                        <select id="ebk-filter-subject" class="select"
-                            style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:170px;"
-                            onchange="app.filterEBookDirectory()">
-                            <option value="all">Semua Subjek</option>
-                        </select>
-                        <select id="ebk-filter-access" class="select"
-                            style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:160px;"
-                            onchange="app.filterEBookDirectory()">
-                            <option value="all">Semua Akses</option>
-                            <option value="kampus">IP Kampus / Eduroam</option>
-                            <option value="ezproxy">EZProxy SSO</option>
-                            <option value="open">Open Access</option>
-                        </select>
+
+                <!-- Sub-Navigation Tabs: Langganan UMS vs Internasional Open Access -->
+                <div class="ebk-tabs-nav" style="display:flex; gap:0.6rem; margin-bottom:1.5rem; border-bottom:1px solid var(--border); padding-bottom:0.75rem; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-xs ebk-sub-tab active" id="ebk-tab-btn-subscribed" onclick="app.switchEBookSubTab('subscribed')"
+                        style="font-weight:600; padding:0.5rem 1rem; border-radius:var(--r-sm); display:inline-flex; align-items:center; gap:0.45rem;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        </svg>
+                        <span>E-Book Langganan Resmi UMS</span>
+                    </button>
+                    <button type="button" class="btn btn-xs ebk-sub-tab" id="ebk-tab-btn-international" onclick="app.switchEBookSubTab('international')"
+                        style="font-weight:600; padding:0.5rem 1rem; border-radius:var(--r-sm); display:inline-flex; align-items:center; gap:0.45rem;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                        <span>E-Book Internasional (Open Access)</span>
+                        <span style="font-size:0.68rem; font-weight:700; padding:2px 7px; background:rgba(37,99,235,0.12); color:#2563eb; border-radius:99px; margin-left:2px;">DOAB • OpenAlex • OL</span>
+                    </button>
+                </div>
+
+                <!-- VIEW 1: E-Book Langganan Resmi UMS -->
+                <div id="ebk-view-subscribed" style="display:block;">
+                    <div class="card"
+                        style="padding:1.15rem; margin-bottom:1.5rem; background:var(--bg-2); border:1px solid var(--border); border-radius:var(--r-md);">
+                        <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+                            <input type="text" id="ebk-search-input" class="input"
+                                placeholder="Cari judul e-book, pengarang, ISBN, subjek, atau penerbit..."
+                                style="flex:1; min-width:240px; padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink);"
+                                oninput="app.filterEBookDirectory()">
+                            <select id="ebk-filter-publisher" class="select"
+                                style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:180px;"
+                                onchange="app.filterEBookDirectory()">
+                                <option value="all">Semua Penerbit</option>
+                            </select>
+                            <select id="ebk-filter-subject" class="select"
+                                style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:170px;"
+                                onchange="app.filterEBookDirectory()">
+                                <option value="all">Semua Subjek</option>
+                            </select>
+                            <select id="ebk-filter-access" class="select"
+                                style="padding:0.6rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:160px;"
+                                onchange="app.filterEBookDirectory()">
+                                <option value="all">Semua Akses</option>
+                                <option value="kampus">IP Kampus / Eduroam</option>
+                                <option value="ezproxy">EZProxy SSO</option>
+                                <option value="open">Open Access</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="ebk-loading" style="display:none; text-align:center; padding:3rem 1rem; color:var(--ink-3);">
+                        <div class="ld-spinner" style="margin:0 auto 1rem; width:28px; height:28px;"></div>
+                        <p>Memuat daftar e-book langganan...</p>
+                    </div>
+                    <div id="ebk-grid" class="ebook-grid"></div>
+                </div>
+
+                <!-- VIEW 2: E-Book Internasional (Open Access) -->
+                <div id="ebk-view-international" style="display:none;">
+                    <div class="card"
+                        style="padding:1.25rem; margin-bottom:1.5rem; background:var(--bg-2); border:1px solid var(--border); border-radius:var(--r-md);">
+                        <form onsubmit="event.preventDefault(); app.searchInternationalEBooks();" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+                            <input type="text" id="intl-ebk-search-input" class="input"
+                                placeholder="Cari judul e-book, topik ilmiah internasional, penulis, atau kata kunci..."
+                                style="flex:1; min-width:260px; padding:0.65rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink);">
+                            <select id="intl-ebk-source-sel" class="select"
+                                style="padding:0.65rem 0.85rem; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-1); color:var(--ink); min-width:200px;">
+                                <option value="all">Semua Basis Data (DOAB, OL, OpenAlex)</option>
+                                <option value="doab">DOAB (Directory of Open Access Books)</option>
+                                <option value="openlibrary">Open Library (Internet Archive)</option>
+                                <option value="openalex">OpenAlex Academic Books</option>
+                            </select>
+                            <button type="submit" class="btn btn-brand"
+                                style="padding:0.65rem 1.25rem; border-radius:var(--r-sm); display:inline-flex; align-items:center; gap:0.4rem; font-weight:600;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                                <span>Cari E-Book</span>
+                            </button>
+                        </form>
+                        <!-- Quick Subject Pills -->
+                        <div style="margin-top:0.85rem; display:flex; align-items:center; gap:0.45rem; flex-wrap:wrap; font-size:0.75rem;">
+                            <span style="color:var(--ink-3); font-weight:500;">Topik Populer:</span>
+                            <button type="button" class="btn btn-xs btn-ghost" onclick="app.setQuickIntlEBookQuery('Artificial Intelligence')">Artificial Intelligence</button>
+                            <button type="button" class="btn btn-xs btn-ghost" onclick="app.setQuickIntlEBookQuery('Computer Science')">Computer Science</button>
+                            <button type="button" class="btn btn-xs btn-ghost" onclick="app.setQuickIntlEBookQuery('Public Health')">Public Health</button>
+                            <button type="button" class="btn btn-xs btn-ghost" onclick="app.setQuickIntlEBookQuery('Civil Engineering')">Civil Engineering</button>
+                            <button type="button" class="btn btn-xs btn-ghost" onclick="app.setQuickIntlEBookQuery('Economics')">Economics</button>
+                            <button type="button" class="btn btn-xs btn-ghost" onclick="app.setQuickIntlEBookQuery('Education')">Education</button>
+                            <button type="button" class="btn btn-xs btn-ghost" onclick="app.setQuickIntlEBookQuery('Islamic Studies')">Islamic Studies</button>
+                            <button type="button" class="btn btn-xs btn-ghost" onclick="app.setQuickIntlEBookQuery('Law')">Law</button>
+                        </div>
+                    </div>
+
+                    <!-- Summary & Status Header -->
+                    <div id="intl-ebk-header-info" style="display:none; margin-bottom:1rem; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+                        <p id="intl-ebk-status-text" style="font-size:0.85rem; color:var(--ink-2); margin:0; font-weight:500;"></p>
+                    </div>
+
+                    <div id="intl-ebk-loading" style="display:none; text-align:center; padding:3.5rem 1rem; color:var(--ink-3);">
+                        <div class="ld-spinner" style="margin:0 auto 1rem; width:30px; height:30px;"></div>
+                        <p style="font-weight:500; font-size:0.95rem; color:var(--ink);">Menghubungi basis data e-book internasional...</p>
+                        <p style="font-size:0.78rem; color:var(--ink-3); margin-top:0.3rem;">Mencari buku monograf open-access dari DOAB, Open Library, dan OpenAlex</p>
+                    </div>
+
+                    <div id="intl-ebk-grid" class="ebook-grid"></div>
+
+                    <div id="intl-ebk-pagination" style="display:none; text-align:center; margin-top:2rem;">
+                        <button type="button" class="btn btn-ghost" id="intl-ebk-loadmore-btn" onclick="app.loadMoreInternationalEBooks()"
+                            style="padding:0.6rem 1.5rem; font-weight:600; border-radius:var(--r-sm); display:inline-flex; align-items:center; gap:0.5rem;">
+                            <span>Muat Lebih Banyak E-Book</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
                     </div>
                 </div>
-                <div id="ebk-loading" style="display:none; text-align:center; padding:3rem 1rem; color:var(--ink-3);">
-                    <div class="ld-spinner" style="margin:0 auto 1rem; width:28px; height:28px;"></div>
-                    <p>Memuat daftar e-book langganan...</p>
-                </div>
-                <div id="ebk-grid" class="ebook-grid"></div>
             </div>
         </section>
 
@@ -639,12 +726,12 @@
     </div>
     <script src="js/search.js?v=18"></script>
     <script src="js/recommender.js?v=17"></script>
-    <script src="js/app.js?v=101"></script>
+    <script src="js/app.js?v=102"></script>
     <script>
         // Inisialisasi Service Worker untuk offline PWA caching & caching data discovery
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=101').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=102').then(reg => {
                     console.log('BookFinder Service Worker terdaftar:', reg.scope);
                 }).catch(err => {
                     console.warn('Gagal mendaftarkan Service Worker:', err);

@@ -1075,6 +1075,225 @@ const app = {
         }
     },
 
+    _activeEBookSubTab: 'subscribed',
+    _intlEBookState: { query: '', source: 'all', page: 1, loading: false },
+    _intlEBookItems: [],
+
+    switchEBookSubTab(tab) {
+        this._activeEBookSubTab = tab || 'subscribed';
+        const btnSub = document.getElementById('ebk-tab-btn-subscribed');
+        const btnIntl = document.getElementById('ebk-tab-btn-international');
+        const viewSub = document.getElementById('ebk-view-subscribed');
+        const viewIntl = document.getElementById('ebk-view-international');
+
+        if (btnSub) btnSub.classList.toggle('active', this._activeEBookSubTab === 'subscribed');
+        if (btnIntl) btnIntl.classList.toggle('active', this._activeEBookSubTab === 'international');
+        if (viewSub) viewSub.style.display = this._activeEBookSubTab === 'subscribed' ? 'block' : 'none';
+        if (viewIntl) viewIntl.style.display = this._activeEBookSubTab === 'international' ? 'block' : 'none';
+
+        if (this._activeEBookSubTab === 'international') {
+            const intlGrid = document.getElementById('intl-ebk-grid');
+            if (!intlGrid || !intlGrid.children.length) {
+                this.searchInternationalEBooks('Computer Science', 1);
+            }
+        }
+    },
+
+    setQuickIntlEBookQuery(term) {
+        const inp = document.getElementById('intl-ebk-search-input');
+        if (inp) inp.value = term;
+        this.searchInternationalEBooks(term, 1);
+    },
+
+    async searchInternationalEBooks(overrideQuery, page = 1) {
+        const queryInput = document.getElementById('intl-ebk-search-input');
+        const sourceSel = document.getElementById('intl-ebk-source-sel');
+        const q = (overrideQuery !== undefined ? overrideQuery : (queryInput?.value || '')).trim() || 'science';
+        const source = sourceSel?.value || 'all';
+
+        if (overrideQuery && queryInput) queryInput.value = overrideQuery;
+
+        const grid = document.getElementById('intl-ebk-grid');
+        const loading = document.getElementById('intl-ebk-loading');
+        const headerInfo = document.getElementById('intl-ebk-header-info');
+        const statusText = document.getElementById('intl-ebk-status-text');
+        const paginationWrap = document.getElementById('intl-ebk-pagination');
+
+        if (page === 1) {
+            this._intlEBookItems = [];
+            if (grid) grid.innerHTML = '';
+            if (loading) loading.style.display = 'block';
+            if (headerInfo) headerInfo.style.display = 'none';
+            if (paginationWrap) paginationWrap.style.display = 'none';
+        }
+
+        this._intlEBookState = { query: q, source, page, loading: true };
+
+        try {
+            const url = `/api/international/ebooks/search?q=${encodeURIComponent(q)}&source=${encodeURIComponent(source)}&page=${page}&limit=12`;
+            const res = await fetch(url);
+            const data = await res.json();
+            const items = data.items || [];
+
+            if (page === 1) {
+                this._intlEBookItems = items;
+            } else {
+                this._intlEBookItems = this._intlEBookItems.concat(items);
+            }
+
+            if (headerInfo && statusText) {
+                headerInfo.style.display = 'flex';
+                statusText.innerHTML = `Menampilkan <strong>${this._intlEBookItems.length}</strong> e-book ilmiah internasional untuk <em>"${this.esc(q)}"</em>`;
+            }
+
+            this.renderInternationalEBooks(items, page > 1);
+
+            if (paginationWrap) {
+                paginationWrap.style.display = items.length >= 6 ? 'block' : 'none';
+            }
+        } catch (err) {
+            console.error('Error fetching international ebooks:', err);
+            if (grid && page === 1) {
+                grid.innerHTML = `
+                    <div style="grid-column:1/-1; text-align:center; padding:3rem 1.5rem; color:var(--ink-3); background:var(--bg-2); border:1px solid var(--border); border-radius:var(--r-md);">
+                        <p style="font-size:1.05rem; font-weight:600; color:var(--ink); margin-bottom:0.35rem;">Koneksi ke Basis Data Internasional Terkendala</p>
+                        <p style="font-size:0.85rem;">Silakan coba beberapa saat lagi atau ganti kata kunci pencarian.</p>
+                    </div>`;
+            }
+        } finally {
+            if (loading) loading.style.display = 'none';
+            this._intlEBookState.loading = false;
+        }
+    },
+
+    loadMoreInternationalEBooks() {
+        if (this._intlEBookState.loading) return;
+        const nextPage = (this._intlEBookState.page || 1) + 1;
+        this.searchInternationalEBooks(this._intlEBookState.query, nextPage);
+    },
+
+    renderInternationalEBooks(items, isAppend = false) {
+        const grid = document.getElementById('intl-ebk-grid');
+        if (!grid) return;
+
+        if (!items || items.length === 0) {
+            if (!isAppend) {
+                grid.innerHTML = `
+                    <div style="grid-column:1/-1; text-align:center; padding:3rem 1.5rem; color:var(--ink-3); background:var(--bg-2); border:1px solid var(--border); border-radius:var(--r-md);">
+                        <p style="font-size:1.05rem; font-weight:600; color:var(--ink); margin-bottom:0.35rem;">Tidak Ada E-Book Internasional yang Ditemukan</p>
+                        <p style="font-size:0.85rem;">Coba gunakan kata kunci dalam Bahasa Inggris (contoh: <em>"Artificial Intelligence"</em>, <em>"Public Health"</em>, <em>"Management"</em>).</p>
+                    </div>`;
+            }
+            return;
+        }
+
+        const cardsHtml = items.map(it => {
+            const hasBm = this.bookmarks ? this.bookmarks.has(String(it.id)) : false;
+            const readUrl = it.pdf_url || it.url || '#';
+            const yearStr = it.year ? String(it.year) : '';
+            const authorStr = it.authors || 'Penulis Tidak Disebutkan';
+            const badgeSource = it.source_badge || 'DOAB';
+            const sourceColor = badgeSource === 'DOAB' ? '#059669' : (badgeSource === 'OpenAlex' ? '#2563eb' : '#7c3aed');
+            const sourceBg = badgeSource === 'DOAB' ? 'rgba(16,185,129,0.12)' : (badgeSource === 'OpenAlex' ? 'rgba(37,99,235,0.12)' : 'rgba(124,58,237,0.12)');
+
+            let coverHtml = '';
+            if (it.cover_url) {
+                coverHtml = `
+                    <div class="ebk-cover-box">
+                        <img src="${this.esc(it.cover_url)}" alt="Cover ${this.esc(it.title)}" class="ebk-cover-img" loading="lazy"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="ebk-cover-fallback" style="display:none;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                            </svg>
+                            <span>E-BOOK</span>
+                        </div>
+                    </div>`;
+            } else {
+                coverHtml = `
+                    <div class="ebk-cover-box">
+                        <div class="ebk-cover-fallback">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                            </svg>
+                            <span>OPEN ACCESS</span>
+                        </div>
+                    </div>`;
+            }
+
+            return `
+            <div class="ebk-card" data-ebk-id="${this.esc(it.id)}">
+                <div>
+                    <div class="ebk-card-main">
+                        ${coverHtml}
+                        <div class="ebk-info-box">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.4rem; margin-bottom:0.25rem;">
+                                <div style="display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
+                                    <span class="chip" style="background:${sourceBg}; color:${sourceColor}; font-weight:700; font-size:0.68rem; padding:2px 6px;">${this.esc(badgeSource)}</span>
+                                    <span class="chip" style="background:rgba(16,185,129,0.12); color:#059669; font-weight:600; font-size:0.68rem; padding:2px 6px;">Open Access</span>
+                                </div>
+                                <button type="button" class="star-btn"
+                                    onclick="app.toggleBookmarkFromFed('${this.esc(it.id)}', this)"
+                                    style="padding:3px; color:var(--ink-3);"
+                                    title="${hasBm ? 'Hapus dari Koleksi' : 'Simpan ke Koleksi Saya'}">
+                                    ${this.starSvg(hasBm)}
+                                </button>
+                            </div>
+                            <h3 class="ebk-title" title="${this.esc(it.title)}">${this.esc(it.title)}</h3>
+                            <div style="font-size:0.78rem; color:var(--ink-2); margin-bottom:0.3rem;">
+                                <strong>${this.esc(authorStr)}</strong> ${yearStr ? `(${this.esc(yearStr)})` : ''}
+                            </div>
+                            <div style="font-size:0.74rem; color:var(--ink-3);">
+                                <span>${this.esc(it.publisher || 'Academic Publisher')}</span>
+                                ${it.subject ? ` • <span>${this.esc(it.subject)}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${it.abstract ? `<p style="font-size:0.77rem; color:var(--ink-3); margin-top:0.75rem; line-height:1.45; display:-webkit-box; -webkit-line-clamp:3; line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;">${this.esc(it.abstract)}</p>` : ''}
+                </div>
+
+                <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
+                    <span style="font-size:0.72rem; color:var(--ink-3); font-weight:500;">Bebas Baca / Unduh</span>
+                    <a href="${this.esc(readUrl)}" target="_blank" rel="noopener" class="btn btn-xs btn-brand"
+                        style="padding:0.4rem 0.85rem; font-size:0.76rem; border-radius:var(--r-sm); display:inline-flex; align-items:center; gap:0.35rem; text-decoration:none;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                        <span>Akses E-Book</span>
+                    </a>
+                </div>
+            </div>`;
+        }).join('');
+
+        if (isAppend) {
+            grid.insertAdjacentHTML('beforeend', cardsHtml);
+        } else {
+            grid.innerHTML = cardsHtml;
+        }
+
+        // Cache raw items for instant bookmark metadata lookup
+        if (!this._fedRawItems) this._fedRawItems = [];
+        items.forEach(it => {
+            if (!this._fedRawItems.find(x => x.id === it.id)) {
+                this._fedRawItems.push({
+                    id: it.id,
+                    title: it.title,
+                    authors: it.authors,
+                    year: it.year,
+                    publicationName: it.publisher,
+                    contentType: 'International E-Book',
+                    source: it.source,
+                    url: it.url,
+                    doi: it.url
+                });
+            }
+        });
+    },
+
     populateEBookFilters(list) {
         const pubSel = document.getElementById('ebk-filter-publisher');
         const subSel = document.getElementById('ebk-filter-subject');
