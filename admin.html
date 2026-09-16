@@ -1340,6 +1340,22 @@
                             </label>
                         </div>
 
+                        <!-- International E-Books (DOAB, OpenAlex, Open Library) -->
+                        <div class="card"
+                            style="display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1rem; border-left:3px solid #2563eb;">
+                            <div>
+                                <div style="font-weight:600; font-size:0.85rem; color:var(--text-main); display:flex; align-items:center; gap:0.4rem;">
+                                    <span>E-Book Internasional</span>
+                                </div>
+                                <div style="font-size:0.72rem; color:var(--text-muted);">DOAB, OpenAlex & Open Library</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="src-toggle-intl_ebooks"
+                                    onchange="saveInternationalSourceToggle('intl_ebooks', this.checked)">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+
                     </div>
                 </div>
 
@@ -1467,6 +1483,24 @@
 
             <!-- TAB: KATALOG E-BOOK LANGGANAN UMS -->
             <div id="view-ebooks" style="display:none; flex-direction:column; gap:1.75rem;">
+
+                <!-- International E-Books Discovery Switch Banner -->
+                <div class="card" style="padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; border-left:4px solid #2563eb;">
+                    <div>
+                        <div style="font-weight:600; font-size:0.92rem; color:var(--text-main); display:flex; align-items:center; gap:0.5rem;">
+                            <span>Saklar Sumber: E-Book Internasional Bebas Akses (Open Access)</span>
+                            <span id="ebk-switch-status-pill" class="status-pill idle">Memuat...</span>
+                        </div>
+                        <p style="font-size:0.77rem; color:var(--text-muted); margin:0.25rem 0 0; max-width:680px; line-height:1.45;">
+                            Jika diaktifkan, pengguna dapat mencari ratusan ribu e-book digital bebas akses internasional dari <strong>DOAB</strong>, <strong>OpenAlex</strong>, dan <strong>Open Library</strong> di beranda pencarian dan halaman e-book.
+                        </p>
+                    </div>
+                    <label class="switch" style="transform:scale(1.2);">
+                        <input type="checkbox" id="ebk-intl-toggle"
+                            onchange="saveInternationalSourceToggle('intl_ebooks', this.checked)">
+                        <span class="switch-slider"></span>
+                    </label>
+                </div>
 
                 <div class="card" style="padding:1.25rem;">
                     <div
@@ -2629,6 +2663,7 @@
                     pageTitle.textContent = 'Katalog E-Book Langganan Resmi UMS';
                     pageDesc.textContent = 'Manajemen pangkalan data buku elektronik internasional resmi yang dilanggan Perpustakaan UMS untuk sivitas akademika.';
                     loadSubscribedEBooks();
+                    loadInternationalConfig();
                 } else if (tab === 'embed') {
                     pageTitle.textContent = 'Widget Embed & Integrasi WordPress';
                     pageDesc.textContent = 'Kustomisasi dan salin kode kotak pencarian UMS Library OneSearch untuk dipasang di website WordPress, portal fakultas, atau blog.';
@@ -3252,13 +3287,23 @@
                 }
 
                 const src = cfg.sources || {};
-                const sourceKeys = ['scopus', 'springer', 'openalex', 'semanticscholar', 'lens', 'crossref', 'emerald'];
+                const sourceKeys = ['scopus', 'springer', 'openalex', 'semanticscholar', 'lens', 'crossref', 'emerald', 'intl_ebooks'];
                 sourceKeys.forEach(k => {
                     const el = document.getElementById(`src-toggle-${k}`);
                     if (el) {
                         el.checked = src[k] !== false;
                     }
                 });
+
+                // Update E-Books tab switch & pill
+                const ebkToggle = document.getElementById('ebk-intl-toggle');
+                const ebkPill = document.getElementById('ebk-switch-status-pill');
+                const isEbkActive = isMasterEnabled && (src['intl_ebooks'] !== false);
+                if (ebkToggle) ebkToggle.checked = src['intl_ebooks'] !== false;
+                if (ebkPill) {
+                    ebkPill.className = isEbkActive ? 'status-pill idle' : 'status-pill error';
+                    ebkPill.innerHTML = isEbkActive ? '<span class="status-dot"></span> AKTIF DI PORTAL' : '<span class="status-dot"></span> NONAKTIF';
+                }
             }
 
             async function saveInternationalMasterToggle(enabled) {
@@ -3273,7 +3318,7 @@
                     });
                     const resData = await res.json();
                     if (res.ok) {
-                        showToast(`Fitur Jurnal Internasional: ${enabled ? 'Diaktifkan' : 'Dinonaktifkan'}`);
+                        showToast(`Fitur Jurnal & E-Resources Internasional: ${enabled ? 'Diaktifkan' : 'Dinonaktifkan'}`);
                         loadInternationalConfig();
                     } else {
                         showToast(`Gagal: ${resData.error || 'Terjadi kesalahan'}`);
@@ -3297,7 +3342,9 @@
                     });
                     const resData = await res.json();
                     if (res.ok) {
-                        showToast(`Sumber ${sourceId.toUpperCase()} ${enabled ? 'diaktifkan' : 'dinonaktifkan'}`);
+                        const nameLbl = sourceId === 'intl_ebooks' ? 'E-Book Internasional' : sourceId.toUpperCase();
+                        showToast(`Sumber ${nameLbl} ${enabled ? 'diaktifkan' : 'dinonaktifkan'}`);
+                        loadInternationalConfig();
                     } else {
                         showToast(`Gagal: ${resData.error || 'Terjadi kesalahan'}`);
                     }
