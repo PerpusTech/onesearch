@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+import gzip
 import argparse
 import hashlib
 from collections import Counter, defaultdict
@@ -853,8 +854,10 @@ def main():
     os.makedirs(args.output, exist_ok=True)
     
     books_file = os.path.join(args.output, 'books.json')
+    # Strip empty values to minimize payload size
+    clean_books = [{k: v for k, v in b.items() if v not in ('', None, [])} for b in books]
     with open(books_file, 'w', encoding='utf-8') as f:
-        json.dump(books, f, ensure_ascii=False, separators=(',', ':'))
+        json.dump(clean_books, f, ensure_ascii=False, separators=(',', ':'))
     size_mb = os.path.getsize(books_file) / (1024 * 1024)
     print(f"   books.json: {size_mb:.1f} MB ({len(books)} books)")
     
@@ -875,6 +878,15 @@ def main():
         json.dump(prodi_index, f, ensure_ascii=False, separators=(',', ':'))
     size_kb = os.path.getsize(prodi_file) / 1024
     print(f"   prodi_index.json: {size_kb:.1f} KB ({len(prodi_index)} prodi)")
+
+    # Pre-compress JSON files for instant Nginx gzip_static delivery
+    for target in [books_file, subj_file, prodi_file, tree_file]:
+        try:
+            with open(target, 'rb') as f_in, gzip.open(target + '.gz', 'wb', compresslevel=9) as f_out:
+                f_out.write(f_in.read())
+        except Exception:
+            pass
+    print(f"   pre-compressed .gz archives generated for nginx gzip_static")
     
     # Save prodi meta (label, icon, dll — tanpa ids besar)
     prodi_meta_out = {kode: {k: v for k, v in info.items() if k != 'ids'}
