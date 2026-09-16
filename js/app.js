@@ -2904,7 +2904,7 @@ const app = {
                     </div>
                     <div class="fed-jrn-highlight-actions">
                         <span style="font-size:0.78rem; color:var(--ink-2);">Tersedia akses teks lengkap untuk sivitas akademika Universitas Muhammadiyah Surakarta</span>
-                        <a href="${this.esc(j.url || '#')}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access">
+                        <a href="${this.safeUrl(j.url)}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access">
                             <span>Buka Laman Jurnal (Akses Kampus / SSO) ↗</span>
                         </a>
                     </div>
@@ -2945,7 +2945,7 @@ const app = {
                         <button type="button" class="btn btn-ghost" style="padding:0.35rem 0.75rem; font-size:0.78rem;" onclick="app.showEBookDetail(${this.idAttr(b.id)})">
                             <span>Detail & Sitasi</span>
                         </button>
-                        <a href="${this.esc(b.url || '#')}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access">
+                        <a href="${this.safeUrl(b.url)}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access">
                             <span>Buka E-Book di Platform Resmi ↗</span>
                         </a>
                     </div>
@@ -3670,7 +3670,7 @@ const app = {
                                         Sitasi
                                     </button>
                                 </div>
-                                <a href="${this.esc(readUrl)}" target="_blank" rel="noopener" class="btn btn-xs btn-brand"
+                                <a href="${this.safeUrl(readUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-brand"
                                     style="padding:0.4rem 0.85rem; font-size:0.76rem; border-radius:var(--r-sm); display:inline-flex; align-items:center; gap:0.35rem; text-decoration:none;">
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -4051,7 +4051,7 @@ const app = {
                             </div>
                         </div>
                         <div class="fed-jrn-highlight-actions" style="margin-top:0.75rem; padding-top:0.5rem; border-top:1px dashed rgba(217, 119, 6, 0.25);">
-                            <a href="${this.esc(j.url || '#')}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access" style="font-size:0.78rem; padding:0.4rem 0.85rem;">
+                            <a href="${this.safeUrl(j.url)}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access" style="font-size:0.78rem; padding:0.4rem 0.85rem;">
                                 <span>Buka Laman Jurnal (Akses Kampus / SSO) ↗</span>
                             </a>
                         </div>
@@ -4084,7 +4084,7 @@ const app = {
                             <button type="button" class="btn btn-xs btn-ghost" style="padding:0.35rem 0.65rem; font-size:0.75rem;" onclick="app.showEBookDetail(${this.idAttr(b.id)})">
                                 <span>Detail & Sitasi</span>
                             </button>
-                            <a href="${this.esc(b.url || '#')}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access" style="font-size:0.78rem; padding:0.4rem 0.85rem; background:#1d4ed8;">
+                            <a href="${this.safeUrl(b.url)}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access" style="font-size:0.78rem; padding:0.4rem 0.85rem; background:#1d4ed8;">
                                 <span>Buka E-Book Platform Resmi ↗</span>
                             </a>
                         </div>
@@ -4210,7 +4210,7 @@ const app = {
                                         <button type="button" class="btn btn-xs btn-ghost" onclick="app.showArticleDetail(${this.idAttr(rawId)})" style="padding:0.25rem 0.55rem; font-size:0.72rem;">
                                             Sitasi
                                         </button>
-                                        <a href="${this.esc(readUrl)}" target="_blank" rel="noopener" class="btn btn-xs btn-brand"
+                                        <a href="${this.safeUrl(readUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-brand"
                                             style="padding:0.28rem 0.7rem; font-size:0.74rem; border-radius:var(--r-sm); display:inline-flex; align-items:center; gap:0.3rem; text-decoration:none;">
                                             <span>Buka E-Book ↗</span>
                                         </a>
@@ -4287,8 +4287,8 @@ const app = {
                         </div>
                         <div class="fed-card-footer">
                             <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.75rem; font-weight:600" onclick="app.showArticleDetail(${this.idAttr(rawId)})">📋 Detail & Sitasi</button>
-                            ${isSubscribed && subUrl ? `<a href="${this.esc(subUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-subscribed-campus" style="padding:2px 8px; font-size:.72rem;">Akses Kampus UMS ↗</a>` : ''}
-                            <a href="${doiUrl}" target="_blank" rel="noopener noreferrer" class="fed-card-doi-link">${doiBtnLabel}</a>
+                            ${isSubscribed && subUrl ? `<a href="${this.safeUrl(subUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-subscribed-campus" style="padding:2px 8px; font-size:.72rem;">Akses Kampus UMS ↗</a>` : ''}
+                            <a href="${this.safeUrl(doiUrl)}" target="_blank" rel="noopener noreferrer" class="fed-card-doi-link">${doiBtnLabel}</a>
                             <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.72rem" onclick="app.shareArticleById(${this.idAttr(rawId)})">Share</button>
                         </div>
                     </div>
@@ -5321,6 +5321,13 @@ const app = {
     // ──── Helpers ────
     fmt(n) { return new Intl.NumberFormat('id-ID').format(n); },
     esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; },
+    safeUrl(url) {
+        if (!url || typeof url !== 'string') return '#';
+        const trimmed = url.trim();
+        if (trimmed.startsWith('/') || trimmed.startsWith('#')) return this.esc(trimmed);
+        if (/^https?:\/\//i.test(trimmed)) return this.esc(trimmed);
+        return '#';
+    },
     hl(text, q) {
         if (!text) return '';
         const escapedText = this.esc(text);

@@ -7,6 +7,9 @@ import time
 import io
 import csv
 import threading
+import socket
+import ipaddress
+from urllib.parse import urlparse
 import requests
 from urllib3.util import Retry
 from requests.adapters import HTTPAdapter
@@ -47,6 +50,9 @@ HTTP_SESSION = _init_resilient_session()
 
 # ── PATHS & GLOBAL DIRECTORIES ──
 ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'ums-onesearch-secret-key').strip('"\'')
+if ADMIN_SECRET_KEY == 'ums-onesearch-secret-key':
+    print("\n[PERINGATAN KEAMANAN] ADMIN_SECRET_KEY masih menggunakan nilai default!")
+    print("Harap setel kata kunci unik di file .env (ADMIN_SECRET_KEY=...) sebelum dipakai di lingkungan produksi.\n")
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 LOGS_DIR = os.path.join(BASE_DIR, 'logs', 'harvest')
@@ -132,9 +138,115 @@ INITIAL_SUBSCRIBED_JOURNALS = [
 ]
 
 
+# ── SECURITY, ANTI-SSRF & RATE LIMITING HELPERS ──
+_admin_auth_attempts = {}
+_admin_auth_lock = threading.Lock()
+ADMIN_MAX_FAILURES = 5
+ADMIN_LOCKOUT_WINDOW = 60  # seconds
+
+def _is_admin_rate_limited(client_ip):
+    """Check if client IP is currently locked out due to repeated invalid admin keys."""
+    now = time.time()
+    with _admin_auth_lock:
+        failures = _admin_auth_attempts.get(client_ip, [])
+        failures = [t for t in failures if now - t < ADMIN_LOCKOUT_WINDOW]
+        _admin_auth_attempts[client_ip] = failures
+        return len(failures) >= ADMIN_MAX_FAILURES
+
+def _record_admin_failure(client_ip):
+    now = time.time()
+    with _admin_auth_lock:
+        if client_ip not in _admin_auth_attempts:
+            _admin_auth_attempts[client_ip] = []
+        _admin_auth_attempts[client_ip].append(now)
+
+def _reset_admin_failures(client_ip):
+    with _admin_auth_lock:
+        _admin_auth_attempts.pop(client_ip, None)
+
+def _is_safe_public_url(raw_url):
+    """Validate that raw_url is a well-formed HTTP/HTTPS URL pointing only to a public IP address,
+    preventing Server-Side Request Forgery (SSRF) to loopback, internal subnets, or metadata services.
+    """
+    if not raw_url:
+        return False, "Parameter URL kosong."
+    try:
+        parsed = urlparse(raw_url)
+    except Exception as e:
+        return False, f"URL tidak valid: {e}"
+
+    if parsed.scheme.lower() not in ('http', 'https'):
+        return False, "Hanya protokol HTTP dan HTTPS yang diperbolehkan."
+
+    hostname = (parsed.hostname or '').strip().lower()
+    if not hostname:
+        return False, "Nama host tidak ditemukan dalam URL."
+
+    # Block common loopback and cloud metadata hostnames
+    if hostname in ('localhost', 'metadata.google.internal', 'instance-data', '169.254.169.254'):
+        return False, "Akses ke host localhost atau metadata cloud dilarang."
+
+    try:
+        addr_info = socket.getaddrinfo(hostname, None)
+        if not addr_info:
+            return False, "Nama host tidak dapat diresolusi ke alamat IP."
+
+        for entry in addr_info:
+            ip_str = entry[4][0]
+            ip_obj = ipaddress.ip_address(ip_str)
+
+            if (
+                ip_obj.is_loopback or
+                ip_obj.is_private or
+                ip_obj.is_link_local or
+                ip_obj.is_multicast or
+                ip_obj.is_reserved or
+                ip_obj.is_unspecified
+            ):
+                return False, f"Akses ke alamat IP jaringan internal/lokal ({ip_str}) diblokir oleh kebijakan Anti-SSRF."
+    except socket.gaierror:
+        return False, "DNS gagal menemukan alamat IP untuk domain ini."
+    except Exception as e:
+        return False, f"Verifikasi Anti-SSRF gagal: {e}"
+
+    return True, ""
+
+def _is_valid_referer():
+    """Verify that request comes from the library portal, same host, or local dev (Anti-Hotlinking)."""
+    referer = request.headers.get('Referer', '').strip()
+    origin = request.headers.get('Origin', '').strip()
+    ref = referer or origin
+    if not ref:
+        # Direct browser address bar navigation without referrer is permitted
+        return True
+    try:
+        parsed = urlparse(ref)
+        hostname = (parsed.hostname or '').lower()
+        host_header = (request.host or '').split(':')[0].lower()
+        allowed = (
+            host_header,
+            'localhost',
+            '127.0.0.1',
+            'library.ums.ac.id',
+            'onesearch.ums.ac.id',
+            'perpus.ums.ac.id'
+        )
+        if hostname in allowed or hostname.endswith('.ums.ac.id'):
+            return True
+        return False
+    except Exception:
+        return False
+
 def _check_admin_auth():
-    """Verify admin secret key from header, query param, or JSON body using timing-safe comparison."""
+    """Verify admin secret key from header, query param, or JSON body using timing-safe comparison
+    and brute-force rate limiting.
+    """
+    client_ip = request.remote_addr or '127.0.0.1'
+    if _is_admin_rate_limited(client_ip):
+        return False
+
     if not ADMIN_SECRET_KEY:
+        _record_admin_failure(client_ip)
         return False
     auth_header = request.headers.get('X-Admin-Key', '').strip()
     if not auth_header:
@@ -151,8 +263,26 @@ def _check_admin_auth():
         pass
     provided = auth_header or query_key or body_key
     if not provided:
+        _record_admin_failure(client_ip)
         return False
-    return hmac.compare_digest(provided, ADMIN_SECRET_KEY)
+
+    is_valid = hmac.compare_digest(provided, ADMIN_SECRET_KEY)
+    if is_valid:
+        _reset_admin_failures(client_ip)
+        return True
+    else:
+        _record_admin_failure(client_ip)
+        return False
+
+def _admin_auth_failed_response():
+    """Return appropriate error response depending on whether client is rate-limited."""
+    client_ip = request.remote_addr or '127.0.0.1'
+    if _is_admin_rate_limited(client_ip):
+        return jsonify({
+            "error": "Terlalu banyak percobaan sandi yang salah. Akses ditangguhkan sementara selama 60 detik demi keamanan (Rate Limited).",
+            "retry_after": 60
+        }), 429
+    return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
 
 
 def _load_json_file(filepath, default=None):
@@ -1296,6 +1426,10 @@ def pdf_proxy():
     raw_url = request.args.get('url', '').strip()
     if not raw_url or not raw_url.startswith(('http://', 'https://')):
         return jsonify({"error": "Invalid or missing url parameter"}), 400
+
+    is_safe, reason = _is_safe_public_url(raw_url)
+    if not is_safe:
+        return jsonify({"error": f"Permintaan diblokir oleh kebijakan Anti-SSRF: {reason}"}), 403
     
     try:
         headers = {
@@ -2186,6 +2320,9 @@ def api_search_international_ebooks():
 @app.route('/api/ebooks/<ebk_id>/pdf')
 def api_ebook_stream_pdf(ebk_id):
     """Stream PDF for inline reading inside modal/iframe with permissive frame headers."""
+    if not _is_valid_referer():
+        return jsonify({"error": "Akses langsung dari situs luar (hotlinking) diblokir demi keamanan berkas e-book kampus."}), 403
+
     ebk_id = str(ebk_id).strip().upper()
     ebooks = _load_subscribed_ebooks()
     target = next((b for b in ebooks if b.get('id', '').upper() == ebk_id and b.get('active', True)), None)
@@ -2213,6 +2350,9 @@ def api_ebook_stream_pdf(ebk_id):
 @app.route('/api/ebooks/<ebk_id>/pdf/download')
 def api_ebook_download_pdf(ebk_id):
     """Direct attachment download of e-book PDF."""
+    if not _is_valid_referer():
+        return jsonify({"error": "Akses langsung dari situs luar (hotlinking) diblokir demi keamanan berkas e-book kampus."}), 403
+
     ebk_id = str(ebk_id).strip().upper()
     ebooks = _load_subscribed_ebooks()
     target = next((b for b in ebooks if b.get('id', '').upper() == ebk_id and b.get('active', True)), None)
