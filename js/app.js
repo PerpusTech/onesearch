@@ -3391,6 +3391,31 @@ const app = {
 
         // Trigger Automated Smart Multi-Source Discovery in parallel
         this.fetchAutoFederatedInsights(q, results.length);
+
+        // Anonymous query & zero-result analytics logger
+        this.logSearchAnalytics(q, results.length);
+    },
+
+    _analyticsTimer: null,
+    _lastLoggedQuery: '',
+    logSearchAnalytics(q, count) {
+        if (!q || typeof q !== 'string') return;
+        const cleanQ = q.trim().toLowerCase().replace(/\s+/g, ' ');
+        if (cleanQ.length < 3) return;
+        if (this._lastLoggedQuery === cleanQ) return;
+
+        clearTimeout(this._analyticsTimer);
+        this._analyticsTimer = setTimeout(() => {
+            this._lastLoggedQuery = cleanQ;
+            try {
+                fetch('/api/analytics/log', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    keepalive: true,
+                    body: JSON.stringify({ query: cleanQ, count: count })
+                }).catch(() => {});
+            } catch (e) { }
+        }, 1500);
     },
 
     fetchAutoFederatedInsights(q, localCount = 0) {

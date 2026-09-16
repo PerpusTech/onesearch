@@ -56,6 +56,8 @@ SUBSCRIBED_JOURNALS_FILE = os.path.join(DATA_DIR, 'subscribed_journals.json')
 SUBSCRIBED_EBOOKS_FILE = os.path.join(DATA_DIR, 'subscribed_ebooks.json')
 SUBSCRIBED_EBOOKS_PDF_DIR = os.path.join(DATA_DIR, 'ebooks_pdf')
 os.makedirs(SUBSCRIBED_EBOOKS_PDF_DIR, exist_ok=True)
+SEARCH_ANALYTICS_FILE = os.path.join(DATA_DIR, 'search_analytics.json')
+_analytics_lock = threading.Lock()
 
 DEFAULT_INTERNATIONAL_CONFIG = {
     "enabled": True,
@@ -2658,6 +2660,169 @@ def admin_test_institution_oai():
             "ok": False,
             "message": f"Gagal menghubungi endpoint: {str(e)}"
         })
+
+
+# ── SEARCH ANALYTICS & ZERO-RESULT TRACKER ──
+def _load_search_analytics():
+    if os.path.exists(SEARCH_ANALYTICS_FILE):
+        try:
+            with open(SEARCH_ANALYTICS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "summary": {
+            "total_searches": 0,
+            "zero_result_searches": 0,
+            "last_updated": ""
+        },
+        "top_queries": {},
+        "zero_result_queries": {}
+    }
+
+
+def _save_search_analytics(data):
+    try:
+        tmp = SEARCH_ANALYTICS_FILE + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, SEARCH_ANALYTICS_FILE)
+    except Exception as e:
+        print(f"[ANALYTICS] Error saving: {e}")
+
+
+@app.route('/api/analytics/log', methods=['POST'])
+def log_search_query():
+    """Anonymous search query logger with zero PII/IP logging."""
+    data = request.get_json(silent=True) or {}
+    query = str(data.get('query') or '').strip().lower()
+    query = ' '.join(query.split())
+    if len(query) < 3 or len(query) > 80:
+        return jsonify({"ok": False, "message": "Query ignored"}), 200
+
+    count = 0
+    try:
+        count = int(data.get('count', 0))
+    except (ValueError, TypeError):
+        count = 0
+
+    now_iso = datetime.now().isoformat()
+    now_date = datetime.now().strftime('%Y-%m-%d')
+
+    with _analytics_lock:
+        analytics = _load_search_analytics()
+        summary = analytics.setdefault("summary", {"total_searches": 0, "zero_result_searches": 0, "last_updated": ""})
+        summary["total_searches"] = summary.get("total_searches", 0) + 1
+        summary["last_updated"] = now_iso
+
+        top_queries = analytics.setdefault("top_queries", {})
+        top_item = top_queries.setdefault(query, {"count": 0, "last": now_date})
+        top_item["count"] += 1
+        top_item["last"] = now_date
+
+        if count == 0:
+            summary["zero_result_searches"] = summary.get("zero_result_searches", 0) + 1
+            zero_queries = analytics.setdefault("zero_result_queries", {})
+            zero_item = zero_queries.setdefault(query, {"count": 0, "last": now_date})
+            zero_item["count"] += 1
+            zero_item["last"] = now_date
+
+        if len(top_queries) > 500:
+            sorted_top = sorted(top_queries.items(), key=lambda x: x[1]['count'], reverse=True)[:500]
+            analytics["top_queries"] = dict(sorted_top)
+        if len(analytics.get("zero_result_queries", {})) > 500:
+            sorted_zero = sorted(analytics["zero_result_queries"].items(), key=lambda x: x[1]['count'], reverse=True)[:500]
+            analytics["zero_result_queries"] = dict(sorted_zero)
+
+        _save_search_analytics(analytics)
+
+    return jsonify({"ok": True})
+
+
+@app.route('/api/admin/analytics/summary', methods=['GET'])
+def admin_analytics_summary():
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    with _analytics_lock:
+        data = _load_search_analytics()
+
+    summary = data.get("summary", {"total_searches": 0, "zero_result_searches": 0, "last_updated": ""})
+    total = summary.get("total_searches", 0)
+    zero_total = summary.get("zero_result_searches", 0)
+    zero_pct = round((zero_total / total * 100), 1) if total > 0 else 0.0
+
+    top_list = [
+        {"query": q, "count": info["count"], "last": info.get("last", "")}
+        for q, info in data.get("top_queries", {}).items()
+    ]
+    top_list.sort(key=lambda x: x["count"], reverse=True)
+
+    zero_list = [
+        {"query": q, "count": info["count"], "last": info.get("last", "")}
+        for q, info in data.get("zero_result_queries", {}).items()
+    ]
+    zero_list.sort(key=lambda x: x["count"], reverse=True)
+
+    return jsonify({
+        "ok": True,
+        "summary": {
+            "total_searches": total,
+            "zero_result_searches": zero_total,
+            "zero_result_pct": zero_pct,
+            "last_updated": summary.get("last_updated", "")
+        },
+        "top_queries": top_list[:50],
+        "zero_result_queries": zero_list[:50]
+    })
+
+
+@app.route('/api/admin/analytics/export', methods=['GET'])
+def admin_analytics_export():
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    with _analytics_lock:
+        data = _load_search_analytics()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Kategori", "Kata Kunci Pencarian", "Frekuensi Dicari", "Terakhir Dicari"])
+
+    top_queries = sorted(data.get("top_queries", {}).items(), key=lambda x: x[1]['count'], reverse=True)
+    for q, info in top_queries:
+        writer.writerow(["Populer", q, info.get("count", 0), info.get("last", "")])
+
+    zero_queries = sorted(data.get("zero_result_queries", {}).items(), key=lambda x: x[1]['count'], reverse=True)
+    for q, info in zero_queries:
+        writer.writerow(["Zero Result (Tidak Ditemukan)", q, info.get("count", 0), info.get("last", "")])
+
+    date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment;filename=analitik_pencarian_{date_str}.csv"}
+    )
+
+
+@app.route('/api/admin/analytics/reset', methods=['POST'])
+def admin_analytics_reset():
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    with _analytics_lock:
+        data = {
+            "summary": {
+                "total_searches": 0,
+                "zero_result_searches": 0,
+                "last_updated": datetime.now().isoformat()
+            },
+            "top_queries": {},
+            "zero_result_queries": {}
+        }
+        _save_search_analytics(data)
+
+    return jsonify({"ok": True, "message": "Log analitik pencarian berhasil direset."})
 
 
 if __name__ == '__main__':

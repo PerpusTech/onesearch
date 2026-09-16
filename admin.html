@@ -1022,6 +1022,16 @@
                     </svg>
                     <span>Widget Embed WordPress</span>
                 </button>
+                <button type="button" class="btn btn-xs admin-tab-btn" id="tab-btn-analytics"
+                    onclick="switchAdminTab('analytics')"
+                    style="font-weight:600; padding:0.45rem 0.85rem; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:0.45rem;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    <span>Analitik Pencarian</span>
+                </button>
             </div>
 
             <!-- TAB 1: HARVESTER & LOCAL REPOSITORY -->
@@ -1781,6 +1791,119 @@
 
             </div>
 
+            <!-- TAB 5: SEARCH ANALYTICS & ZERO-RESULT TRACKER -->
+            <div id="view-analytics" style="display:none; flex-direction:column; gap:1.75rem;">
+                <!-- Action Bar -->
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+                    <div>
+                        <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0 0 0.25rem 0;">Laporan Tren Kata Kunci & Usulan Pengadaan Buku</h2>
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Merekam kata kunci pencarian sivitas akademika secara anonim untuk evaluasi kurikulum & pengadaan koleksi pustaka UMS.</p>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <button type="button" class="btn btn-xs" onclick="loadSearchAnalytics()" title="Muat ulang data analitik">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 4v6h-6M1 20v-6h6"></path>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                            Refresh
+                        </button>
+                        <button type="button" class="btn btn-xs btn-primary" onclick="downloadAnalyticsCSV()" title="Unduh laporan dalam format CSV / Excel">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" x2="12" y1="15" y2="3" />
+                            </svg>
+                            Unduh Laporan (.csv)
+                        </button>
+                        <button type="button" class="btn btn-xs btn-danger" onclick="resetSearchAnalytics()" title="Reset data log analitik">
+                            Reset Log
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Metrics Overview -->
+                <div class="metrics-grid">
+                    <div class="card">
+                        <div class="card-label">Total Pencarian Anonim</div>
+                        <div class="card-value" id="metric-analytics-total">0</div>
+                        <div class="card-sub">Akumulasi pencarian katalog</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Pencarian Tanpa Hasil (Zero-Result)</div>
+                        <div class="card-value" id="metric-analytics-zero" style="color:var(--color-danger, #ef4444);">0</div>
+                        <div class="card-sub">Koleksi belum ada di UMS</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Tingkat Pencarian Tanpa Hasil</div>
+                        <div class="card-value" id="metric-analytics-zero-pct">0%</div>
+                        <div class="card-sub">Rasio dari total pencarian</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Pembaruan Terakhir</div>
+                        <div class="card-value" id="metric-analytics-last" style="font-size:0.95rem;">-</div>
+                        <div class="card-sub">Waktu log pencarian terbaru</div>
+                    </div>
+                </div>
+
+                <!-- Two-Column Grid: Popular Queries vs Zero-Result Queries -->
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap:1.5rem;">
+                    <!-- Left: Top Popular Queries -->
+                    <div class="card" style="padding:1.25rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border-main); padding-bottom:0.75rem;">
+                            <div>
+                                <h3 style="font-size:0.95rem; font-weight:700; color:var(--text-main); margin:0;">Top 20 Kata Kunci Populer</h3>
+                                <p style="font-size:0.75rem; color:var(--text-muted); margin:2px 0 0 0;">Topik & judul yang paling diminati mahasiswa</p>
+                            </div>
+                            <span class="badge badge-neutral">Tren Minat</span>
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table class="data-table" style="width:100%; font-size:0.8rem;">
+                                <thead>
+                                    <tr>
+                                        <th style="width:45px; text-align:center;">#</th>
+                                        <th>Kata Kunci Pencarian</th>
+                                        <th style="text-align:right; width:90px;">Frekuensi</th>
+                                        <th style="text-align:right; width:110px;">Terakhir Dicari</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analytics-top-tbody">
+                                    <tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--text-muted);">Memuat data tren...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Right: Zero-Result Queries (Procurement Opportunity) -->
+                    <div class="card" style="padding:1.25rem; border-color: rgba(239, 68, 68, 0.25);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:1px solid var(--border-main); padding-bottom:0.75rem;">
+                            <div>
+                                <h3 style="font-size:0.95rem; font-weight:700; color:var(--color-danger, #ef4444); margin:0;">Top 20 Kata Kunci Tanpa Hasil (Zero-Result)</h3>
+                                <p style="font-size:0.75rem; color:var(--text-muted); margin:2px 0 0 0;">Pencarian yang menghasilkan 0 buku di katalog</p>
+                            </div>
+                            <span class="badge badge-danger">Usulan Pengadaan</span>
+                        </div>
+                        <div style="background:rgba(239, 68, 68, 0.05); border-left:3px solid #ef4444; padding:0.6rem 0.75rem; border-radius:var(--radius-xs); margin-bottom:1rem; font-size:0.75rem; color:var(--text-muted); line-height:1.45;">
+                            <strong style="color:var(--text-main);">Rekomendasi Pustakawan:</strong> Data di bawah menunjukkan buku yang dibutuhkan sivitas akademika namun belum dimiliki perpustakaan. Jadikan sebagai prioritas belanja buku baru.
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table class="data-table" style="width:100%; font-size:0.8rem;">
+                                <thead>
+                                    <tr>
+                                        <th style="width:45px; text-align:center;">#</th>
+                                        <th>Kata Kunci Tanpa Hasil</th>
+                                        <th style="text-align:right; width:90px;">Frekuensi</th>
+                                        <th style="text-align:right; width:110px;">Terakhir Dicari</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analytics-zero-tbody">
+                                    <tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--text-muted);">Memuat data zero-result...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </main>
 
         <!-- Modal: Hasil Uji OAI-PMH -->
@@ -2476,10 +2599,12 @@
                 const btnIntl = document.getElementById('tab-btn-international');
                 const btnEbooks = document.getElementById('tab-btn-ebooks');
                 const btnEmbed = document.getElementById('tab-btn-embed');
+                const btnAnalytics = document.getElementById('tab-btn-analytics');
                 const viewHarvest = document.getElementById('view-harvest');
                 const viewIntl = document.getElementById('view-international');
                 const viewEbooks = document.getElementById('view-ebooks');
                 const viewEmbed = document.getElementById('view-embed');
+                const viewAnalytics = document.getElementById('view-analytics');
                 const pageTitle = document.getElementById('page-main-title');
                 const pageDesc = document.getElementById('page-main-desc');
 
@@ -2487,11 +2612,13 @@
                 if (btnIntl) btnIntl.classList.toggle('active', tab === 'international');
                 if (btnEbooks) btnEbooks.classList.toggle('active', tab === 'ebooks');
                 if (btnEmbed) btnEmbed.classList.toggle('active', tab === 'embed');
+                if (btnAnalytics) btnAnalytics.classList.toggle('active', tab === 'analytics');
 
                 if (viewHarvest) viewHarvest.style.display = tab === 'harvest' ? 'flex' : 'none';
                 if (viewIntl) viewIntl.style.display = tab === 'international' ? 'flex' : 'none';
                 if (viewEbooks) viewEbooks.style.display = tab === 'ebooks' ? 'flex' : 'none';
                 if (viewEmbed) viewEmbed.style.display = tab === 'embed' ? 'flex' : 'none';
+                if (viewAnalytics) viewAnalytics.style.display = tab === 'analytics' ? 'flex' : 'none';
 
                 if (tab === 'international') {
                     pageTitle.textContent = 'Manajemen Jurnal Internasional & E-Resources';
@@ -2506,6 +2633,10 @@
                     pageTitle.textContent = 'Widget Embed & Integrasi WordPress';
                     pageDesc.textContent = 'Kustomisasi dan salin kode kotak pencarian UMS Library OneSearch untuk dipasang di website WordPress, portal fakultas, atau blog.';
                     initEmbedGenerator();
+                } else if (tab === 'analytics') {
+                    pageTitle.textContent = 'Analisis Tren Pencarian & Usulan Pengadaan';
+                    pageDesc.textContent = 'Wawasan kata kunci pencarian sivitas akademika dan daftar buku yang belum tersedia (zero-result) untuk prioritas belanja pustaka.';
+                    loadSearchAnalytics();
                 } else {
                     pageTitle.textContent = 'Harvester & Repository Management';
                     pageDesc.textContent = 'Monitoring sinkronisasi otomatis OAI-PMH katalog Koha, EPrints, Jurnal, dan institusi mitra.';
@@ -4125,6 +4256,83 @@
             function downloadEBookTemplate() {
                 const url = adminKey ? `/api/admin/international/ebooks/template?key=${encodeURIComponent(adminKey)}` : '/api/admin/international/ebooks/template';
                 window.open(url, '_blank');
+            }
+
+            // ── Search Analytics Logic ──
+            async function loadSearchAnalytics() {
+                try {
+                    const res = await adminFetch('/api/admin/analytics/summary');
+                    const data = await res.json();
+                    if (!data.ok) return;
+
+                    const s = data.summary || {};
+                    const totalEl = document.getElementById('metric-analytics-total');
+                    const zeroEl = document.getElementById('metric-analytics-zero');
+                    const pctEl = document.getElementById('metric-analytics-zero-pct');
+                    const lastEl = document.getElementById('metric-analytics-last');
+
+                    if (totalEl) totalEl.textContent = (s.total_searches || 0).toLocaleString('id-ID');
+                    if (zeroEl) zeroEl.textContent = (s.zero_result_searches || 0).toLocaleString('id-ID');
+                    if (pctEl) pctEl.textContent = (s.zero_result_pct || 0) + '%';
+                    if (lastEl) lastEl.textContent = s.last_updated ? formatRelative(s.last_updated) : '-';
+
+                    // Render Top Queries
+                    const topTbody = document.getElementById('analytics-top-tbody');
+                    if (topTbody) {
+                        if (!data.top_queries || data.top_queries.length === 0) {
+                            topTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">Belum ada data pencarian tercatat.</td></tr>';
+                        } else {
+                            topTbody.innerHTML = data.top_queries.map((item, idx) => `
+                                <tr>
+                                    <td style="width:45px; text-align:center; font-weight:600; color:var(--text-muted);">${idx + 1}</td>
+                                    <td><strong style="color:var(--text-main); font-size:0.85rem;">${esc(item.query)}</strong></td>
+                                    <td style="text-align:right;"><span class="badge badge-neutral" style="font-weight:600;">${item.count}x</span></td>
+                                    <td style="text-align:right; font-size:0.75rem; color:var(--text-muted);">${esc(item.last) || '-'}</td>
+                                </tr>
+                            `).join('');
+                        }
+                    }
+
+                    // Render Zero-Result Queries
+                    const zeroTbody = document.getElementById('analytics-zero-tbody');
+                    if (zeroTbody) {
+                        if (!data.zero_result_queries || data.zero_result_queries.length === 0) {
+                            zeroTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">Belum ada kata kunci tanpa hasil tercatat.</td></tr>';
+                        } else {
+                            zeroTbody.innerHTML = data.zero_result_queries.map((item, idx) => `
+                                <tr>
+                                    <td style="width:45px; text-align:center; font-weight:600; color:var(--text-muted);">${idx + 1}</td>
+                                    <td><strong style="color:var(--color-danger, #ef4444); font-size:0.85rem;">${esc(item.query)}</strong></td>
+                                    <td style="text-align:right;"><span class="badge badge-danger" style="font-weight:600;">${item.count}x</span></td>
+                                    <td style="text-align:right; font-size:0.75rem; color:var(--text-muted);">${esc(item.last) || '-'}</td>
+                                </tr>
+                            `).join('');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Gagal memuat analitik pencarian:', e);
+                }
+            }
+
+            function downloadAnalyticsCSV() {
+                const url = adminKey ? `/api/admin/analytics/export?key=${encodeURIComponent(adminKey)}` : '/api/admin/analytics/export';
+                window.open(url, '_blank');
+            }
+
+            async function resetSearchAnalytics() {
+                if (!confirm('Apakah Anda yakin ingin mereset seluruh data log pencarian dan zero-result? Aksi ini tidak dapat dibatalkan.')) return;
+                try {
+                    const res = await adminFetch('/api/admin/analytics/reset', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.ok) {
+                        showToast('Log analitik pencarian berhasil direset.');
+                        loadSearchAnalytics();
+                    } else {
+                        showToast(data.error || 'Gagal mereset analitik.');
+                    }
+                } catch (e) {
+                    showToast('Terjadi kesalahan saat mereset analitik.');
+                }
             }
 
             // ── Utilities ──
