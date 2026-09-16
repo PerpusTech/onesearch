@@ -5101,9 +5101,53 @@ mark.kw-highlight,
     color: #ffffff;
 }
 
+/* Federated E-Books Horizontal Scroll Rail */
+.fed-ebooks-scroll-rail {
+    display: flex;
+    overflow-x: auto;
+    gap: 0.85rem;
+    padding-bottom: 0.65rem;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.fed-ebooks-scroll-rail::-webkit-scrollbar {
+    height: 6px;
+}
+
+.fed-ebooks-scroll-rail::-webkit-scrollbar-track {
+    background: var(--bg-2, #f1f5f9);
+    border-radius: 4px;
+}
+
+.fed-ebooks-scroll-rail::-webkit-scrollbar-thumb {
+    background: var(--border, #cbd5e1);
+    border-radius: 4px;
+}
+
+.fed-ebooks-scroll-rail::-webkit-scrollbar-thumb:hover {
+    background: var(--ink-3, #64748b);
+}
+
+.fed-ebooks-scroll-rail .ebk-card {
+    flex: 0 0 280px;
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
+    scroll-snap-align: start;
+    box-sizing: border-box;
+}
+
 @media (max-width: 640px) {
     .ebook-grid,
     .ejournal-grid {
         grid-template-columns: 1fr;
+    }
+    .fed-ebooks-scroll-rail .ebk-card {
+        flex: 0 0 260px;
+        width: 260px;
+        min-width: 260px;
+        max-width: 260px;
     }
 }

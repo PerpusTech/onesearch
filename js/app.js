@@ -2396,7 +2396,7 @@ const app = {
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1.5rem; flex-wrap:wrap">
                     <div style="flex:1; min-width:260px">
                         <h3 style="font-size:1rem; margin-bottom:.85rem; font-weight:700">Format Sitasi Otomatis</h3>
-                        ${this.renderCiteGroups({a: authors, t: title, yr, pub, doi: validDoi, url: linkUrl})}
+                        ${this.renderCiteGroups({ a: authors, t: title, yr, pub, doi: validDoi, url: linkUrl })}
                         <div style="margin-top:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
                             <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.8rem; padding:0.35rem 0.8rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .RIS untuk Mendeley, Zotero, EndNote">
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -2753,6 +2753,13 @@ const app = {
         this.applyFiltersAndRender();
         document.getElementById('results-wrap').style.display = 'block';
         document.getElementById('results-wrap').scrollIntoView({ behavior: 'smooth' });
+    },
+
+    scrollFedEbooks(direction) {
+        const rail = document.getElementById('fed-ebooks-scroll-rail');
+        if (rail) {
+            rail.scrollBy({ left: direction * 300, behavior: 'smooth' });
+        }
     },
 
     // ──── Federated International Journal Discovery & Filtering ────
@@ -3435,8 +3442,8 @@ const app = {
     renderFedPaginationHtml(curPage, totalPages, srcObj) {
         if (totalPages <= 1) return '';
         let html = '';
-        const fnCall = (srcObj && srcObj.type === 'remote_ebooks') 
-            ? 'app.fetchInternationalEBooksDiscovery' 
+        const fnCall = (srcObj && srcObj.type === 'remote_ebooks')
+            ? 'app.fetchInternationalEBooksDiscovery'
             : 'app.fetchFederatedDiscovery';
 
         // First & Prev
@@ -3588,18 +3595,18 @@ const app = {
             listEl.innerHTML = `
                 <div class="ebook-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-top: 0.5rem;">
                     ${items.map(it => {
-                        const rawId = String(it.id);
-                        const isBm = this.bookmarks && this.bookmarks.has(rawId);
-                        const readUrl = it.pdf_url || it.url || '#';
-                        const yearStr = it.year ? String(it.year) : '';
-                        const authorStr = it.authors || 'Penulis Tidak Disebutkan';
-                        const badgeSource = it.source_badge || 'DOAB';
-                        const sourceColor = badgeSource === 'DOAB' ? '#059669' : (badgeSource === 'OpenAlex' ? '#2563eb' : '#7c3aed');
-                        const sourceBg = badgeSource === 'DOAB' ? 'rgba(16,185,129,0.12)' : (badgeSource === 'OpenAlex' ? 'rgba(37,99,235,0.12)' : 'rgba(124,58,237,0.12)');
+                const rawId = String(it.id);
+                const isBm = this.bookmarks && this.bookmarks.has(rawId);
+                const readUrl = it.pdf_url || it.url || '#';
+                const yearStr = it.year ? String(it.year) : '';
+                const authorStr = it.authors || 'Penulis Tidak Disebutkan';
+                const badgeSource = it.source_badge || 'DOAB';
+                const sourceColor = badgeSource === 'DOAB' ? '#059669' : (badgeSource === 'OpenAlex' ? '#2563eb' : '#7c3aed');
+                const sourceBg = badgeSource === 'DOAB' ? 'rgba(16,185,129,0.12)' : (badgeSource === 'OpenAlex' ? 'rgba(37,99,235,0.12)' : 'rgba(124,58,237,0.12)');
 
-                        let coverHtml = '';
-                        if (it.cover_url) {
-                            coverHtml = `
+                let coverHtml = '';
+                if (it.cover_url) {
+                    coverHtml = `
                                 <div class="ebk-cover-box">
                                     <img src="${this.esc(it.cover_url)}" alt="Cover ${this.esc(it.title)}" class="ebk-cover-img" loading="lazy"
                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -3611,8 +3618,8 @@ const app = {
                                         <span>E-BOOK</span>
                                     </div>
                                 </div>`;
-                        } else {
-                            coverHtml = `
+                } else {
+                    coverHtml = `
                                 <div class="ebk-cover-box">
                                     <div class="ebk-cover-fallback">
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -3622,9 +3629,9 @@ const app = {
                                         <span>OPEN ACCESS</span>
                                     </div>
                                 </div>`;
-                        }
+                }
 
-                        return `
+                return `
                         <div class="ebk-card" data-ebk-id="${this.esc(rawId)}">
                             <div>
                                 <div class="ebk-card-main">
@@ -3674,7 +3681,7 @@ const app = {
                                 </a>
                             </div>
                         </div>`;
-                    }).join('')}
+            }).join('')}
                 </div>
             `;
 
@@ -3936,7 +3943,7 @@ const app = {
                     headers: { 'Content-Type': 'application/json' },
                     keepalive: true,
                     body: JSON.stringify({ query: cleanQ, count: count })
-                }).catch(() => {});
+                }).catch(() => { });
             } catch (e) { }
         }, 1500);
     },
@@ -3977,7 +3984,7 @@ const app = {
         const reqOpenAlex = fetch(`/api/federated?source=openalex&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
         const reqCrossref = fetch(`/api/federated?source=crossref&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
         const reqSpringer = fetch(`/api/federated?source=springer&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
-        const reqIntlEbooks = isIntlEbooksActive 
+        const reqIntlEbooks = isIntlEbooksActive
             ? fetch(`/api/international/ebooks/search?q=${queryTerm}&page=1&rows=3`).then(r => r.json()).catch(() => null)
             : Promise.resolve(null);
 
@@ -4085,7 +4092,7 @@ const app = {
             if (intlEbooksItems.length > 0) {
                 intlEbooksSectionHtml = `
                     <div class="fed-ebooks-insight-section" style="margin-bottom:1.5rem; padding-bottom:1.25rem; border-bottom:1px dashed var(--border);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.85rem; flex-wrap:wrap; gap:0.5rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap; gap:0.5rem;">
                             <div>
                                 <div style="display:flex; align-items:center; gap:0.45rem; font-size:0.96rem; font-weight:700; color:var(--ink);">
                                     <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:rgba(37,99,235,0.12); color:var(--brand);">
@@ -4095,47 +4102,52 @@ const app = {
                                 </div>
                                 <p style="font-size:0.78rem; color:var(--ink-3); margin:2px 0 0 1.95rem;">Tersedia <strong>${this.fmt(intlEbooksTotal)} e-book full-text Open Access</strong> dari DOAB, OpenAlex, dan Open Library</p>
                             </div>
-                            <button type="button" class="btn btn-xs btn-ghost" onclick="app.selectFedSource('intl_ebooks')" style="font-size:0.75rem; display:inline-flex; align-items:center; gap:0.35rem; font-weight:600;">
-                                <span>Lihat Seluruh E-Book (${this.fmt(intlEbooksTotal)}) →</span>
-                            </button>
-                        <div class="ebook-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:0.85rem;">
-                            ${intlEbooksItems.slice(0, 2).map(it => {
-                                const rawId = String(it.id);
-                                const isBm = this.bookmarks && this.bookmarks.has(rawId);
-                                const readUrl = it.pdf_url || it.url || '#';
-                                const yearStr = it.year ? String(it.year) : '';
-                                const authorStr = it.authors || 'Penulis Tidak Disebutkan';
-                                const badgeSource = it.source_badge || 'DOAB';
-                                const sourceColor = badgeSource === 'DOAB' ? '#059669' : (badgeSource === 'OpenAlex' ? '#2563eb' : '#7c3aed');
-                                const sourceBg = badgeSource === 'DOAB' ? 'rgba(16,185,129,0.12)' : (badgeSource === 'OpenAlex' ? 'rgba(37,99,235,0.12)' : 'rgba(124,58,237,0.12)');
+                            <div style="display:flex; align-items:center; gap:0.35rem;">
+                                <button type="button" class="btn btn-xs btn-ghost" onclick="app.scrollFedEbooks(-1)" title="Geser ke kiri" style="padding:0.25rem 0.5rem; border:1px solid var(--border); border-radius:var(--r-sm); font-size:0.72rem; line-height:1; display:inline-flex; align-items:center; cursor:pointer;" aria-label="Geser ke kiri">◀</button>
+                                <button type="button" class="btn btn-xs btn-ghost" onclick="app.scrollFedEbooks(1)" title="Geser ke kanan" style="padding:0.25rem 0.5rem; border:1px solid var(--border); border-radius:var(--r-sm); font-size:0.72rem; line-height:1; display:inline-flex; align-items:center; cursor:pointer;" aria-label="Geser ke kanan">▶</button>
+                                <button type="button" class="btn btn-xs btn-ghost" onclick="app.selectFedSource('intl_ebooks')" style="font-size:0.75rem; display:inline-flex; align-items:center; gap:0.35rem; font-weight:600;">
+                                    <span>Lihat Semua (${this.fmt(intlEbooksTotal)}) →</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="fed-ebooks-scroll-rail" class="fed-ebooks-scroll-rail" style="display:flex; overflow-x:auto; gap:0.85rem; padding-bottom:0.65rem; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:thin;">
+                            ${intlEbooksItems.slice(0, 8).map(it => {
+                    const rawId = String(it.id);
+                    const isBm = this.bookmarks && this.bookmarks.has(rawId);
+                    const readUrl = it.pdf_url || it.url || '#';
+                    const yearStr = it.year ? String(it.year) : '';
+                    const authorStr = it.authors || 'Penulis Tidak Disebutkan';
+                    const badgeSource = it.source_badge || 'DOAB';
+                    const sourceColor = badgeSource === 'DOAB' ? '#059669' : (badgeSource === 'OpenAlex' ? '#2563eb' : '#7c3aed');
+                    const sourceBg = badgeSource === 'DOAB' ? 'rgba(16,185,129,0.12)' : (badgeSource === 'OpenAlex' ? 'rgba(37,99,235,0.12)' : 'rgba(124,58,237,0.12)');
 
-                                const itemObj = {
-                                    id: it.id,
-                                    title: it.title,
-                                    t: it.title,
-                                    authors: it.authors,
-                                    a: it.authors,
-                                    year: it.year,
-                                    y: it.year,
-                                    publisher: it.publisher,
-                                    publicationName: it.publisher,
-                                    contentType: 'International E-Book',
-                                    type: 'eBook',
-                                    source: it.source,
-                                    url: it.url || it.pdf_url,
-                                    pdf_url: it.pdf_url,
-                                    cover_url: it.cover_url,
-                                    abstract: it.abstract,
-                                    is_oa: true,
-                                    openAccess: true
-                                };
-                                if (!this._fedRawItems) this._fedRawItems = [];
-                                if (!this._fedRawItems.find(x => String(x.id) === rawId)) this._fedRawItems.push(itemObj);
-                                this.registerArticle(itemObj);
+                    const itemObj = {
+                        id: it.id,
+                        title: it.title,
+                        t: it.title,
+                        authors: it.authors,
+                        a: it.authors,
+                        year: it.year,
+                        y: it.year,
+                        publisher: it.publisher,
+                        publicationName: it.publisher,
+                        contentType: 'International E-Book',
+                        type: 'eBook',
+                        source: it.source,
+                        url: it.url || it.pdf_url,
+                        pdf_url: it.pdf_url,
+                        cover_url: it.cover_url,
+                        abstract: it.abstract,
+                        is_oa: true,
+                        openAccess: true
+                    };
+                    if (!this._fedRawItems) this._fedRawItems = [];
+                    if (!this._fedRawItems.find(x => String(x.id) === rawId)) this._fedRawItems.push(itemObj);
+                    this.registerArticle(itemObj);
 
-                                let coverHtml = '';
-                                if (it.cover_url) {
-                                    coverHtml = `
+                    let coverHtml = '';
+                    if (it.cover_url) {
+                        coverHtml = `
                                         <div class="ebk-cover-box" style="width:50px; height:70px; flex-shrink:0;">
                                             <img src="${this.esc(it.cover_url)}" alt="Cover ${this.esc(it.title)}" class="ebk-cover-img" loading="lazy"
                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -4143,39 +4155,40 @@ const app = {
                                                 <span>E-BOOK</span>
                                             </div>
                                         </div>`;
-                                } else {
-                                    coverHtml = `
+                    } else {
+                        coverHtml = `
                                         <div class="ebk-cover-box" style="width:50px; height:70px; flex-shrink:0;">
                                             <div class="ebk-cover-fallback" style="font-size:0.58rem;">
                                                 <span>OPEN ACCESS</span>
                                             </div>
                                         </div>`;
-                                }
+                    }
 
-                                return `
-                                <div class="ebk-card" data-ebk-id="${this.esc(rawId)}" style="padding:0.85rem;">
+                    return `
+                                <div class="ebk-card" data-ebk-id="${this.esc(rawId)}" style="flex:0 0 280px; width:280px; min-width:280px; max-width:280px; scroll-snap-align:start; padding:0.85rem; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box;">
                                     <div>
-                                        <div class="ebk-card-main" style="gap:0.75rem;">
+                                        <div class="ebk-card-main" style="gap:0.75rem; display:flex; align-items:flex-start;">
                                             ${coverHtml}
-                                            <div class="ebk-info-box">
-                                                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.35rem; margin-bottom:0.2rem;">
+                                            <div class="ebk-info-box" style="flex:1; min-width:0;">
+                                                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.35rem; margin-bottom:0.25rem;">
                                                     <div style="display:flex; gap:0.25rem; flex-wrap:wrap; align-items:center;">
                                                         <span class="chip" style="background:${sourceBg}; color:${sourceColor}; font-weight:700; font-size:0.65rem; padding:1px 5px;">${this.esc(badgeSource)}</span>
-                                                        <span class="chip" style="background:rgba(16,185,129,0.12); color:#059669; font-weight:600; font-size:0.65rem; padding:1px 5px;">Open Access</span>
+                                                        <span class="chip" style="background:rgba(16,185,129,0.12); color:#059669; font-weight:600; font-size:0.65rem; padding:1px 5px;">OA</span>
                                                     </div>
                                                     <button type="button" class="star-btn ${isBm ? 'active' : ''}"
                                                         onclick="app.toggleBookmarkFromFed('${this.esc(rawId)}', this)"
-                                                        style="padding:2px; color:var(--ink-3);"
+                                                        style="padding:2px; color:var(--ink-3); flex-shrink:0;"
                                                         title="${isBm ? 'Hapus dari Koleksi' : 'Simpan ke Koleksi'}">
                                                         ${this.starSvg(isBm)}
                                                     </button>
                                                 </div>
-                                                <h4 class="ebk-title" title="${this.esc(it.title)}" style="font-size:0.85rem; line-height:1.35; max-height:2.7em; -webkit-line-clamp:2; display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden;">
+                                                <h4 class="ebk-title" title="${this.esc(it.title)}" style="font-size:0.84rem; line-height:1.3; max-height:2.6em; -webkit-line-clamp:2; display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden; margin:0 0 0.25rem 0;">
                                                     <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" style="color:inherit; text-decoration:none;">${this.esc(it.title)}</a>
                                                 </h4>
-                                                <div style="font-size:0.75rem; color:var(--ink-2); margin-top:0.2rem;">
-                                                    <strong>${this.esc(authorStr.substring(0, 40))}${authorStr.length > 40 ? '...' : ''}</strong> ${yearStr ? `(${this.esc(yearStr)})` : ''}
+                                                <div style="font-size:0.73rem; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${this.esc(authorStr)}">
+                                                    <strong>${this.esc(authorStr)}</strong>
                                                 </div>
+                                                ${yearStr ? `<div style="font-size:0.7rem; color:var(--ink-3); margin-top:2px;">Tahun ${this.esc(yearStr)}</div>` : ''}
                                             </div>
                                         </div>
                                     </div>
@@ -4189,7 +4202,7 @@ const app = {
                                         </a>
                                     </div>
                                 </div>`;
-                            }).join('')}
+                }).join('')}
                         </div>
                     </div>
                 `;
