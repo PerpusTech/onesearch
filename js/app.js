@@ -2154,6 +2154,9 @@ const app = {
         if (s.includes('sibi')) {
             return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`;
         }
+        if (s.includes('ebook') || s.includes('intl_ebooks')) {
+            return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`;
+        }
         if (s.includes('global') || s.includes('all')) {
             return `<svg class="fed-src-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
         }
@@ -2518,6 +2521,7 @@ const app = {
         { id: 'etd', name: 'Repository Eprints', subtitle: 'https://eprints.ums.ac.id', type: 'local_etd', label: 'Skripsi & ETD UMS' },
         { id: 'journal', name: 'Artikel Jurnal UMS', subtitle: 'https://journals.ums.ac.id', type: 'local_journal', label: 'Jurnal Ilmiah UMS' },
         { id: 'sibi', name: 'Buku Digital (SIBI)', subtitle: 'Katalog SIBI Kemdikbud', type: 'sibi_api', label: 'Buku Digital SIBI' },
+        { id: 'intl_ebooks', name: 'E-Book Internasional', subtitle: 'DOAB, OpenAlex, Open Library', type: 'remote_ebooks', remoteKey: 'intl_ebooks', domain: 'DOAB • OpenAlex • OL (Open Access)' },
         { id: 'all_global', name: 'Seluruh Jurnal Global', subtitle: 'Agregasi Multi-Database', type: 'remote', remoteKey: 'all_global', domain: 'Scopus, Springer, Emerald, S2, Lens, Crossref, OA' },
     ],
     _fedSourcesRow2: [
@@ -2589,7 +2593,56 @@ const app = {
         const inp = (document.getElementById('search-input') || {}).value || '';
         const q = inp.trim();
 
-        // 1. External Remote APIs (Springer, Emerald, OpenAlex, Crossref, Scopus)
+        // 1. External Remote International E-Books (DOAB, OpenAlex, Open Library)
+        if (srcObj.type === 'remote_ebooks') {
+            if (q) {
+                this.fetchInternationalEBooksDiscovery(srcObj, q, 1);
+            } else {
+                const searchInp = document.getElementById('search-input');
+                if (searchInp) {
+                    searchInp.focus();
+                    searchInp.placeholder = `Cari E-Book Internasional Bebas Akses (DOAB, OpenAlex, OL)...`;
+                }
+                const fedWrap = document.getElementById('fed-results-wrap');
+                const locWrap = document.getElementById('results-wrap');
+                if (locWrap) locWrap.style.display = 'none';
+                if (fedWrap) {
+                    fedWrap.style.display = 'block';
+                    document.getElementById('fed-header').innerHTML = `
+                        <div class="fed-header-title">
+                            <span>${this.esc(srcObj.name)}</span>
+                            <span class="fed-header-url">${this.esc(srcObj.domain || '')}</span>
+                        </div>
+                        <div class="fed-header-count">Pencarian Langsung E-Book Bebas Akses (Open Access)</div>
+                    `;
+                    document.getElementById('fed-items-list').innerHTML = `
+                        <div style="text-align:center; padding:3rem 1.5rem; color:var(--ink-2);">
+                            <div style="margin-bottom:1rem;">
+                                <span style="display:inline-flex; align-items:center; justify-content:center; width:52px; height:52px; border-radius:50%; background:rgba(37,99,235,0.1); color:var(--brand);">
+                                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                                </span>
+                            </div>
+                            <p style="font-size:1.05rem; font-weight:700; margin-bottom:0.5rem; color:var(--ink);">Ketik kata kunci judul atau topik buku di atas, lalu klik <strong>Cari</strong></p>
+                            <p style="font-size:0.85rem; color:var(--ink-3); max-width:540px; margin:0 auto 1.25rem;">Menghubungkan secara langsung ke koleksi buku digital bebas akses (Open Access) dunia: <strong>DOAB</strong>, <strong>OpenAlex</strong>, dan <strong>Open Library</strong>.</p>
+                            <div style="display:flex; gap:0.4rem; justify-content:center; flex-wrap:wrap; align-items:center;">
+                                <span style="font-size:0.8rem; color:var(--ink-3);">Contoh topik:</span>
+                                ${['Artificial Intelligence', 'Machine Learning', 'Public Health', 'Economics', 'Islamic Studies', 'Renewable Energy'].map(kw => `
+                                    <button type="button" class="btn btn-xs btn-ghost" style="border-radius:20px; font-size:0.75rem; padding:0.25rem 0.65rem;" onclick="document.getElementById('search-input').value='${kw}'; app.doSearch('${kw}');">${kw}</button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                    const filterBarEl = document.getElementById('fed-filter-bar');
+                    if (filterBarEl) filterBarEl.style.display = 'none';
+                    document.getElementById('fed-pagination-top').innerHTML = '';
+                    document.getElementById('fed-pagination-bottom').innerHTML = '';
+                    fedWrap.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+            return;
+        }
+
+        // 2. External Remote APIs (Springer, Emerald, OpenAlex, Crossref, Scopus)
         if (srcObj.type === 'remote') {
             if (q) {
                 this.fetchFederatedDiscovery(srcObj, q, 1);
@@ -2626,7 +2679,7 @@ const app = {
             return;
         }
 
-        // 2. Local UMS Collections & SIBI (Metode Sebelumnya: Katalog + Filter Facets + Book Grid)
+        // 3. Local UMS Collections & SIBI (Metode Sebelumnya: Katalog + Filter Facets + Book Grid)
         document.getElementById('fed-results-wrap').style.display = 'none';
 
         if (q) {
@@ -3364,10 +3417,13 @@ const app = {
     renderFedPaginationHtml(curPage, totalPages, srcObj) {
         if (totalPages <= 1) return '';
         let html = '';
+        const fnCall = (srcObj && srcObj.type === 'remote_ebooks') 
+            ? 'app.fetchInternationalEBooksDiscovery' 
+            : 'app.fetchFederatedDiscovery';
 
         // First & Prev
-        html += `<button class="fed-pg-btn" ${curPage <= 1 ? 'disabled' : ''} onclick="app.fetchFederatedDiscovery(app._allFedSources.find(s=>s.id==='${srcObj.id}'), app._fedCurrentQuery, 1)">First</button>`;
-        html += `<button class="fed-pg-btn" ${curPage <= 1 ? 'disabled' : ''} onclick="app.fetchFederatedDiscovery(app._allFedSources.find(s=>s.id==='${srcObj.id}'), app._fedCurrentQuery, ${curPage - 1})">Previous</button>`;
+        html += `<button class="fed-pg-btn" ${curPage <= 1 ? 'disabled' : ''} onclick="${fnCall}(app._allFedSources.find(s=>s.id==='${srcObj.id}'), app._fedCurrentQuery, 1)">First</button>`;
+        html += `<button class="fed-pg-btn" ${curPage <= 1 ? 'disabled' : ''} onclick="${fnCall}(app._allFedSources.find(s=>s.id==='${srcObj.id}'), app._fedCurrentQuery, ${curPage - 1})">Previous</button>`;
 
         // Page Numbers (sliding window around curPage)
         const maxButtons = 10;
@@ -3379,14 +3435,240 @@ const app = {
 
         for (let p = start; p <= end; p++) {
             const isCur = p === curPage;
-            html += `<button class="fed-pg-btn${isCur ? ' active' : ''}" onclick="app.fetchFederatedDiscovery(app._allFedSources.find(s=>s.id==='${srcObj.id}'), app._fedCurrentQuery, ${p})">${p}</button>`;
+            html += `<button class="fed-pg-btn${isCur ? ' active' : ''}" onclick="${fnCall}(app._allFedSources.find(s=>s.id==='${srcObj.id}'), app._fedCurrentQuery, ${p})">${p}</button>`;
         }
 
         // Next & Last
-        html += `<button class="fed-pg-btn" ${curPage >= totalPages ? 'disabled' : ''} onclick="app.fetchFederatedDiscovery(app._allFedSources.find(s=>s.id==='${srcObj.id}'), app._fedCurrentQuery, ${curPage + 1})">Next</button>`;
-        html += `<button class="fed-pg-btn" ${curPage >= totalPages ? 'disabled' : ''} onclick="app.fetchFederatedDiscovery(app._allFedSources.find(s=>s.id==='${srcObj.id}'), app._fedCurrentQuery, ${totalPages})">Last</button>`;
+        html += `<button class="fed-pg-btn" ${curPage >= totalPages ? 'disabled' : ''} onclick="${fnCall}(app._allFedSources.find(s=>s.id==='${srcObj.id}'), app._fedCurrentQuery, ${curPage + 1})">Next</button>`;
+        html += `<button class="fed-pg-btn" ${curPage >= totalPages ? 'disabled' : ''} onclick="${fnCall}(app._allFedSources.find(s=>s.id==='${srcObj.id}'), app._fedCurrentQuery, ${totalPages})">Last</button>`;
 
         return html;
+    },
+
+    async fetchInternationalEBooksDiscovery(srcObj, query, page = 1) {
+        if (!query || !query.trim()) return;
+        query = query.trim();
+        this._fedCurrentQuery = query;
+        this._fedCurrentPage = page;
+        this._fedCurrentSrcObj = srcObj;
+
+        // Fetch smart academic topic concepts
+        this.fetchAndRenderSmartTopics(query);
+
+        const fedWrap = document.getElementById('fed-results-wrap');
+        const locWrap = document.getElementById('results-wrap');
+        const headerEl = document.getElementById('fed-header');
+        const listEl = document.getElementById('fed-items-list');
+        const filterBarEl = document.getElementById('fed-filter-bar');
+        const pagTop = document.getElementById('fed-pagination-top');
+        const pagBottom = document.getElementById('fed-pagination-bottom');
+
+        if (locWrap) locWrap.style.display = 'none';
+        if (fedWrap) {
+            fedWrap.style.display = 'block';
+            fedWrap.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        if (filterBarEl) filterBarEl.style.display = 'none';
+
+        // Loading state
+        headerEl.innerHTML = `
+            <div class="fed-header-title">
+                <span>${this.esc(srcObj.name)}</span>
+                <span class="fed-header-url">${this.esc(srcObj.domain || '')}</span>
+            </div>
+            <div class="fed-header-count">Mencari e-book internasional untuk "${this.esc(query)}"...</div>
+        `;
+        listEl.innerHTML = `<div style="text-align:center; padding:3rem 1rem; color:var(--ink-3);">
+            <div class="ld-spinner" style="margin:0 auto 1rem; width:28px; height:28px;"></div>
+            <p>Menghubungkan ke basis data DOAB, OpenAlex, dan Open Library...</p>
+        </div>`;
+        pagTop.innerHTML = '';
+        pagBottom.innerHTML = '';
+
+        const url = `/api/international/ebooks/search?q=${encodeURIComponent(query)}&page=${page}&rows=12`;
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (!data.ok || data.error) {
+                const errMsg = (data.error && data.error.message) ? data.error.message : (data.error || 'Layanan tidak merespons');
+                headerEl.innerHTML = `
+                    <div class="fed-header-title">
+                        <span>${this.esc(srcObj.name)}</span>
+                        <span class="fed-header-url">${this.esc(srcObj.domain || '')}</span>
+                    </div>
+                    <div class="fed-header-count" style="color:var(--rose)">Gagal memuat e-book: ${this.esc(errMsg)}</div>
+                `;
+                listEl.innerHTML = `<div style="text-align:center; padding:2rem 1rem; color:var(--ink-3);"><p>Silakan coba beberapa saat lagi.</p></div>`;
+                return;
+            }
+
+            const total = data.total || 0;
+            const items = data.items || [];
+            const totalPages = Math.ceil(total / 12) || 1;
+            this._fedCurrentTotal = total;
+            this._fedTotalPages = totalPages;
+
+            // Cache into _fedRawItems for bookmarks and citation support
+            if (!this._fedRawItems) this._fedRawItems = [];
+            items.forEach(it => {
+                const rawId = String(it.id);
+                const existing = this._fedRawItems.find(x => String(x.id) === rawId);
+                const itemObj = {
+                    id: it.id,
+                    title: it.title,
+                    t: it.title,
+                    authors: it.authors,
+                    a: it.authors,
+                    year: it.year,
+                    y: it.year,
+                    publisher: it.publisher,
+                    publicationName: it.publisher,
+                    contentType: 'International E-Book',
+                    type: 'eBook',
+                    source: it.source,
+                    url: it.url || it.pdf_url,
+                    pdf_url: it.pdf_url,
+                    cover_url: it.cover_url,
+                    abstract: it.abstract,
+                    is_oa: true,
+                    openAccess: true
+                };
+                if (!existing) {
+                    this._fedRawItems.push(itemObj);
+                }
+                this.registerArticle(itemObj);
+            });
+
+            headerEl.innerHTML = `
+                <div class="fed-header-title">
+                    <span>${this.esc(srcObj.name)}</span>
+                    <span class="fed-header-url">${this.esc(srcObj.domain || '')}</span>
+                </div>
+                <div class="fed-header-count">Ditemukan ${this.fmt(total)} e-book bebas akses (Halaman ${page} dari ${totalPages})</div>
+            `;
+
+            if (items.length === 0) {
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon-wrap">
+                            ${this.getEmptyStateSvg('search')}
+                        </div>
+                        <div class="empty-state-title">E-Book Tidak Ditemukan</div>
+                        <div class="empty-state-desc">Tidak ada e-book yang cocok untuk kata kunci <strong>"${this.esc(query)}"</strong> di DOAB, OpenAlex, maupun Open Library.</div>
+                        <div class="empty-state-actions">
+                            <button type="button" class="btn btn-brand" onclick="document.getElementById('search-input').focus(); document.getElementById('search-input').select();">Coba Kata Kunci Bahasa Inggris</button>
+                            <button type="button" class="btn btn-ghost" onclick="app.showHome()">Kembali ke Beranda</button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Render responsive book grid
+            listEl.innerHTML = `
+                <div class="ebook-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-top: 0.5rem;">
+                    ${items.map(it => {
+                        const rawId = String(it.id);
+                        const isBm = this.bookmarks && this.bookmarks.has(rawId);
+                        const readUrl = it.pdf_url || it.url || '#';
+                        const yearStr = it.year ? String(it.year) : '';
+                        const authorStr = it.authors || 'Penulis Tidak Disebutkan';
+                        const badgeSource = it.source_badge || 'DOAB';
+                        const sourceColor = badgeSource === 'DOAB' ? '#059669' : (badgeSource === 'OpenAlex' ? '#2563eb' : '#7c3aed');
+                        const sourceBg = badgeSource === 'DOAB' ? 'rgba(16,185,129,0.12)' : (badgeSource === 'OpenAlex' ? 'rgba(37,99,235,0.12)' : 'rgba(124,58,237,0.12)');
+
+                        let coverHtml = '';
+                        if (it.cover_url) {
+                            coverHtml = `
+                                <div class="ebk-cover-box">
+                                    <img src="${this.esc(it.cover_url)}" alt="Cover ${this.esc(it.title)}" class="ebk-cover-img" loading="lazy"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="ebk-cover-fallback" style="display:none;">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                                        </svg>
+                                        <span>E-BOOK</span>
+                                    </div>
+                                </div>`;
+                        } else {
+                            coverHtml = `
+                                <div class="ebk-cover-box">
+                                    <div class="ebk-cover-fallback">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                                        </svg>
+                                        <span>OPEN ACCESS</span>
+                                    </div>
+                                </div>`;
+                        }
+
+                        return `
+                        <div class="ebk-card" data-ebk-id="${this.esc(rawId)}">
+                            <div>
+                                <div class="ebk-card-main">
+                                    ${coverHtml}
+                                    <div class="ebk-info-box">
+                                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.4rem; margin-bottom:0.25rem;">
+                                            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
+                                                <span class="chip" style="background:${sourceBg}; color:${sourceColor}; font-weight:700; font-size:0.68rem; padding:2px 6px;">${this.esc(badgeSource)}</span>
+                                                <span class="chip" style="background:rgba(16,185,129,0.12); color:#059669; font-weight:600; font-size:0.68rem; padding:2px 6px;">Open Access</span>
+                                            </div>
+                                            <button type="button" class="star-btn ${isBm ? 'active' : ''}"
+                                                onclick="app.toggleBookmarkFromFed('${this.esc(rawId)}', this)"
+                                                style="padding:3px; color:var(--ink-3);"
+                                                title="${isBm ? 'Hapus dari Koleksi' : 'Simpan ke Koleksi Saya'}">
+                                                ${this.starSvg(isBm)}
+                                            </button>
+                                        </div>
+                                        <h3 class="ebk-title" title="${this.esc(it.title)}">
+                                            <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" style="color:inherit; text-decoration:none;">${this.esc(it.title)}</a>
+                                        </h3>
+                                        <div style="font-size:0.78rem; color:var(--ink-2); margin-bottom:0.3rem;">
+                                            <strong>${this.esc(authorStr)}</strong> ${yearStr ? `(${this.esc(yearStr)})` : ''}
+                                        </div>
+                                        <div style="font-size:0.74rem; color:var(--ink-3);">
+                                            <span>${this.esc(it.publisher || 'Penerbit Internasional')}</span>
+                                            ${it.subject ? ` • <span>${this.esc(it.subject)}</span>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                ${it.abstract ? `<p style="font-size:0.77rem; color:var(--ink-3); margin-top:0.75rem; line-height:1.45; display:-webkit-box; -webkit-line-clamp:3; line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;">${this.esc(it.abstract)}</p>` : ''}
+                            </div>
+
+                            <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+                                <div style="display:flex; gap:0.35rem;">
+                                    <button type="button" class="btn btn-xs btn-ghost" onclick="app.showArticleDetail(${this.idAttr(rawId)})" style="padding:0.35rem 0.6rem; font-size:0.74rem;" title="Detail & Sitasi">
+                                        Sitasi
+                                    </button>
+                                </div>
+                                <a href="${this.esc(readUrl)}" target="_blank" rel="noopener" class="btn btn-xs btn-brand"
+                                    style="padding:0.4rem 0.85rem; font-size:0.76rem; border-radius:var(--r-sm); display:inline-flex; align-items:center; gap:0.35rem; text-decoration:none;">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                        <polyline points="15 3 21 3 21 9"></polyline>
+                                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                                    </svg>
+                                    <span>Buka E-Book ↗</span>
+                                </a>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            `;
+
+            // Pagination
+            const pagHtml = this.renderFedPaginationHtml(page, totalPages, srcObj);
+            pagTop.innerHTML = pagHtml;
+            pagBottom.innerHTML = pagHtml;
+
+        } catch (err) {
+            headerEl.innerHTML = `<div class="fed-header-count" style="color:var(--rose)">Kesalahan jaringan: ${this.esc(err.message)}</div>`;
+            listEl.innerHTML = `<div style="text-align:center; padding:2rem 1rem; color:var(--ink-3);"><p>Tidak dapat tersambung ke server proxy.</p></div>`;
+        }
     },
 
     toast(msg) {
@@ -3541,8 +3823,12 @@ const app = {
             window.history.replaceState({ q, field, src: this._activeFedSource }, '', currentUrl.toString());
         } catch (e) { }
 
-        // Check if currently selected tab is an external database (Springer, Emerald, OpenAlex, Crossref, Scopus)
+        // Check if currently selected tab is an external database (Springer, Emerald, OpenAlex, Crossref, Scopus, International E-Books)
         const srcObj = (this._allFedSources || []).find(s => s.id === this._activeFedSource);
+        if (srcObj && srcObj.type === 'remote_ebooks') {
+            this.fetchInternationalEBooksDiscovery(srcObj, q, 1);
+            return;
+        }
         if (srcObj && srcObj.type === 'remote') {
             this.fetchFederatedDiscovery(srcObj, q, 1);
             return;
