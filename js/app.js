@@ -3968,7 +3968,7 @@ const app = {
             <div class="fed-insights-header">
                 <div class="fed-insights-title-group">
                     <h3>Literatur Ilmiah & E-Book Internasional Terkait "${this.esc(q)}"</h3>
-                    <p>Mencari live ke basis data Scopus, Crossref, OpenAlex, Springer, DOAB & Open Library...</p>
+                    <p>Mencari ke basis data Scopus, Crossref, OpenAlex, Springer, DOAB & Open Library...</p>
                 </div>
             </div>
             <div class="fed-insights-pills">
