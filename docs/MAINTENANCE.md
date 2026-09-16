@@ -94,6 +94,7 @@ Dokumen ini ditujukan bagi pengembang dan administrator teknis untuk memahami st
 * **`data/subscribed_ebooks.json`**: Database e-book internasional yang dilanggan UMS.
 * **`data/ebooks_pdf/`**: Folder fisik file PDF e-book yang diupload admin perpustakaan.
 * **`data/institutions.json`**: Konfigurasi daftar server OAI-PMH perpustakaan mitra.
+* **`data/search_analytics.json`**: Log agregat pencarian anonim, frekuensi kata kunci populer, dan daftar pencarian tanpa hasil (*zero-result*) untuk evaluasi pengadaan buku perpustakaan.
 
 ---
 
