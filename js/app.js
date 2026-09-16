@@ -487,37 +487,91 @@ const app = {
         }
     },
 
+    // ──── IndexedDB Cache Store ────
+    idb: {
+        dbName: 'ums_onesearch_v1',
+        storeName: 'catalog_store',
+        open() {
+            return new Promise((resolve) => {
+                if (!window.indexedDB) return resolve(null);
+                const req = indexedDB.open(this.dbName, 1);
+                req.onupgradeneeded = () => {
+                    if (!req.result.objectStoreNames.contains(this.storeName)) {
+                        req.result.createObjectStore(this.storeName);
+                    }
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => resolve(null);
+            });
+        },
+        async get(key) {
+            try {
+                const db = await this.open();
+                if (!db) return null;
+                return new Promise((resolve) => {
+                    const tx = db.transaction(this.storeName, 'readonly');
+                    const req = tx.objectStore(this.storeName).get(key);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => resolve(null);
+                });
+            } catch (e) { return null; }
+        },
+        async set(key, val) {
+            try {
+                const db = await this.open();
+                if (!db) return false;
+                return new Promise((resolve) => {
+                    const tx = db.transaction(this.storeName, 'readwrite');
+                    tx.objectStore(this.storeName).put(val, key);
+                    tx.oncomplete = () => resolve(true);
+                    tx.onerror = () => resolve(false);
+                });
+            } catch (e) { return false; }
+        }
+    },
+
     // ──── Init ────
     async init() {
         const bar = document.getElementById('ld-bar');
         const txt = document.getElementById('ld-text');
         try {
-            txt.textContent = this.t('loading_books');
-            bar.style.width = '20%';
+            bar.style.width = '15%';
             const t = new Date().getTime();
 
-            // Memuat lokal dan SIBI secara bersamaan (concurrent)
-            const [localBooks, sibiBooks] = await Promise.all([
-                fetch('data/books.json?t=' + t).then(r => r.json()),
-                this.fetchSibiBooks()
+            // 1. Muat metadata ringkas (Stats, DDC, Prodi, SIBI) secara paralel
+            txt.textContent = this.t('loading_ddc');
+            const [localStats, ddcData, prodiData, sibiBooks] = await Promise.all([
+                fetch('data/stats.json?t=' + t).then(r => r.json()).catch(() => ({})),
+                fetch('data/ddc_tree.json?t=' + t).then(r => r.json()).catch(() => ({})),
+                fetch('data/prodi_index.json?t=' + t).then(r => r.json()).catch(() => ({})),
+                this.fetchSibiBooks().catch(() => [])
             ]);
 
-            this.books = localBooks.concat(sibiBooks);
-            bar.style.width = '50%';
+            this.stats = localStats || {};
+            this.ddcTree = ddcData || {};
+            this.prodiIndex = prodiData || {};
+            bar.style.width = '35%';
 
-            txt.textContent = this.t('loading_ddc');
-            this.ddcTree = await (await fetch('data/ddc_tree.json?t=' + t)).json();
-            bar.style.width = '65%';
+            // 2. Cek apakah katalog lokal di IndexedDB masih up-to-date
+            const currentVersion = this.stats.last_updated || 'v101';
+            const cachedVersion = localStorage.getItem('bf_books_version');
+            let localBooks = null;
 
-            this.stats = await (await fetch('data/stats.json?t=' + t)).json();
-            bar.style.width = '75%';
-
-            // Load prodi index (graceful fallback jika belum ada)
-            try {
-                this.prodiIndex = await (await fetch('data/prodi_index.json?t=' + t)).json();
-            } catch (e) {
-                this.prodiIndex = {};
+            if (cachedVersion === currentVersion) {
+                txt.textContent = 'Memuat katalog dari penyimpanan lokal...';
+                localBooks = await this.idb.get('books_catalog');
             }
+
+            // 3. Jika belum di-cache atau versi data berubah setelah panen, unduh dan simpan ke IndexedDB
+            if (!localBooks || !Array.isArray(localBooks) || localBooks.length === 0) {
+                txt.textContent = this.t('loading_books');
+                localBooks = await (await fetch('data/books.json?t=' + t)).json();
+                this.idb.set('books_catalog', localBooks);
+                localStorage.setItem('bf_books_version', currentVersion);
+            }
+
+            this.books = localBooks.concat(sibiBooks || []);
+            bar.style.width = '75%';
 
             // Load international configuration (toggles & active sources)
             try {
@@ -1624,6 +1678,7 @@ const app = {
             return;
         }
 
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         let content, filename, mime;
         if (format === 'csv') {
             const header = 'Judul,Pengarang,Tahun,Penerbit / Jurnal,DDC / Subjek,Tipe,Sumber,DOI / URL';
@@ -1638,16 +1693,16 @@ const app = {
                 `"${(b.doi || b.url || '').replace(/"/g, '""')}"`
             ].join(','));
             content = [header, ...rows].join('\n');
-            filename = 'koleksi-saya.csv';
+            filename = `koleksi_ums_${dateStr}.csv`;
             mime = 'text/csv;charset=utf-8;';
         } else if (format === 'ris') {
             content = savedItems.map(item => this.generateRIS(item)).join('\r\n\r\n');
-            filename = 'koleksi-ums-onesearch.ris';
+            filename = `koleksi_ums_${dateStr}.ris`;
             mime = 'application/x-research-info-systems;charset=utf-8;';
         } else {
             // BibTeX
             content = savedItems.map(item => this.generateBibTeX(item)).join('\n\n');
-            filename = 'koleksi-ums-onesearch.bib';
+            filename = `koleksi_ums_${dateStr}.bib`;
             mime = 'application/x-bibtex;charset=utf-8;';
         }
         const blob = new Blob([content], { type: mime });
