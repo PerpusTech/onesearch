@@ -4098,9 +4098,8 @@ const app = {
                             <button type="button" class="btn btn-xs btn-ghost" onclick="app.selectFedSource('intl_ebooks')" style="font-size:0.75rem; display:inline-flex; align-items:center; gap:0.35rem; font-weight:600;">
                                 <span>Lihat Seluruh E-Book (${this.fmt(intlEbooksTotal)}) →</span>
                             </button>
-                        </div>
-                        <div class="ebook-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:0.85rem;">
-                            ${intlEbooksItems.map(it => {
+                        <div class="ebook-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:0.85rem;">
+                            ${intlEbooksItems.slice(0, 2).map(it => {
                                 const rawId = String(it.id);
                                 const isBm = this.bookmarks && this.bookmarks.has(rawId);
                                 const readUrl = it.pdf_url || it.url || '#';
