@@ -153,78 +153,92 @@ def _check_admin_auth():
     return hmac.compare_digest(provided, ADMIN_SECRET_KEY)
 
 
-def _load_international_config():
-    cfg = dict(DEFAULT_INTERNATIONAL_CONFIG)
-    if os.path.exists(INTERNATIONAL_CONFIG_FILE):
+def _load_json_file(filepath, default=None):
+    if default is None:
+        default = []
+    if os.path.exists(filepath):
         try:
-            with open(INTERNATIONAL_CONFIG_FILE, 'r', encoding='utf-8') as f:
-                saved = json.load(f)
-                if isinstance(saved, dict):
-                    if "enabled" in saved:
-                        cfg["enabled"] = bool(saved["enabled"])
-                    if "sources" in saved and isinstance(saved["sources"], dict):
-                        cfg["sources"] = {**DEFAULT_INTERNATIONAL_CONFIG["sources"], **saved["sources"]}
-                    if "filter_subscribed_only_default" in saved:
-                        cfg["filter_subscribed_only_default"] = bool(saved["filter_subscribed_only_default"])
+            with open(filepath, 'r', encoding='utf-8') as f:
+                return json.load(f)
         except Exception:
             pass
+    return default
+
+
+def _save_json_file(filepath, data, indent=2):
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=indent, ensure_ascii=False)
+
+
+def _load_international_config():
+    cfg = dict(DEFAULT_INTERNATIONAL_CONFIG)
+    saved = _load_json_file(INTERNATIONAL_CONFIG_FILE, {})
+    if isinstance(saved, dict):
+        if "enabled" in saved:
+            cfg["enabled"] = bool(saved["enabled"])
+        if "sources" in saved and isinstance(saved["sources"], dict):
+            cfg["sources"] = {**DEFAULT_INTERNATIONAL_CONFIG["sources"], **saved["sources"]}
+        if "filter_subscribed_only_default" in saved:
+            cfg["filter_subscribed_only_default"] = bool(saved["filter_subscribed_only_default"])
     return cfg
 
 
 def _save_international_config(cfg):
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(INTERNATIONAL_CONFIG_FILE, 'w', encoding='utf-8') as f:
-        json.dump(cfg, f, indent=2)
+    _save_json_file(INTERNATIONAL_CONFIG_FILE, cfg)
 
 
 def _load_subscribed_journals():
-    if os.path.exists(SUBSCRIBED_JOURNALS_FILE):
-        try:
-            with open(SUBSCRIBED_JOURNALS_FILE, 'r', encoding='utf-8') as f:
-                items = json.load(f)
-                if isinstance(items, list):
-                    return items
-        except Exception:
-            pass
-    # Seed initial items if not yet created
-    _save_subscribed_journals(INITIAL_SUBSCRIBED_JOURNALS)
-    return list(INITIAL_SUBSCRIBED_JOURNALS)
+    items = _load_json_file(SUBSCRIBED_JOURNALS_FILE, None)
+    if items is None or not isinstance(items, list):
+        _save_subscribed_journals(INITIAL_SUBSCRIBED_JOURNALS)
+        return list(INITIAL_SUBSCRIBED_JOURNALS)
+    return items
 
 
 def _save_subscribed_journals(items):
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(SUBSCRIBED_JOURNALS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(items, f, indent=2)
+    _save_json_file(SUBSCRIBED_JOURNALS_FILE, items)
 
 
-def _norm_issn(issn_str):
-    if not issn_str:
-        return ""
-    return re.sub(r'[^0-9xX]', '', str(issn_str)).upper()
+def _norm_code(code_str):
+    return re.sub(r'[^0-9xX]', '', str(code_str)).upper() if code_str else ""
 
-
-def _norm_isbn(isbn_str):
-    if not isbn_str:
-        return ""
-    return re.sub(r'[^0-9xX]', '', str(isbn_str)).upper()
+_norm_issn = _norm_code
+_norm_isbn = _norm_code
 
 
 def _load_subscribed_ebooks():
-    if os.path.exists(SUBSCRIBED_EBOOKS_FILE):
-        try:
-            with open(SUBSCRIBED_EBOOKS_FILE, 'r', encoding='utf-8') as f:
-                items = json.load(f)
-                if isinstance(items, list):
-                    return items
-        except Exception:
-            pass
-    return []
+    items = _load_json_file(SUBSCRIBED_EBOOKS_FILE, [])
+    return items if isinstance(items, list) else []
 
 
 def _save_subscribed_ebooks(items):
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(SUBSCRIBED_EBOOKS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(items, f, indent=2)
+    _save_json_file(SUBSCRIBED_EBOOKS_FILE, items)
+
+
+def _toggle_item_active(items, target_id, save_fn, label="Item"):
+    target_id = str(target_id).strip().upper()
+    for it in items:
+        if it.get('id', '').upper() == target_id:
+            it['active'] = not it.get('active', True)
+            it['updated_at'] = datetime.now().isoformat()
+            save_fn(items)
+            return jsonify({
+                "status": "SUCCESS",
+                "message": f"Status '{it.get('title', target_id)}' diubah menjadi {'Aktif' if it['active'] else 'Nonaktif'}.",
+                "active": it['active'],
+                "items": items
+            })
+    return jsonify({"error": f"{label} dengan ID {target_id} tidak ditemukan."}), 404
+
+
+def _generate_csv_download(headers, rows, filename):
+    si = io.StringIO()
+    writer = csv.writer(si)
+    writer.writerow(headers)
+    writer.writerows(rows)
+    output = io.BytesIO(si.getvalue().encode('utf-8-sig'))
+    return send_file(output, mimetype='text/csv', as_attachment=True, download_name=filename)
 
 
 def _format_file_size(size_bytes):
@@ -1696,24 +1710,8 @@ def admin_toggle_subscribed_journal():
     """Toggle active state of a subscribed journal."""
     if not _check_admin_auth():
         return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
-
     data = request.get_json(silent=True) or {}
-    jrn_id = str(data.get('id', '')).strip().upper()
-    items = _load_subscribed_journals()
-
-    for it in items:
-        if it.get('id', '').upper() == jrn_id:
-            it['active'] = not it.get('active', True)
-            it['updated_at'] = datetime.now().isoformat()
-            _save_subscribed_journals(items)
-            return jsonify({
-                "status": "SUCCESS",
-                "message": f"Status '{it.get('title')}' diubah menjadi {'Aktif' if it['active'] else 'Nonaktif'}.",
-                "active": it['active'],
-                "items": items
-            })
-
-    return jsonify({"error": f"Jurnal dengan ID {jrn_id} tidak ditemukan."}), 404
+    return _toggle_item_active(_load_subscribed_journals(), data.get('id', ''), _save_subscribed_journals, "Jurnal")
 
 
 def _parse_tabular_records(raw_text, default_columns):
@@ -1871,33 +1869,14 @@ def admin_export_subscribed_journals():
     if not _check_admin_auth():
         return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
 
-    journals = _load_subscribed_journals()
-    si = io.StringIO()
-    writer = csv.writer(si)
-    writer.writerow(['ID', 'Title', 'ISSN', 'E-ISSN', 'Publisher', 'URL', 'Subject', 'Notes', 'Status'])
-
-    for j in journals:
-        writer.writerow([
-            j.get('id', ''),
-            j.get('title', ''),
-            j.get('issn', ''),
-            j.get('eissn', ''),
-            j.get('publisher', ''),
-            j.get('url', ''),
-            j.get('subject', ''),
-            j.get('notes', ''),
-            'Aktif' if j.get('active', True) else 'Nonaktif'
-        ])
-
-    output = io.BytesIO()
-    output.write(si.getvalue().encode('utf-8-sig'))
-    output.seek(0)
-    return send_file(
-        output,
-        mimetype='text/csv',
-        as_attachment=True,
-        download_name=f"ums_subscribed_journals_{datetime.now().strftime('%Y%m%d')}.csv"
-    )
+    headers = ['ID', 'Title', 'ISSN', 'E-ISSN', 'Publisher', 'URL', 'Subject', 'Notes', 'Status']
+    rows = [
+        [j.get('id', ''), j.get('title', ''), j.get('issn', ''), j.get('eissn', ''),
+         j.get('publisher', ''), j.get('url', ''), j.get('subject', ''), j.get('notes', ''),
+         'Aktif' if j.get('active', True) else 'Nonaktif']
+        for j in _load_subscribed_journals()
+    ]
+    return _generate_csv_download(headers, rows, f"ums_subscribed_journals_{datetime.now().strftime('%Y%m%d')}.csv")
 
 
 @app.route('/api/admin/international/journals/template')
@@ -1905,22 +1884,14 @@ def admin_template_subscribed_journals():
     """Download sample CSV template for bulk import."""
     if not _check_admin_auth():
         return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
-    si = io.StringIO()
-    writer = csv.writer(si)
-    writer.writerow(['Title', 'ISSN', 'E-ISSN', 'Publisher', 'URL', 'Subject', 'Notes'])
-    writer.writerow(['Nature Machine Intelligence', '2522-5839', '2522-5839', 'Springer Nature', 'https://www.nature.com/natmachintell/', 'Informatika & AI', 'Langganan UMS 2026'])
-    writer.writerow(['The Lancet', '0140-6736', '1474-547X', 'Elsevier', 'https://www.thelancet.com/', 'Kedokteran & Kesehatan', 'Langganan UMS 2026'])
-    writer.writerow(['IEEE Transactions on Education', '0018-9359', '1557-9638', 'IEEE', 'https://ieeexplore.ieee.org/', 'Teknik & Pendidikan', 'Konsorsium 2026'])
 
-    output = io.BytesIO()
-    output.write(si.getvalue().encode('utf-8-sig'))
-    output.seek(0)
-    return send_file(
-        output,
-        mimetype='text/csv',
-        as_attachment=True,
-        download_name="template_jurnal_langganan_ums.csv"
-    )
+    headers = ['Title', 'ISSN', 'E-ISSN', 'Publisher', 'URL', 'Subject', 'Notes']
+    rows = [
+        ['Nature Machine Intelligence', '2522-5839', '2522-5839', 'Springer Nature', 'https://www.nature.com/natmachintell/', 'Informatika & AI', 'Langganan UMS 2026'],
+        ['The Lancet', '0140-6736', '1474-547X', 'Elsevier', 'https://www.thelancet.com/', 'Kedokteran & Kesehatan', 'Langganan UMS 2026'],
+        ['IEEE Transactions on Education', '0018-9359', '1557-9638', 'IEEE', 'https://ieeexplore.ieee.org/', 'Teknik & Pendidikan', 'Konsorsium 2026']
+    ]
+    return _generate_csv_download(headers, rows, "template_jurnal_langganan_ums.csv")
 
 
 # ── SUBSCRIBED E-BOOKS MANAGEMENT & PUBLIC DISCOVERY ──
@@ -2238,24 +2209,8 @@ def admin_toggle_subscribed_ebook():
     """Toggle active state of a subscribed e-book."""
     if not _check_admin_auth():
         return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
-
     data = request.get_json(silent=True) or {}
-    ebk_id = str(data.get('id', '')).strip().upper()
-    items = _load_subscribed_ebooks()
-
-    for it in items:
-        if it.get('id', '').upper() == ebk_id:
-            it['active'] = not it.get('active', True)
-            it['updated_at'] = datetime.now().isoformat()
-            _save_subscribed_ebooks(items)
-            return jsonify({
-                "status": "SUCCESS",
-                "message": f"Status '{it.get('title')}' diubah menjadi {'Aktif' if it['active'] else 'Nonaktif'}.",
-                "active": it['active'],
-                "items": items
-            })
-
-    return jsonify({"error": f"E-Book dengan ID {ebk_id} tidak ditemukan."}), 404
+    return _toggle_item_active(_load_subscribed_ebooks(), data.get('id', ''), _save_subscribed_ebooks, "E-Book")
 
 
 @app.route('/api/admin/international/ebooks/import', methods=['POST'])
@@ -2371,36 +2326,15 @@ def admin_export_subscribed_ebooks():
     if not _check_admin_auth():
         return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
 
-    ebooks = _load_subscribed_ebooks()
-    si = io.StringIO()
-    writer = csv.writer(si)
-    writer.writerow(['ID', 'Title', 'Author', 'Publisher', 'Year', 'ISBN', 'URL', 'Cover URL', 'Subject', 'Access Type', 'Notes', 'Status'])
-
-    for b in ebooks:
-        writer.writerow([
-            b.get('id', ''),
-            b.get('title', ''),
-            b.get('author', ''),
-            b.get('publisher', ''),
-            b.get('year', ''),
-            b.get('isbn', ''),
-            b.get('url', ''),
-            b.get('cover_url', ''),
-            b.get('subject', ''),
-            b.get('access_type', 'kampus'),
-            b.get('notes', ''),
-            'Aktif' if b.get('active', True) else 'Nonaktif'
-        ])
-
-    output = io.BytesIO()
-    output.write(si.getvalue().encode('utf-8-sig'))
-    output.seek(0)
-    return send_file(
-        output,
-        mimetype='text/csv',
-        as_attachment=True,
-        download_name=f"ums_subscribed_ebooks_{datetime.now().strftime('%Y%m%d')}.csv"
-    )
+    headers = ['ID', 'Title', 'Author', 'Publisher', 'Year', 'ISBN', 'URL', 'Cover URL', 'Subject', 'Access Type', 'Notes', 'Status']
+    rows = [
+        [b.get('id', ''), b.get('title', ''), b.get('author', ''), b.get('publisher', ''),
+         b.get('year', ''), b.get('isbn', ''), b.get('url', ''), b.get('cover_url', ''),
+         b.get('subject', ''), b.get('access_type', 'kampus'), b.get('notes', ''),
+         'Aktif' if b.get('active', True) else 'Nonaktif']
+        for b in _load_subscribed_ebooks()
+    ]
+    return _generate_csv_download(headers, rows, f"ums_subscribed_ebooks_{datetime.now().strftime('%Y%m%d')}.csv")
 
 
 @app.route('/api/admin/international/ebooks/template')
@@ -2408,21 +2342,13 @@ def admin_template_subscribed_ebooks():
     """Download sample CSV template for bulk e-book import."""
     if not _check_admin_auth():
         return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
-    si = io.StringIO()
-    writer = csv.writer(si)
-    writer.writerow(['Title', 'Author', 'Publisher', 'Year', 'ISBN', 'URL', 'Cover URL', 'Subject', 'Access Type', 'Notes'])
-    writer.writerow(['Artificial Intelligence: A Modern Approach', 'Stuart Russell, Peter Norvig', 'Pearson', '2021', '978-0134610993', 'https://www.pearson.com/', '', 'Informatika & Komputer', 'kampus', 'Langganan UMS 2026'])
-    writer.writerow(['Research Design', 'John W. Creswell', 'SAGE Publications', '2023', '978-1071817940', 'https://us.sagepub.com/', '', 'Metodologi Penelitian', 'ezproxy', 'Akses Sivitas UMS'])
 
-    output = io.BytesIO()
-    output.write(si.getvalue().encode('utf-8-sig'))
-    output.seek(0)
-    return send_file(
-        output,
-        mimetype='text/csv',
-        as_attachment=True,
-        download_name="template_ebook_langganan_ums.csv"
-    )
+    headers = ['Title', 'Author', 'Publisher', 'Year', 'ISBN', 'URL', 'Cover URL', 'Subject', 'Access Type', 'Notes']
+    rows = [
+        ['Artificial Intelligence: A Modern Approach', 'Stuart Russell, Peter Norvig', 'Pearson', '2021', '978-0134610993', 'https://www.pearson.com/', '', 'Informatika & Komputer', 'kampus', 'Langganan UMS 2026'],
+        ['Research Design', 'John W. Creswell', 'SAGE Publications', '2023', '978-1071817940', 'https://us.sagepub.com/', '', 'Metodologi Penelitian', 'ezproxy', 'Akses Sivitas UMS']
+    ]
+    return _generate_csv_download(headers, rows, "template_ebook_langganan_ums.csv")
 
 
 # ── ADMIN HARVEST & SCHEDULER MONITORING ──
@@ -2617,18 +2543,12 @@ INSTITUTIONS_FILE = os.path.join(DATA_DIR, 'institutions.json')
 
 
 def _load_institutions_data():
-    if os.path.exists(INSTITUTIONS_FILE):
-        try:
-            with open(INSTITUTIONS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return []
+    items = _load_json_file(INSTITUTIONS_FILE, [])
+    return items if isinstance(items, list) else []
 
 
 def _save_institutions_data(items):
-    with open(INSTITUTIONS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(items, f, indent=2)
+    _save_json_file(INSTITUTIONS_FILE, items)
 
 
 @app.route('/api/admin/institutions', methods=['GET', 'POST'])
@@ -2699,21 +2619,7 @@ def admin_toggle_institution():
         return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
 
     data = request.get_json(silent=True) or {}
-    inst_id = str(data.get('id', '')).strip().upper()
-    items = _load_institutions_data()
-
-    for it in items:
-        if it.get('id', '').upper() == inst_id:
-            it['active'] = not it.get('active', True)
-            _save_institutions_data(items)
-            return jsonify({
-                "status": "SUCCESS",
-                "message": f"Status {inst_id} diubah menjadi {'Aktif' if it['active'] else 'Nonaktif'}.",
-                "active": it['active'],
-                "items": items
-            })
-
-    return jsonify({"error": f"Institusi {inst_id} tidak ditemukan."}), 404
+    return _toggle_item_active(_load_institutions_data(), data.get('id', ''), _save_institutions_data, "Institusi")
 
 
 @app.route('/api/admin/institutions/test', methods=['GET', 'POST'])
