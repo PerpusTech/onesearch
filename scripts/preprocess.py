@@ -585,19 +585,28 @@ def process_record(record, source='UMS'):
     rec_url = str(record.get('url', '') or record.get('_dc_url', '')).lower()
     item_type = safe_str(record.get('item_type', ''))
     
-    if 'journals.ums.ac.id' in oai_id or 'journals.ums.ac.id' in rec_url or 'journal' in src.lower():
+    is_journal_rec = (
+        'journals.ums.ac.id' in oai_id or 'journals2.ums.ac.id' in oai_id or
+        'journals' in rec_url or 'ojs' in oai_id or oai_id.startswith('ojs') or
+        'journal' in src.lower() or item_type.upper() in ('JR', 'ARTICLE', 'SECTION', 'ISSUE')
+    )
+    is_etd_rec = (
+        'eprints.ums.ac.id' in oai_id or 'eprints.ums.ac.id' in rec_url or
+        'eprints' in src.lower() or item_type.upper() == 'THESIS'
+    )
+
+    if is_journal_rec:
         src = 'UMS (Journal)'
-        if not item_type or item_type == 'ARTICLE':
+        if not item_type or item_type.upper() in ('ARTICLE', 'SECTION', 'ISSUE', 'DOCUMENT'):
             item_type = 'JR'
-    elif 'eprints.ums.ac.id' in oai_id or 'eprints.ums.ac.id' in rec_url or 'eprints' in src.lower():
+    elif is_etd_rec:
         src = 'UMS (ETD)'
         if not item_type:
             item_type = 'THESIS'
     elif src.upper() in ('UMS', 'OPAC UMS LIBRARY', 'KOHA') or '172.16.10.43' in oai_id or oai_id.startswith('ums:'):
-        if item_type == 'THESIS':
-            src = 'UMS (ETD)'
-        else:
-            src = 'UMS'
+        src = 'UMS'
+        if not item_type:
+            item_type = 'BKS'
     
     book = {
         'id': rec_id,

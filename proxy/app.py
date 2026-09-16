@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 160 * 1024 * 1024  # 160 MB for large PDF uploads
 SCOPUS_API_KEY = os.environ.get('SCOPUS_API_KEY', '').strip('"\'')
 SEMANTIC_SCHOLAR_API_KEY = os.environ.get('SEMANTIC_SCHOLAR_API_KEY', '').strip('"\'')
 LENS_API_KEY = os.environ.get('LENS_API_KEY', '').strip('"\'')
@@ -53,6 +54,8 @@ STATE_FILE = os.path.join(DATA_DIR, 'scheduler_state.json')
 INTERNATIONAL_CONFIG_FILE = os.path.join(DATA_DIR, 'international_config.json')
 SUBSCRIBED_JOURNALS_FILE = os.path.join(DATA_DIR, 'subscribed_journals.json')
 SUBSCRIBED_EBOOKS_FILE = os.path.join(DATA_DIR, 'subscribed_ebooks.json')
+SUBSCRIBED_EBOOKS_PDF_DIR = os.path.join(DATA_DIR, 'ebooks_pdf')
+os.makedirs(SUBSCRIBED_EBOOKS_PDF_DIR, exist_ok=True)
 
 DEFAULT_INTERNATIONAL_CONFIG = {
     "enabled": True,
@@ -222,6 +225,25 @@ def _save_subscribed_ebooks(items):
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(SUBSCRIBED_EBOOKS_FILE, 'w', encoding='utf-8') as f:
         json.dump(items, f, indent=2)
+
+
+def _format_file_size(size_bytes):
+    if not size_bytes or size_bytes < 0:
+        return "0 B"
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024.0:
+            return f"{size_bytes:.1f} {unit}" if unit != 'B' else f"{int(size_bytes)} B"
+        size_bytes /= 1024.0
+    return f"{size_bytes:.1f} TB"
+
+
+def _sanitize_pdf_filename(name):
+    name = str(name or '').strip()
+    name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', name)
+    name = re.sub(r'_+', '_', name)
+    if not name.lower().endswith('.pdf'):
+        name += '.pdf'
+    return name[:120]
 
 
 def _norm_title_key(title_str):
@@ -1944,6 +1966,143 @@ def api_international_ebooks_public():
     })
 
 
+@app.route('/api/ebooks/<ebk_id>/pdf')
+def api_ebook_stream_pdf(ebk_id):
+    """Stream PDF for inline reading inside modal/iframe with permissive frame headers."""
+    ebk_id = str(ebk_id).strip().upper()
+    ebooks = _load_subscribed_ebooks()
+    target = next((b for b in ebooks if b.get('id', '').upper() == ebk_id and b.get('active', True)), None)
+
+    if not target:
+        return jsonify({"error": "E-Book tidak ditemukan atau tidak aktif."}), 404
+
+    pdf_filename = target.get('pdf_filename', '').strip()
+    if pdf_filename:
+        pdf_path = os.path.join(SUBSCRIBED_EBOOKS_PDF_DIR, pdf_filename)
+        if os.path.exists(pdf_path):
+            resp = send_file(pdf_path, mimetype='application/pdf', as_attachment=False)
+            resp.headers['X-Frame-Options'] = 'ALLOWALL'
+            resp.headers['Content-Security-Policy'] = "frame-ancestors *"
+            resp.headers['Access-Control-Allow-Origin'] = "*"
+            return resp
+
+    fallback_url = target.get('pdf_url', '').strip() or target.get('url', '').strip()
+    if fallback_url:
+        return redirect(fallback_url)
+
+    return jsonify({"error": "File PDF untuk e-book ini belum tersedia di server."}), 404
+
+
+@app.route('/api/ebooks/<ebk_id>/pdf/download')
+def api_ebook_download_pdf(ebk_id):
+    """Direct attachment download of e-book PDF."""
+    ebk_id = str(ebk_id).strip().upper()
+    ebooks = _load_subscribed_ebooks()
+    target = next((b for b in ebooks if b.get('id', '').upper() == ebk_id and b.get('active', True)), None)
+
+    if not target:
+        return jsonify({"error": "E-Book tidak ditemukan atau tidak aktif."}), 404
+
+    if not target.get('allow_download', True):
+        return jsonify({"error": "Fitur unduh PDF dinonaktifkan oleh administrator untuk judul ini."}), 403
+
+    pdf_filename = target.get('pdf_filename', '').strip()
+    if pdf_filename:
+        pdf_path = os.path.join(SUBSCRIBED_EBOOKS_PDF_DIR, pdf_filename)
+        if os.path.exists(pdf_path):
+            clean_title = _sanitize_pdf_filename(target.get('title') or ebk_id)
+            return send_file(pdf_path, mimetype='application/pdf', as_attachment=True, download_name=clean_title)
+
+    fallback_url = target.get('pdf_url', '').strip() or target.get('url', '').strip()
+    if fallback_url:
+        return redirect(fallback_url)
+
+    return jsonify({"error": "File PDF untuk e-book ini belum tersedia di server."}), 404
+
+
+@app.route('/api/admin/international/ebooks/upload-pdf', methods=['POST'])
+def admin_upload_ebook_pdf():
+    """Upload PDF file for a subscribed e-book (max 150MB)."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    if 'file' not in request.files:
+        return jsonify({"error": "File PDF tidak ditemukan dalam permintaan."}), 400
+
+    file = request.files['file']
+    if not file or not file.filename:
+        return jsonify({"error": "Nama file PDF kosong."}), 400
+
+    orig_filename = file.filename.strip()
+    if not orig_filename.lower().endswith('.pdf'):
+        return jsonify({"error": "Hanya file berekstensi .pdf yang diperbolehkan."}), 400
+
+    ebk_id = str(request.form.get('id', '')).strip().upper()
+    if not ebk_id:
+        ebk_id = f"EBK-{int(time.time())}"
+
+    safe_base = _sanitize_pdf_filename(orig_filename)
+    stored_filename = f"{ebk_id}_{safe_base}" if not safe_base.startswith(f"{ebk_id}_") else safe_base
+
+    os.makedirs(SUBSCRIBED_EBOOKS_PDF_DIR, exist_ok=True)
+    target_path = os.path.join(SUBSCRIBED_EBOOKS_PDF_DIR, stored_filename)
+
+    try:
+        file.save(target_path)
+    except Exception as e:
+        return jsonify({"error": f"Gagal menyimpan file PDF: {str(e)}"}), 500
+
+    size_bytes = 0
+    try:
+        size_bytes = os.path.getsize(target_path)
+    except Exception:
+        pass
+
+    formatted_size = _format_file_size(size_bytes)
+
+    return jsonify({
+        "ok": True,
+        "status": "SUCCESS",
+        "message": f"File '{orig_filename}' ({formatted_size}) berhasil diunggah.",
+        "id": ebk_id,
+        "pdf_filename": stored_filename,
+        "pdf_size": formatted_size,
+        "pdf_size_bytes": size_bytes,
+        "pdf_url": f"/api/ebooks/{ebk_id}/pdf",
+        "download_url": f"/api/ebooks/{ebk_id}/pdf/download",
+        "original_filename": orig_filename
+    })
+
+
+@app.route('/api/admin/international/ebooks/<ebk_id>/pdf', methods=['DELETE'])
+def admin_delete_ebook_pdf_file(ebk_id):
+    """Detach and remove physical PDF file from an e-book entry."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    ebk_id = str(ebk_id).strip().upper()
+    items = _load_subscribed_ebooks()
+    target = next((b for b in items if b.get('id', '').upper() == ebk_id), None)
+    if not target:
+        return jsonify({"error": f"E-Book {ebk_id} tidak ditemukan."}), 404
+
+    old_pdf = target.get('pdf_filename', '').strip()
+    if old_pdf:
+        pdf_path = os.path.join(SUBSCRIBED_EBOOKS_PDF_DIR, old_pdf)
+        if os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+            except Exception:
+                pass
+
+    target['pdf_filename'] = ""
+    target['pdf_size'] = ""
+    target['pdf_url'] = ""
+    target['updated_at'] = datetime.now().isoformat()
+    _save_subscribed_ebooks(items)
+    return jsonify({"status": "SUCCESS", "message": "File PDF berhasil dilepas dari e-book.", "item": target})
+
+
 @app.route('/api/admin/international/ebooks', methods=['GET', 'POST'])
 def admin_subscribed_ebooks():
     """List or Add/Update subscribed international e-books."""
@@ -1974,6 +2133,10 @@ def admin_subscribed_ebooks():
     subject = str(data.get('subject', '')).strip()
     access_type = str(data.get('access_type', 'kampus')).strip()
     notes = str(data.get('notes', '')).strip()
+    pdf_filename = str(data.get('pdf_filename', '')).strip()
+    pdf_size = str(data.get('pdf_size', '')).strip()
+    pdf_url = str(data.get('pdf_url', '')).strip()
+    allow_download = bool(data.get('allow_download', True))
     active = bool(data.get('active', True))
 
     if not title:
@@ -1985,6 +2148,21 @@ def admin_subscribed_ebooks():
         ebk_id = f"EBK-{int(time.time())}"
 
     existing_idx = next((i for i, item in enumerate(items) if item.get('id', '').upper() == ebk_id), -1)
+
+    if existing_idx >= 0:
+        old_obj = items[existing_idx]
+        old_pdf = old_obj.get('pdf_filename', '').strip()
+        # If PDF was replaced or removed, delete the old file
+        if old_pdf and old_pdf != pdf_filename:
+            old_pdf_path = os.path.join(SUBSCRIBED_EBOOKS_PDF_DIR, old_pdf)
+            if os.path.exists(old_pdf_path):
+                try:
+                    os.remove(old_pdf_path)
+                except Exception:
+                    pass
+
+    # If pdf_filename is set but pdf_url not explicitly provided, default to our streaming route
+    effective_pdf_url = pdf_url or (f"/api/ebooks/{ebk_id}/pdf" if pdf_filename else "")
 
     new_obj = {
         "id": ebk_id,
@@ -1998,6 +2176,10 @@ def admin_subscribed_ebooks():
         "subject": subject,
         "access_type": access_type,
         "notes": notes,
+        "pdf_filename": pdf_filename,
+        "pdf_size": pdf_size,
+        "pdf_url": effective_pdf_url,
+        "allow_download": allow_download,
         "active": active,
         "updated_at": datetime.now().isoformat()
     }
@@ -2021,23 +2203,33 @@ def admin_subscribed_ebooks():
 
 @app.route('/api/admin/international/ebooks/<ebk_id>', methods=['DELETE'])
 def admin_delete_subscribed_ebook(ebk_id):
-    """Delete a subscribed e-book."""
+    """Delete a subscribed e-book and its physical PDF file if present."""
     if not _check_admin_auth():
         return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
 
     ebk_id = ebk_id.strip().upper()
     items = _load_subscribed_ebooks()
-    new_items = [it for it in items if it.get('id', '').upper() != ebk_id]
+    target_idx = next((i for i, it in enumerate(items) if it.get('id', '').upper() == ebk_id), -1)
 
-    if len(new_items) == len(items):
+    if target_idx < 0:
         return jsonify({"error": f"E-Book dengan ID {ebk_id} tidak ditemukan."}), 404
 
-    _save_subscribed_ebooks(new_items)
+    target_item = items.pop(target_idx)
+    target_pdf = target_item.get('pdf_filename', '').strip()
+    if target_pdf:
+        target_pdf_path = os.path.join(SUBSCRIBED_EBOOKS_PDF_DIR, target_pdf)
+        if os.path.exists(target_pdf_path):
+            try:
+                os.remove(target_pdf_path)
+            except Exception:
+                pass
+
+    _save_subscribed_ebooks(items)
     return jsonify({
         "status": "SUCCESS",
         "message": "E-Book berhasil dihapus dari daftar langganan.",
-        "items": new_items,
-        "total": len(new_items)
+        "items": items,
+        "total": len(items)
     })
 
 

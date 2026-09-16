@@ -424,7 +424,7 @@ const app = {
         });
     },
 
-    OPAC: 'https://search-lib.ums.ac.id/cgi-bin/koha/opac-detail.pl?biblionumber=',
+    OPAC: 'https://opac-lib.ums.ac.id/cgi-bin/koha/opac-detail.pl?biblionumber=',
 
     // Build link to source
     sourceLink(book) {
@@ -1113,6 +1113,10 @@ const app = {
                     '<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">Open Access</span>' :
                     '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
 
+            const hasPdf = Boolean(it.pdf_filename || (it.pdf_url && it.pdf_url.trim().length > 5));
+            const pdfReadUrl = it.pdf_filename ? `/api/ebooks/${encodeURIComponent(it.id)}/pdf` : (it.pdf_url || '');
+            const pdfDownloadUrl = `/api/ebooks/${encodeURIComponent(it.id)}/pdf/download`;
+            const allowDownload = it.allow_download !== false;
             const directUrl = it.url || '#';
             const yearStr = it.year ? String(it.year) : '';
             const isbnStr = it.isbn || '-';
@@ -1141,10 +1145,13 @@ const app = {
                     </div>
                     <div class="ebk-info-box">
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem; margin-bottom:0.4rem; flex-wrap:wrap;">
-                            <span class="fed-badge-subscribed" style="font-size:0.68rem;">
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                                E-Book Langganan
-                            </span>
+                            <div style="display:inline-flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
+                                <span class="fed-badge-subscribed" style="font-size:0.68rem;">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                    E-Book Langganan
+                                </span>
+                                ${hasPdf ? `<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600; font-size:0.68rem; padding:1px 6px;">📄 PDF ${this.esc(it.pdf_size || '')}</span>` : ''}
+                            </div>
                             ${accessBadge}
                         </div>
                         <h3 class="ebk-title" title="${this.esc(it.title)}">
@@ -1168,14 +1175,32 @@ const app = {
                         </div>` : ''}
                     </div>
                 </div>
-                <div class="ebk-card-footer">
+                <div class="ebk-card-footer" style="flex-wrap:wrap; gap:0.4rem;">
                     <button type="button" class="btn btn-ghost ebk-btn-detail" onclick="app.showEBookDetail(${this.idAttr(it.id)})">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                         <span>Detail & Sitasi</span>
                     </button>
+                    ${hasPdf ? `
+                    <button type="button" class="btn btn-emerald ebk-btn-read-pdf" onclick="app.openEBookPdfViewer(${this.idAttr(it.id)})" title="Baca E-Book langsung di OneSearch">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                        <span>Baca PDF</span>
+                    </button>
+                    ${allowDownload ? `
+                    <a href="${this.esc(pdfDownloadUrl)}" class="btn btn-ghost" style="padding:0.35rem 0.6rem; font-size:0.75rem;" title="Unduh File PDF (${it.pdf_size || 'E-Book'})" download>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        <span>Unduh</span>
+                    </a>
+                    ` : ''}
+                    ` : ''}
+                    ${it.url && it.url !== '#' && it.url !== pdfReadUrl ? `
+                    <a href="${this.esc(directUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-brand ebk-btn-read" title="Buka di platform penerbit">
+                        <span>Platform ↗</span>
+                    </a>
+                    ` : (!hasPdf ? `
                     <a href="${this.esc(directUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-brand ebk-btn-read">
                         <span>Buka E-Book ↗</span>
                     </a>
+                    ` : '')}
                 </div>
             </div>`;
         }).join('');
@@ -1188,6 +1213,10 @@ const app = {
             return;
         }
 
+        const hasPdf = Boolean(item.pdf_filename || (item.pdf_url && item.pdf_url.trim().length > 5));
+        const pdfReadUrl = item.pdf_filename ? `/api/ebooks/${encodeURIComponent(item.id)}/pdf` : (item.pdf_url || '');
+        const pdfDownloadUrl = `/api/ebooks/${encodeURIComponent(item.id)}/pdf/download`;
+        const allowDownload = item.allow_download !== false;
         const directUrl = item.url || '#';
         const yearStr = item.year ? String(item.year) : '';
         const authorStr = item.author || 'Penulis Tidak Disebutkan';
@@ -1217,6 +1246,7 @@ const app = {
                             E-Book Langganan Resmi UMS
                         </span>
                         <span class="chip" style="background:var(--bg-3); font-weight:600;">${this.esc(accessType.toUpperCase())}</span>
+                        ${hasPdf ? `<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">📄 PDF ${this.esc(item.pdf_size || 'Tersedia')}</span>` : ''}
                     </div>
                     <h2 class="detail-title" style="margin-top:0.25rem;">${this.esc(item.title)}</h2>
                     <p class="detail-author" style="margin-top:0.25rem;">${this.esc(authorStr)}</p>
@@ -1227,7 +1257,7 @@ const app = {
                 <div><div class="d-label">Penerbit</div><div class="d-val">${this.esc(pubStr)}</div></div>
                 ${yearStr ? `<div><div class="d-label">Tahun Terbit</div><div class="d-val">${yearStr}</div></div>` : ''}
                 <div><div class="d-label">ISBN</div><div class="d-val">${this.esc(isbnStr)}</div></div>
-                <div><div class="d-label">Format / Tipe</div><div class="d-val">Buku Elektronik (E-Book)</div></div>
+                <div><div class="d-label">Format / Tipe</div><div class="d-val">Buku Elektronik (E-Book) ${hasPdf ? `<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600; margin-left:4px;">📄 PDF ${this.esc(item.pdf_size || '')}</span>` : ''}</div></div>
                 ${item.subject ? `<div><div class="d-label">Subjek / Bidang Ilmu</div><div class="d-val">${this.esc(item.subject)}</div></div>` : ''}
                 <div><div class="d-label">Akses Kampus</div><div class="d-val">${this.esc(accessType === 'ezproxy' ? 'EZProxy SSO (Luar Jaringan Kampus)' : (accessType === 'open' ? 'Open Access' : 'IP Kampus / Eduroam UMS'))}</div></div>
             </div>
@@ -1253,16 +1283,46 @@ const app = {
             </div>
 
             <!-- Action Buttons -->
-            <div style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:0.75rem; flex-wrap:wrap;">
+            <div style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:0.6rem; flex-wrap:wrap; align-items:center;">
                 <button type="button" class="btn btn-ghost" onclick="app.closeBookDetail()">Tutup</button>
-                <a href="${this.esc(directUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.55rem 1.25rem;">
+                ${hasPdf ? `
+                <button type="button" class="btn btn-emerald" onclick="app.closeBookDetail(); app.openEBookPdfViewer(${this.idAttr(item.id)});" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.55rem 1.15rem; font-weight:600;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    <span>Baca E-Book (PDF)</span>
+                </button>
+                ${allowDownload ? `
+                <a href="${this.esc(pdfDownloadUrl)}" class="btn btn-ghost" style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.55rem 0.9rem; font-weight:600; border:1px solid var(--border);" download>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span>Unduh PDF ${item.pdf_size ? `(${this.esc(item.pdf_size)})` : ''}</span>
+                </a>
+                ` : ''}
+                ` : ''}
+                ${item.url && item.url !== '#' && item.url !== pdfReadUrl ? `
+                <a href="${this.esc(directUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.55rem 1.15rem;">
+                    <span>Platform Penerbit ↗</span>
+                </a>
+                ` : (!hasPdf ? `
+                <a href="${this.esc(directUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.55rem 1.15rem;">
                     <span>Buka E-Book di Platform Resmi ↗</span>
                 </a>
+                ` : '')}
             </div>
         </div>`;
 
         document.getElementById('modal').style.display = 'flex';
         document.body.style.overflow = 'hidden';
+    },
+
+    openEBookPdfViewer(rawId) {
+        const item = (this._ebooksList || []).find(b => String(b.id) === String(rawId));
+        if (!item) {
+            this.showAlert('Data e-book tidak ditemukan.');
+            return;
+        }
+        const pdfUrl = item.pdf_filename ? `/api/ebooks/${encodeURIComponent(item.id)}/pdf` : (item.pdf_url || item.url || '');
+        const title = item.title ? `[E-Book] ${item.title}` : 'Pratinjau Dokumen PDF';
+        const fallbackUrl = item.url || pdfUrl;
+        this.openPdfViewer(pdfUrl, title, fallbackUrl);
     },
 
     copyEBookCitation(rawId) {
@@ -2144,8 +2204,13 @@ const app = {
             directBtn.onclick = () => window.open(targetUrl, '_blank');
         }
         if (frameEl) {
-            // Stream PDF through backend proxy to eliminate X-Frame-Options blocking and render PDF directly in modal
-            frameEl.src = '/api/pdf_proxy?url=' + encodeURIComponent(targetUrl);
+            // Local endpoints on the same origin (like /api/ebooks/...) are served directly with permissive headers
+            if (targetUrl.startsWith('/') || targetUrl.startsWith(window.location.origin)) {
+                frameEl.src = targetUrl;
+            } else {
+                // Stream external PDF through backend proxy to eliminate X-Frame-Options blocking
+                frameEl.src = '/api/pdf_proxy?url=' + encodeURIComponent(targetUrl);
+            }
         }
         if (modal) {
             modal.style.display = 'flex';
@@ -2317,13 +2382,33 @@ const app = {
         let titleLabel = srcObj.name;
 
         if (srcObj.type === 'local_koha') {
-            results = this.books.filter(b => b.src !== 'UMS (Journal)' && b.src !== 'UMS (ETD)' && b.type !== 'THESIS' && (!b.src || (!b.src.toLowerCase().includes('journal') && !b.src.toLowerCase().includes('sibi'))));
+            results = this.books.filter(b => {
+                const s = (b.src || '').toLowerCase();
+                const u = (b.url || '').toLowerCase();
+                const t = (b.type || '').toUpperCase();
+                const id = String(b.id || '').toLowerCase();
+                const isJournal = s.includes('journal') || u.includes('journal') || id.startsWith('ojs') || t === 'JR' || t === 'ARTICLE';
+                const isEtd = s.includes('etd') || s.includes('eprints') || u.includes('eprints') || t === 'THESIS';
+                const isSibi = s.includes('sibi') || u.includes('sibi');
+                return !isJournal && !isEtd && !isSibi;
+            });
             titleLabel = 'Katalog Buku (Koha UMS & Mitra)';
         } else if (srcObj.type === 'local_etd') {
-            results = this.books.filter(b => b.src === 'UMS (ETD)' || (b.src && b.src.toLowerCase().includes('eprints.ums')));
+            results = this.books.filter(b => {
+                const s = (b.src || '').toLowerCase();
+                const u = (b.url || '').toLowerCase();
+                const t = (b.type || '').toUpperCase();
+                return b.src === 'UMS (ETD)' || s.includes('eprints') || u.includes('eprints') || t === 'THESIS';
+            });
             titleLabel = 'Skripsi, Tesis & Disertasi (EPrints UMS)';
         } else if (srcObj.type === 'local_journal') {
-            results = this.books.filter(b => b.src === 'UMS (Journal)' || (b.src && b.src.toLowerCase().includes('journal')));
+            results = this.books.filter(b => {
+                const s = (b.src || '').toLowerCase();
+                const u = (b.url || '').toLowerCase();
+                const t = (b.type || '').toUpperCase();
+                const id = String(b.id || '').toLowerCase();
+                return b.src === 'UMS (Journal)' || s.includes('journal') || u.includes('journal') || id.startsWith('ojs') || t === 'JR' || t === 'ARTICLE';
+            });
             titleLabel = 'Artikel Jurnal UMS (journals.ums.ac.id)';
         } else if (srcObj.type === 'sibi_api') {
             results = this.books.filter(b => b.src && b.src.includes('SIBI'));
@@ -3604,13 +3689,47 @@ const app = {
         if (moreWrap) moreWrap.style.display = end < this.currentResults.length ? 'block' : 'none';
     },
     loadMore() { this.resultsPage++; this.renderResults(); },
+    changeSort(val) {
+        const sel = document.getElementById('sort-sel');
+        const s = val || (sel ? sel.value : 'relevance');
+        if (sel && val && sel.value !== val) {
+            sel.value = val;
+        }
+
+        if (s === 'title') {
+            this.currentResults.sort((a, b) => (a.t || '').localeCompare(b.t || ''));
+        } else if (s === 'year-desc') {
+            this.currentResults.sort((a, b) => {
+                const yA = parseInt(a.yr, 10) || 0;
+                const yB = parseInt(b.yr, 10) || 0;
+                if (yB !== yA) return yB - yA;
+                return (a.t || '').localeCompare(b.t || '');
+            });
+        } else if (s === 'year-asc') {
+            this.currentResults.sort((a, b) => {
+                const yA = parseInt(a.yr, 10) || 9999;
+                const yB = parseInt(b.yr, 10) || 9999;
+                if (yA !== yB) return yA - yB;
+                return (a.t || '').localeCompare(b.t || '');
+            });
+        } else if (s === 'ddc') {
+            this.currentResults.sort((a, b) => (a.ddc || '').localeCompare(b.ddc || ''));
+        } else if (s === 'relevance') {
+            if (this.baseResults && this.baseResults.length) {
+                const hasScore = this.baseResults.some(b => typeof b._score === 'number');
+                if (hasScore) {
+                    this.currentResults.sort((a, b) => (b._score || 0) - (a._score || 0));
+                } else {
+                    const orderMap = new Map(this.baseResults.map((b, idx) => [b.id, idx]));
+                    this.currentResults.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+                }
+            }
+        }
+        this.resultsPage = 0;
+        this.renderResults();
+    },
     sortResults() {
-        const s = document.getElementById('sort-sel').value;
-        if (s === 'title') this.currentResults.sort((a, b) => (a.t || '').localeCompare(b.t || ''));
-        else if (s === 'year-desc') this.currentResults.sort((a, b) => (b.yr || '').localeCompare(a.yr || ''));
-        else if (s === 'year-asc') this.currentResults.sort((a, b) => (a.yr || '').localeCompare(b.yr || ''));
-        else if (s === 'ddc') this.currentResults.sort((a, b) => (a.ddc || '').localeCompare(b.ddc || ''));
-        this.resultsPage = 0; this.renderResults();
+        this.changeSort();
     },
 
     // ──── Facets / Filters ────
@@ -3667,7 +3786,7 @@ const app = {
 
         document.getElementById('facet-container').innerHTML = html;
         const acCount = this.activeFilters.access.size + this.activeFilters.src.size + this.activeFilters.type.size + this.activeFilters.author.size + this.activeFilters.year.size + this.activeFilters.subject.size + this.activeFilters.ddcClass.size;
-        document.getElementById('btn-clear-filters').style.display = acCount > 0 ? 'inline-block' : 'none';
+        document.getElementById('btn-clear-filters').style.display = acCount > 0 ? 'inline-flex' : 'none';
         const hasFacets = [srcCounts, typeCounts, authorCounts, yearCounts, subjectCounts, ddcClassCounts].some(c => Object.keys(c).length > 0);
         document.getElementById('results-sidebar').style.display = hasFacets ? 'block' : 'none';
     },
@@ -3762,15 +3881,12 @@ const app = {
         const queryText = titleEl.textContent.split(' — ')[0];
         titleEl.textContent = `${queryText} — ${this.fmt(this.currentResults.length)} ${this.t('results_found').toLowerCase()}`;
 
-        this.renderResults();
-    },
-    sortResults() {
-        const s = document.getElementById('sort-sel').value;
-        if (s === 'title') this.currentResults.sort((a, b) => (a.t || '').localeCompare(b.t || ''));
-        else if (s === 'year-desc') this.currentResults.sort((a, b) => (b.yr || '').localeCompare(a.yr || ''));
-        else if (s === 'year-asc') this.currentResults.sort((a, b) => (a.yr || '').localeCompare(b.yr || ''));
-        else if (s === 'ddc') this.currentResults.sort((a, b) => (a.ddc || '').localeCompare(b.ddc || ''));
-        this.resultsPage = 0; this.renderResults();
+        const sel = document.getElementById('sort-sel');
+        if (sel && sel.value && sel.value !== 'relevance') {
+            this.changeSort(sel.value);
+        } else {
+            this.renderResults();
+        }
     },
 
     // ──── Browse ────

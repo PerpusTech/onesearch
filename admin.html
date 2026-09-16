@@ -2092,11 +2092,68 @@
                         </div>
                     </div>
 
+                    <!-- PDF E-Book Attachment Section (Upload up to 150MB) -->
+                    <div class="form-group" style="background:var(--bg-subtle, #f9fafb); border:1px dashed var(--border-main, #e5e7eb); border-radius:var(--radius-md, 8px); padding:0.85rem; margin-bottom:1rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.45rem;">
+                            <label class="form-label" style="margin-bottom:0; font-weight:600; display:flex; align-items:center; gap:0.4rem;">
+                                <span>📄 File Dokumen PDF (Maks 150 MB)</span>
+                                <span style="font-size:0.68rem; font-weight:500; background:var(--accent-soft, #eff6ff); color:var(--accent, #1d4ed8); padding:1px 6px; border-radius:10px; border:1px solid var(--accent-border, #bfdbfe);">Lokal Server</span>
+                            </label>
+                            <span id="ebook-pdf-status-badge" style="font-size:0.72rem; color:var(--text-muted);">Belum ada PDF</span>
+                        </div>
+
+                        <!-- Hidden input fields for stored PDF state -->
+                        <input type="hidden" id="ebook-pdf-filename" value="">
+                        <input type="hidden" id="ebook-pdf-size" value="">
+
+                        <!-- Upload Dropzone / Trigger -->
+                        <div id="ebook-pdf-dropzone" style="text-align:center; padding:0.9rem 0.6rem; border:1px dashed var(--border-main, #d1d5db); border-radius:var(--radius-sm, 6px); background:var(--bg-surface, #ffffff); cursor:pointer; transition:all 0.15s ease;" onclick="document.getElementById('ebook-pdf-file-input').click()">
+                            <input type="file" id="ebook-pdf-file-input" accept="application/pdf" style="display:none;" onchange="handleEBookPdfSelected(event)">
+                            <div style="font-size:1.4rem; margin-bottom:0.2rem;">📤</div>
+                            <div style="font-size:0.82rem; font-weight:600; color:var(--text-main);">Pilih atau Seret (Drag) File PDF ke Sini</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Ukuran maks 150 MB. Pemustaka dapat membaca langsung di OneSearch & mengunduhnya.</div>
+                        </div>
+
+                        <!-- Upload Progress Bar (hidden by default) -->
+                        <div id="ebook-pdf-progress-wrap" style="display:none; margin-top:0.6rem;">
+                            <div style="display:flex; justify-content:space-between; font-size:0.72rem; margin-bottom:0.25rem;">
+                                <span id="ebook-pdf-progress-text" style="font-weight:500;">Mengunggah PDF...</span>
+                                <span id="ebook-pdf-progress-pct" style="font-weight:600; font-family:var(--font-mono); color:var(--accent);">0%</span>
+                            </div>
+                            <div style="width:100%; height:6px; background:var(--bg-muted, #e5e7eb); border-radius:3px; overflow:hidden;">
+                                <div id="ebook-pdf-progress-bar" style="width:0%; height:100%; background:var(--accent, #1d4ed8); transition:width 0.15s ease;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Attached PDF Preview Card -->
+                        <div id="ebook-pdf-attached-card" style="display:none; margin-top:0.6rem; padding:0.5rem 0.65rem; background:var(--bg-surface, #ffffff); border:1px solid var(--accent-border, #bfdbfe); border-radius:var(--radius-sm, 6px); align-items:center; justify-content:space-between;">
+                            <div style="display:flex; align-items:center; gap:0.55rem; min-width:0;">
+                                <span style="font-size:1.15rem;">📑</span>
+                                <div style="min-width:0;">
+                                    <div id="ebook-pdf-display-name" style="font-size:0.78rem; font-weight:600; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">nama_file.pdf</div>
+                                    <div id="ebook-pdf-display-size" style="font-size:0.7rem; color:var(--text-muted); font-family:var(--font-mono);">0 MB</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:0.35rem; align-items:center; flex-shrink:0;">
+                                <a id="ebook-pdf-preview-link" href="#" target="_blank" class="btn btn-xs" style="text-decoration:none; padding:2px 8px; font-size:0.72rem;">👁 Buka</a>
+                                <button type="button" class="btn btn-destructive btn-xs" style="padding:2px 8px; font-size:0.72rem;" onclick="removeAttachedEBookPdf()">✕ Lepas</button>
+                            </div>
+                        </div>
+
+                        <!-- Download policy toggle -->
+                        <div style="margin-top:0.65rem; padding-top:0.55rem; border-top:1px solid var(--border-subtle, #f3f4f6); display:flex; align-items:center; justify-content:space-between;">
+                            <label style="display:flex; align-items:center; gap:0.45rem; font-size:0.78rem; cursor:pointer; user-select:none; margin:0;">
+                                <input type="checkbox" id="ebook-allow-download" checked>
+                                <span style="font-weight:500;">Izinkan Pemustaka Mengunduh (Download) PDF</span>
+                            </label>
+                            <span style="font-size:0.7rem; color:var(--text-muted);">(Tombol unduh aktif di katalog)</span>
+                        </div>
+                    </div>
+
                     <div class="form-group">
-                        <label class="form-label" for="ebook-url">URL Akses Platform E-Book (atau Link EZProxy) *
-                            :</label>
-                        <input type="url" id="ebook-url" class="input" placeholder="https://link.springer.com/book/..."
-                            required>
+                        <label class="form-label" for="ebook-url">URL Eksternal Platform E-Book (atau Link EZProxy)
+                            <span style="font-weight:normal; font-size:0.75rem; color:var(--text-muted);">(Opsional jika sudah upload PDF)</span>:</label>
+                        <input type="url" id="ebook-url" class="input" placeholder="https://link.springer.com/book/...">
                     </div>
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.6rem; margin-bottom:0.85rem;">
@@ -3582,6 +3639,13 @@
                         </td>
                         <td>
                             <span class="type-badge" style="background:var(--bg-muted); white-space:nowrap;">${esc(accessLabel)}</span>
+                            ${it.pdf_filename ? `
+                                <div style="margin-top:4px;">
+                                    <a href="/api/ebooks/${encodeURIComponent(it.id)}/pdf" target="_blank" class="code-tag" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; font-size:0.7rem; text-decoration:none; display:inline-flex; align-items:center; gap:3px;" title="Buka PDF di tab baru">
+                                        <span>📄 PDF</span> <span>${esc(it.pdf_size || '')}</span> ↗
+                                    </a>
+                                </div>
+                            ` : ''}
                             ${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" style="font-size:0.72rem; display:block; color:var(--border-focus); margin-top:3px; text-decoration:none;">Buka Link ↗</a>` : ''}
                         </td>
                         <td>
@@ -3669,9 +3733,174 @@
                 return sel.value;
             }
 
+            function updateEBookPdfUi(pdfFilename, pdfSize, ebkId) {
+                const attachedCard = document.getElementById('ebook-pdf-attached-card');
+                const displayName = document.getElementById('ebook-pdf-display-name');
+                const displaySize = document.getElementById('ebook-pdf-display-size');
+                const previewLink = document.getElementById('ebook-pdf-preview-link');
+                const statusBadge = document.getElementById('ebook-pdf-status-badge');
+                const hiddenFilename = document.getElementById('ebook-pdf-filename');
+                const hiddenSize = document.getElementById('ebook-pdf-size');
+
+                if (hiddenFilename) hiddenFilename.value = pdfFilename || '';
+                if (hiddenSize) hiddenSize.value = pdfSize || '';
+
+                if (pdfFilename) {
+                    if (attachedCard) attachedCard.style.display = 'flex';
+                    if (displayName) displayName.textContent = pdfFilename;
+                    if (displaySize) displaySize.textContent = pdfSize ? `${pdfSize}` : 'PDF Tersimpan';
+                    if (previewLink) previewLink.href = `/api/ebooks/${encodeURIComponent(ebkId || 'temp')}/pdf`;
+                    if (statusBadge) statusBadge.textContent = `✓ PDF Siap (${pdfSize || 'Tersimpan'})`;
+                } else {
+                    if (attachedCard) attachedCard.style.display = 'none';
+                    if (statusBadge) statusBadge.textContent = 'Belum ada PDF';
+                }
+            }
+
+            function handleEBookPdfSelected(event) {
+                const file = event.target.files && event.target.files[0];
+                if (!file) return;
+
+                if (!file.name.toLowerCase().endsWith('.pdf')) {
+                    showToast('Hanya file dokumen PDF yang diperbolehkan!');
+                    return;
+                }
+
+                const maxBytes = 150 * 1024 * 1024;
+                if (file.size > maxBytes) {
+                    showToast('Ukuran file PDF melebihi batas 150 MB!');
+                    return;
+                }
+
+                uploadEBookPdfFile(file);
+            }
+
+            function uploadEBookPdfFile(file) {
+                const isAuthed = checkAuth();
+                if (!isAuthed) return;
+
+                const progressWrap = document.getElementById('ebook-pdf-progress-wrap');
+                const progressBar = document.getElementById('ebook-pdf-progress-bar');
+                const progressPct = document.getElementById('ebook-pdf-progress-pct');
+                const progressText = document.getElementById('ebook-pdf-progress-text');
+
+                if (progressWrap) progressWrap.style.display = 'block';
+                if (progressBar) progressBar.style.width = '0%';
+                if (progressPct) progressPct.textContent = '0%';
+                if (progressText) progressText.textContent = `Mengunggah ${file.name}...`;
+
+                let ebkId = document.getElementById('ebook-id').value.trim();
+                if (!ebkId) {
+                    ebkId = `EBK-${Date.now()}`;
+                    document.getElementById('ebook-id').value = ebkId;
+                }
+
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('id', ebkId);
+
+                const xhr = new XMLHttpRequest();
+                const uploadUrl = adminKey 
+                    ? `/api/admin/international/ebooks/upload-pdf?key=${encodeURIComponent(adminKey)}`
+                    : '/api/admin/international/ebooks/upload-pdf';
+
+                xhr.open('POST', uploadUrl, true);
+                if (adminKey) {
+                    xhr.setRequestHeader('X-Admin-Key', adminKey);
+                }
+
+                xhr.upload.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        const pct = Math.round((e.loaded / e.total) * 100);
+                        if (progressBar) progressBar.style.width = pct + '%';
+                        if (progressPct) progressPct.textContent = pct + '%';
+                    }
+                };
+
+                xhr.onload = function() {
+                    if (progressWrap) progressWrap.style.display = 'none';
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try {
+                            const res = JSON.parse(xhr.responseText);
+                            if (res.ok) {
+                                showToast(res.message || 'File PDF berhasil diunggah!');
+                                updateEBookPdfUi(res.pdf_filename, res.pdf_size, res.id || ebkId);
+                            } else {
+                                showToast('Gagal unggah PDF: ' + (res.error || 'Terjadi kesalahan'));
+                            }
+                        } catch (err) {
+                            showToast('Gagal memproses respon server.');
+                        }
+                    } else {
+                        showToast(`Gagal unggah PDF (HTTP ${xhr.status}).`);
+                    }
+                    document.getElementById('ebook-pdf-file-input').value = '';
+                };
+
+                xhr.onerror = function() {
+                    if (progressWrap) progressWrap.style.display = 'none';
+                    showToast('Koneksi terputus saat mengunggah PDF.');
+                    document.getElementById('ebook-pdf-file-input').value = '';
+                };
+
+                xhr.send(formData);
+            }
+
+            function removeAttachedEBookPdf() {
+                const filename = document.getElementById('ebook-pdf-filename').value;
+                if (!filename) return;
+
+                if (!confirm('Lepaskan file PDF ini dari e-book?')) return;
+
+                const ebkId = document.getElementById('ebook-id').value.trim();
+                if (ebkId) {
+                    adminFetch(`/api/admin/international/ebooks/${encodeURIComponent(ebkId)}/pdf`, { method: 'DELETE' })
+                        .catch(() => {});
+                }
+
+                updateEBookPdfUi('', '', ebkId);
+                showToast('File PDF telah dilepas.');
+            }
+
+            function initEBookPdfDropzone() {
+                const dropzone = document.getElementById('ebook-pdf-dropzone');
+                if (!dropzone || dropzone._dndInitialized) return;
+                dropzone._dndInitialized = true;
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    dropzone.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropzone.style.borderColor = 'var(--accent, #1d4ed8)';
+                        dropzone.style.background = 'var(--accent-soft, #eff6ff)';
+                    }, false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    dropzone.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropzone.style.borderColor = 'var(--border-main, #d1d5db)';
+                        dropzone.style.background = 'var(--bg-surface, #ffffff)';
+                    }, false);
+                });
+
+                dropzone.addEventListener('drop', (e) => {
+                    const dt = e.dataTransfer;
+                    const files = dt && dt.files;
+                    if (files && files.length > 0) {
+                        handleEBookPdfSelected({ target: { files } });
+                    }
+                }, false);
+            }
+
             function openAddEBookModal(editItem = null) {
                 const modal = document.getElementById('ebook-modal');
                 const titleEl = document.getElementById('modal-ebook-title');
+                initEBookPdfDropzone();
+
+                const progressWrap = document.getElementById('ebook-pdf-progress-wrap');
+                if (progressWrap) progressWrap.style.display = 'none';
 
                 if (editItem) {
                     titleEl.textContent = 'Edit Data E-Book Langganan';
@@ -3686,13 +3915,17 @@
                     document.getElementById('ebook-subject').value = editItem.subject || '';
                     document.getElementById('ebook-access-type').value = editItem.access_type || 'kampus';
                     document.getElementById('ebook-notes').value = editItem.notes || '';
+                    document.getElementById('ebook-allow-download').checked = editItem.allow_download !== false;
                     document.getElementById('ebook-active').checked = editItem.active !== false;
+                    updateEBookPdfUi(editItem.pdf_filename || '', editItem.pdf_size || '', editItem.id);
                 } else {
                     titleEl.textContent = 'Tambah E-Book Langganan';
                     document.getElementById('ebook-form').reset();
                     document.getElementById('ebook-id').value = '';
                     setEBookPublisherValue('');
+                    document.getElementById('ebook-allow-download').checked = true;
                     document.getElementById('ebook-active').checked = true;
+                    updateEBookPdfUi('', '', '');
                 }
 
                 modal.style.display = 'flex';
@@ -3725,6 +3958,9 @@
                 const subject = document.getElementById('ebook-subject').value.trim();
                 const access_type = document.getElementById('ebook-access-type').value;
                 const notes = document.getElementById('ebook-notes').value.trim();
+                const pdf_filename = document.getElementById('ebook-pdf-filename').value.trim();
+                const pdf_size = document.getElementById('ebook-pdf-size').value.trim();
+                const allow_download = document.getElementById('ebook-allow-download').checked;
                 const active = document.getElementById('ebook-active').checked;
 
                 if (!title || !publisher) {
@@ -3732,7 +3968,11 @@
                     return;
                 }
 
-                const payload = { id, title, author, publisher, year, isbn, url, cover_url, subject, access_type, notes, active };
+                const payload = { 
+                    id, title, author, publisher, year, isbn, url, cover_url, 
+                    subject, access_type, notes, pdf_filename, pdf_size, 
+                    allow_download, active 
+                };
 
                 try {
                     const res = await adminFetch('/api/admin/international/ebooks', {

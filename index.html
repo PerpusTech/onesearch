@@ -23,7 +23,7 @@
         rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
 
-    <link rel="stylesheet" href="css/style.css?v=92">
+    <link rel="stylesheet" href="css/style.css?v=97">
 </head>
 
 <body>
@@ -227,10 +227,15 @@
                     <div class="results-layout">
                         <!-- Sidebar Facets -->
                         <aside class="sidebar" id="results-sidebar">
-                            <div class="sidebar-head">
-                                <h3><span data-i18n="filter">Filter</span></h3>
-                                <button class="btn-clear" id="btn-clear-filters" onclick="app.clearFilters()"
-                                    data-i18n="clear">Hapus</button>
+                            <div class="facet-header sidebar-head">
+                                <h3>
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.85;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                    <span data-i18n="filter">Filter</span>
+                                </h3>
+                                <button class="btn-clear-filters btn-clear" id="btn-clear-filters" onclick="app.clearFilters()"
+                                    title="Hapus semua filter yang aktif" style="display:none;">
+                                    <span data-i18n="clear">Hapus</span>
+                                </button>
                             </div>
                             <div id="facet-container"></div>
                         </aside>
@@ -634,12 +639,12 @@
     </div>
     <script src="js/search.js?v=18"></script>
     <script src="js/recommender.js?v=17"></script>
-    <script src="js/app.js?v=95"></script>
+    <script src="js/app.js?v=99"></script>
     <script>
         // Inisialisasi Service Worker untuk offline PWA caching & caching data discovery
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=95').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=99').then(reg => {
                     console.log('BookFinder Service Worker terdaftar:', reg.scope);
                 }).catch(err => {
                     console.warn('Gagal mendaftarkan Service Worker:', err);
