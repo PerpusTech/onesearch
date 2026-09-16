@@ -1,5 +1,5 @@
-const CACHE_NAME_SHELL = 'onesearch-shell-v108';
-const CACHE_NAME_DATA  = 'onesearch-data-v108';
+const CACHE_NAME_SHELL = 'onesearch-shell-v109';
+const CACHE_NAME_DATA  = 'onesearch-data-v109';
 
 const SHELL_ASSETS = [
   '/',

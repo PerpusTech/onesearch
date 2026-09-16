@@ -982,6 +982,8 @@ const app = {
             return;
         }
 
+        const q = (document.getElementById('ejrn-search-input')?.value || (document.getElementById('search-input') || {}).value || '').trim();
+
         grid.innerHTML = safeList.map(it => {
             const issns = [it.issn, it.eissn].filter(Boolean).join(' / ') || '-';
             const accessBadge = it.accessType === 'ezproxy' ?
@@ -1000,22 +1002,22 @@ const app = {
                         ${accessBadge}
                     </div>
                     <h3 style="font-size:1.05rem; font-weight:700; color:var(--ink); margin-bottom:0.4rem; line-height:1.35;">
-                        ${this.esc(it.title)}
+                        ${this.hl(it.title, q)}
                     </h3>
                     <div style="font-size:0.82rem; font-weight:600; color:var(--brand-text); margin-bottom:0.5rem;">
-                        ${this.esc(it.publisher || 'Penerbit Internasional')}
+                        ${this.hl(it.publisher || 'Penerbit Internasional', q)}
                     </div>
                     <div style="font-size:0.75rem; color:var(--ink-3); margin-bottom:0.6rem; font-family:var(--font-mono);">
                         ISSN: ${this.esc(issns)}
                     </div>
                     ${it.subject ? `
                     <div style="font-size:0.78rem; color:var(--ink-2); margin-bottom:0.75rem;">
-                        <strong>Subjek:</strong> ${this.esc(it.subject)} ${it.faculty ? `(Fak: ${this.esc(it.faculty)})` : ''}
+                        <strong>Subjek:</strong> ${this.hl(it.subject, q)} ${it.faculty ? `(Fak: ${this.esc(it.faculty)})` : ''}
                     </div>` : ''}
                     ${it.notes ? `
                     <div style="font-size:0.74rem; color:var(--ink-3); margin-bottom:0.75rem; display:flex; align-items:flex-start; gap:0.35rem;">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                        <span>${this.esc(it.notes)}</span>
+                        <span>${this.hl(it.notes, q)}</span>
                     </div>` : ''}
                 </div>
                 <div style="margin-top:1rem; border-top:1px solid var(--border); padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center;">
@@ -1197,6 +1199,8 @@ const app = {
             return;
         }
 
+        const q = (this._intlEBookState && this._intlEBookState.query) || (document.getElementById('search-input') || {}).value || '';
+
         const cardsHtml = items.map(it => {
             const hasBm = this.bookmarks ? this.bookmarks.has(String(it.id)) : false;
             const readUrl = it.pdf_url || it.url || '#';
@@ -1251,17 +1255,17 @@ const app = {
                                     ${this.starSvg(hasBm)}
                                 </button>
                             </div>
-                            <h3 class="ebk-title" title="${this.esc(it.title)}">${this.esc(it.title)}</h3>
+                            <h3 class="ebk-title" title="${this.esc(it.title)}">${this.hl(it.title, q)}</h3>
                             <div style="font-size:0.78rem; color:var(--ink-2); margin-bottom:0.3rem;">
-                                <strong>${this.esc(authorStr)}</strong> ${yearStr ? `(${this.esc(yearStr)})` : ''}
+                                <strong>${this.hl(authorStr, q)}</strong> ${yearStr ? `(${this.esc(yearStr)})` : ''}
                             </div>
                             <div style="font-size:0.74rem; color:var(--ink-3);">
-                                <span>${this.esc(it.publisher || 'Academic Publisher')}</span>
-                                ${it.subject ? ` • <span>${this.esc(it.subject)}</span>` : ''}
+                                <span>${this.hl(it.publisher || 'Academic Publisher', q)}</span>
+                                ${it.subject ? ` • <span>${this.hl(it.subject, q)}</span>` : ''}
                             </div>
                         </div>
                     </div>
-                    ${it.abstract ? `<p style="font-size:0.77rem; color:var(--ink-3); margin-top:0.75rem; line-height:1.45; display:-webkit-box; -webkit-line-clamp:3; line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;">${this.esc(it.abstract)}</p>` : ''}
+                    ${it.abstract ? `<p style="font-size:0.77rem; color:var(--ink-3); margin-top:0.75rem; line-height:1.45; display:-webkit-box; -webkit-line-clamp:3; line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;">${this.hl(it.abstract, q)}</p>` : ''}
                 </div>
 
                 <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
@@ -1388,6 +1392,8 @@ const app = {
             return;
         }
 
+        const q = (document.getElementById('ebk-search-input')?.value || (document.getElementById('search-input') || {}).value || '').trim();
+
         grid.innerHTML = safeList.map(it => {
             const accessType = it.access_type || it.accessType || 'kampus';
             const accessBadge = accessType === 'ezproxy' ?
@@ -1438,23 +1444,23 @@ const app = {
                             ${accessBadge}
                         </div>
                         <h3 class="ebk-title" title="${this.esc(it.title)}">
-                            ${this.esc(it.title)}
+                            ${this.hl(it.title, q)}
                         </h3>
                         <div class="ebk-author">
-                            ${this.esc(authorStr)}
+                            ${this.hl(authorStr, q)}
                         </div>
                         <div class="ebk-pub">
-                            <span>${this.esc(it.publisher || 'Penerbit Internasional')}</span>
+                            <span>${this.hl(it.publisher || 'Penerbit Internasional', q)}</span>
                             ${yearStr ? `<span>• ${yearStr}</span>` : ''}
                         </div>
                         <div class="ebk-meta-row">
                             <span>ISBN: <code>${this.esc(isbnStr)}</code></span>
-                            ${it.subject ? `<span class="ebk-subject-chip">${this.esc(it.subject)}</span>` : ''}
+                            ${it.subject ? `<span class="ebk-subject-chip">${this.hl(it.subject, q)}</span>` : ''}
                         </div>
                         ${it.notes ? `
                         <div class="ebk-notes">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                            <span>${this.esc(it.notes)}</span>
+                            <span>${this.hl(it.notes, q)}</span>
                         </div>` : ''}
                     </div>
                 </div>
@@ -2871,6 +2877,7 @@ const app = {
             return;
         }
 
+        const q = this._fedCurrentQuery || (document.getElementById('search-input') || {}).value || '';
         el.style.display = 'grid';
         let html = '';
 
@@ -2893,14 +2900,14 @@ const app = {
                         <div>${accessBadge}</div>
                     </div>
                     <div>
-                        <h3 class="fed-jrn-highlight-title">${this.esc(j.title)}</h3>
+                        <h3 class="fed-jrn-highlight-title">${this.hl(j.title, q)}</h3>
                         <div class="fed-jrn-highlight-meta">
-                            <span>Penerbit: <strong>${this.esc(j.publisher || 'Internasional')}</strong></span>
+                            <span>Penerbit: <strong>${this.hl(j.publisher || 'Internasional', q)}</strong></span>
                             <span>•</span>
                             <span>ISSN: <code>${this.esc(issns)}</code></span>
-                            ${j.subject ? `<span>•</span><span>Subjek: ${this.esc(j.subject)} ${j.faculty ? `(Fak: ${this.esc(j.faculty)})` : ''}</span>` : ''}
+                            ${j.subject ? `<span>•</span><span>Subjek: ${this.hl(j.subject, q)} ${j.faculty ? `(Fak: ${this.esc(j.faculty)})` : ''}</span>` : ''}
                         </div>
-                        ${j.notes ? `<div style="font-size:0.75rem; color:var(--ink-3); margin-top:0.35rem;">Catatan: ${this.esc(j.notes)}</div>` : ''}
+                        ${j.notes ? `<div style="font-size:0.75rem; color:var(--ink-3); margin-top:0.35rem;">Catatan: ${this.hl(j.notes, q)}</div>` : ''}
                     </div>
                     <div class="fed-jrn-highlight-actions">
                         <span style="font-size:0.78rem; color:var(--ink-2);">Tersedia akses teks lengkap untuk sivitas akademika Universitas Muhammadiyah Surakarta</span>
@@ -2931,15 +2938,15 @@ const app = {
                         <div>${accessBadge}</div>
                     </div>
                     <div>
-                        <h3 class="fed-jrn-highlight-title">${this.esc(b.title)}</h3>
+                        <h3 class="fed-jrn-highlight-title">${this.hl(b.title, q)}</h3>
                         <div class="fed-jrn-highlight-meta">
-                            <span>Penulis: <strong>${this.esc(b.author || 'Penulis')}</strong></span>
+                            <span>Penulis: <strong>${this.hl(b.author || 'Penulis', q)}</strong></span>
                             <span>•</span>
-                            <span>Penerbit: <strong>${this.esc(b.publisher || 'Internasional')}</strong></span>
+                            <span>Penerbit: <strong>${this.hl(b.publisher || 'Internasional', q)}</strong></span>
                             ${b.year ? `<span>•</span><span>Tahun: ${b.year}</span>` : ''}
                             ${b.isbn ? `<span>•</span><span>ISBN: <code>${this.esc(b.isbn)}</code></span>` : ''}
                         </div>
-                        ${b.notes ? `<div style="font-size:0.75rem; color:var(--ink-3); margin-top:0.35rem;">Catatan: ${this.esc(b.notes)}</div>` : ''}
+                        ${b.notes ? `<div style="font-size:0.75rem; color:var(--ink-3); margin-top:0.35rem;">Catatan: ${this.hl(b.notes, q)}</div>` : ''}
                     </div>
                     <div class="fed-jrn-highlight-actions">
                         <button type="button" class="btn btn-ghost" style="padding:0.35rem 0.75rem; font-size:0.78rem;" onclick="app.showEBookDetail(${this.idAttr(b.id)})">
@@ -3354,7 +3361,7 @@ const app = {
             const rawId = String(it.id || it.doi || it.url);
             const safeTitle = this.hl(it.title || 'Untitled', q);
             const safeAuthors = this.hl(it.authors || 'Unknown', q);
-            const safePub = this.esc(it.publicationName || '-');
+            const safePub = this.hl(it.publicationName || '-', q);
             const safeType = this.esc(it.contentType || 'Article');
             const safePubType = this.esc(it.publicationType || srcObj.name);
             const safeDate = it.date ? this.esc(it.date) : (it.year ? this.esc(String(it.year)) : '');
@@ -3650,18 +3657,18 @@ const app = {
                                             </button>
                                         </div>
                                         <h3 class="ebk-title" title="${this.esc(it.title)}">
-                                            <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" style="color:inherit; text-decoration:none;">${this.esc(it.title)}</a>
+                                            <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" style="color:inherit; text-decoration:none;">${this.hl(it.title, query)}</a>
                                         </h3>
                                         <div style="font-size:0.78rem; color:var(--ink-2); margin-bottom:0.3rem;">
-                                            <strong>${this.esc(authorStr)}</strong> ${yearStr ? `(${this.esc(yearStr)})` : ''}
+                                            <strong>${this.hl(authorStr, query)}</strong> ${yearStr ? `(${this.esc(yearStr)})` : ''}
                                         </div>
                                         <div style="font-size:0.74rem; color:var(--ink-3);">
-                                            <span>${this.esc(it.publisher || 'Penerbit Internasional')}</span>
-                                            ${it.subject ? ` • <span>${this.esc(it.subject)}</span>` : ''}
+                                            <span>${this.hl(it.publisher || 'Penerbit Internasional', query)}</span>
+                                            ${it.subject ? ` • <span>${this.hl(it.subject, query)}</span>` : ''}
                                         </div>
                                     </div>
                                 </div>
-                                ${it.abstract ? `<p style="font-size:0.77rem; color:var(--ink-3); margin-top:0.75rem; line-height:1.45; display:-webkit-box; -webkit-line-clamp:3; line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;">${this.esc(it.abstract)}</p>` : ''}
+                                ${it.abstract ? `<p style="font-size:0.77rem; color:var(--ink-3); margin-top:0.75rem; line-height:1.45; display:-webkit-box; -webkit-line-clamp:3; line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;">${this.hl(it.abstract, query)}</p>` : ''}
                             </div>
 
                             <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:0.4rem; flex-wrap:wrap;">
@@ -4042,12 +4049,12 @@ const app = {
                                 </span>
                                 <span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">Akses Sivitas UMS</span>
                             </div>
-                            <h4 class="fed-jrn-highlight-title" style="font-size:0.95rem; margin:0.35rem 0; line-height:1.35;">${this.esc(j.title)}</h4>
+                            <h4 class="fed-jrn-highlight-title" style="font-size:0.95rem; margin:0.35rem 0; line-height:1.35;">${this.hl(j.title, q)}</h4>
                             <div class="fed-jrn-highlight-meta" style="font-size:0.76rem;">
-                                <span>Penerbit: <strong>${this.esc(j.publisher || 'Internasional')}</strong></span>
+                                <span>Penerbit: <strong>${this.hl(j.publisher || 'Internasional', q)}</strong></span>
                                 <span>•</span>
                                 <span>ISSN: <code>${this.esc(issns)}</code></span>
-                                ${j.subject ? `<span>•</span><span>Subjek: ${this.esc(j.subject)}</span>` : ''}
+                                ${j.subject ? `<span>•</span><span>Subjek: ${this.hl(j.subject, q)}</span>` : ''}
                             </div>
                         </div>
                         <div class="fed-jrn-highlight-actions" style="margin-top:0.75rem; padding-top:0.5rem; border-top:1px dashed rgba(217, 119, 6, 0.25);">
@@ -4071,11 +4078,11 @@ const app = {
                                 </span>
                                 <span class="chip" style="background:rgba(37, 99, 235, 0.12); color:#2563eb; font-weight:600;">Akses Sivitas UMS</span>
                             </div>
-                            <h4 class="fed-jrn-highlight-title" style="font-size:0.95rem; margin:0.35rem 0; line-height:1.35;">${this.esc(b.title)}</h4>
+                            <h4 class="fed-jrn-highlight-title" style="font-size:0.95rem; margin:0.35rem 0; line-height:1.35;">${this.hl(b.title, q)}</h4>
                             <div class="fed-jrn-highlight-meta" style="font-size:0.76rem;">
-                                <span>Penulis: <strong>${this.esc(b.author || 'Penulis')}</strong></span>
+                                <span>Penulis: <strong>${this.hl(b.author || 'Penulis', q)}</strong></span>
                                 <span>•</span>
-                                <span>Penerbit: <strong>${this.esc(b.publisher || 'Internasional')}</strong></span>
+                                <span>Penerbit: <strong>${this.hl(b.publisher || 'Internasional', q)}</strong></span>
                                 ${b.year ? `<span>•</span><span>Tahun: ${b.year}</span>` : ''}
                                 ${b.isbn ? `<span>•</span><span>ISBN: <code>${this.esc(b.isbn)}</code></span>` : ''}
                             </div>
@@ -4197,10 +4204,10 @@ const app = {
                                                     </button>
                                                 </div>
                                                 <h4 class="ebk-title" title="${this.esc(it.title)}" style="font-size:0.84rem; line-height:1.3; max-height:2.6em; -webkit-line-clamp:2; display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden; margin:0 0 0.25rem 0;">
-                                                    <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" style="color:inherit; text-decoration:none;">${this.esc(it.title)}</a>
+                                                    <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" style="color:inherit; text-decoration:none;">${this.hl(it.title, q)}</a>
                                                 </h4>
                                                 <div style="font-size:0.73rem; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${this.esc(authorStr)}">
-                                                    <strong>${this.esc(authorStr)}</strong>
+                                                    <strong>${this.hl(authorStr, q)}</strong>
                                                 </div>
                                                 ${yearStr ? `<div style="font-size:0.7rem; color:var(--ink-3); margin-top:2px;">Tahun ${this.esc(yearStr)}</div>` : ''}
                                             </div>
@@ -4277,13 +4284,13 @@ const app = {
                                 ${isSubscribed ? `<span class="fed-badge-subscribed" style="font-size:0.65rem; padding:1px 6px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Langganan UMS</span>` : ''}
                             </div>
                             <div class="fed-card-title">
-                                <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" class="fed-title-link" title="Klik untuk membuka modal detail artikel">${this.esc(it.title)}</a>
+                                <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" class="fed-title-link" title="Klik untuk membuka modal detail artikel">${this.hl(it.title, q)}</a>
                             </div>
                             <div class="fed-card-meta">
-                                ${authors ? `<span>${this.esc(authors.substring(0, 75))}${authors.length > 75 ? '...' : ''}</span>` : ''}
-                                ${journalStr ? `<div><em>${this.esc(journalStr)}</em> ${yearStr}</div>` : ''}
+                                ${authors ? `<span>${this.hl(authors.substring(0, 75), q)}${authors.length > 75 ? '...' : ''}</span>` : ''}
+                                ${journalStr ? `<div><em>${this.hl(journalStr, q)}</em> ${yearStr}</div>` : ''}
                             </div>
-                            ${abstractStr ? `<div class="fed-card-snippet">${this.esc(abstractStr)}</div>` : ''}
+                            ${abstractStr ? `<div class="fed-card-snippet">${this.hl(abstractStr, q)}</div>` : ''}
                         </div>
                         <div class="fed-card-footer">
                             <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.75rem; font-weight:600" onclick="app.showArticleDetail(${this.idAttr(rawId)})">📋 Detail & Sitasi</button>
