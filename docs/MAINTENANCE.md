@@ -68,7 +68,7 @@ Dokumen ini ditujukan bagi pengembang dan administrator teknis untuk memahami st
 ### C. Backend API & Integrasi Luar (`proxy/`)
 | File / Path | Peran & Fungsi Utama |
 | :--- | :--- |
-| **`proxy/app.py`** | Server API Flask: <br>• **Federated Search Engine:** Mengagregasi pencarian artikel ilmiah dari Scopus (Elsevier), OpenAlex, Crossref, ScienceDirect, Semantic Scholar, dan The Lens secara paralel.<br>• **Resilience & Caching:** Menggunakan `TTLCache` in-memory dan `CircuitBreaker` agar jika salah satu API luar down, pencarian tidak macet.<br>• **Admin Endpoints:** Manajemen autentikasi admin (`ADMIN_SECRET_KEY`), impor/ekspor CSV Jurnal & E-Book, streaming & upload file fisik PDF e-book, dan endpoint monitoring harvest. |
+| **`proxy/app.py`** | Server API Flask: <br>• **Federated Search Engine:** Mengagregasi pencarian artikel ilmiah dari Scopus (Elsevier), OpenAlex, Crossref, ScienceDirect, Semantic Scholar, dan The Lens secara paralel.<br>• **E-Book Internasional (Open Access):** Penelusuran live multi-sumber jutaan buku teks akademik dan monograf dari DOAB, Open Library (Internet Archive), dan OpenAlex Books (`/api/international/ebooks/search`).<br>• **Resilience & Caching:** Menggunakan `TTLCache` in-memory dan `CircuitBreaker` agar jika salah satu API luar down, pencarian tidak macet.<br>• **Admin & Analitik:** Pelacakan tren pencarian anonim & *zero-result*, manajemen jurnal/e-book berbayar, streaming PDF, dan monitoring harvest. |
 | **`proxy/requirements.txt`** | Dependensi Python produksi: `Flask`, `requests`, `python-dotenv`, `gunicorn`. |
 | **`proxy/Dockerfile`** | Image container runtime Python untuk menjalankan gunicorn worker dan background scheduler. |
 
