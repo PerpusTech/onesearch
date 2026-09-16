@@ -4726,12 +4726,27 @@ mark.kw-highlight,
     color: #ffffff;
 }
 
-/* Matched Subscribed Journal Highlight Card */
-.fed-subscribed-highlight {
+/* Matched Subscribed Journal & E-Book Highlight Row (Satu baris berdampingan) */
+.fed-subscribed-highlight,
+.fed-subscribed-highlights-row {
     margin-bottom: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 0.85rem;
+}
+
+.fed-subscribed-highlight .fed-journal-highlight-card,
+.fed-subscribed-highlights-row .fed-journal-highlight-card {
+    height: 100%;
+    margin-bottom: 0;
+    box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+    .fed-subscribed-highlight,
+    .fed-subscribed-highlights-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 .fed-journal-highlight-card {

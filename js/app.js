@@ -2871,7 +2871,7 @@ const app = {
             return;
         }
 
-        el.style.display = 'flex';
+        el.style.display = 'grid';
         let html = '';
 
         if (hasJournals) {
@@ -2884,7 +2884,7 @@ const app = {
                         '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
 
                 return `
-                <div class="fed-journal-highlight-card">
+                <div class="fed-journal-highlight-card" style="margin:0; height:100%; display:flex; flex-direction:column; justify-content:space-between;">
                     <div class="fed-jrn-highlight-top">
                         <span class="fed-jrn-highlight-badge">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -2922,7 +2922,7 @@ const app = {
                         '<span class="chip" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; font-weight:600;">IP Kampus</span>');
 
                 return `
-                <div class="fed-journal-highlight-card" style="border-color:rgba(37, 99, 235, 0.45);">
+                <div class="fed-journal-highlight-card" style="border-color:rgba(37, 99, 235, 0.45); margin:0; height:100%; display:flex; flex-direction:column; justify-content:space-between;">
                     <div class="fed-jrn-highlight-top">
                         <span class="fed-jrn-highlight-badge" style="background:#2563eb;">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -4027,62 +4027,76 @@ const app = {
             // Check matching subscribed journals and ebooks for this query
             const matchedSubJournals = this.findMatchingSubscribedJournals(q);
             const matchedSubEBooks = this.findMatchingSubscribedEBooks(q);
-            let matchedJournalsBannerHtml = '';
+            const subHighlights = [];
+
             if (matchedSubJournals && matchedSubJournals.length > 0) {
                 const j = matchedSubJournals[0];
                 const issns = [j.issn, j.eissn].filter(Boolean).join(' / ') || '-';
-                matchedJournalsBannerHtml += `
-                    <div class="fed-journal-highlight-card" style="margin-bottom:1rem; border-color:rgba(217, 119, 6, 0.4);">
-                        <div class="fed-jrn-highlight-top">
-                            <span class="fed-jrn-highlight-badge">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                                Jurnal Langganan Resmi UMS Terkait
-                            </span>
-                            <span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">Akses Sivitas UMS</span>
+                subHighlights.push(`
+                    <div class="fed-journal-highlight-card" style="border-color:rgba(217, 119, 6, 0.4); margin:0; display:flex; flex-direction:column; justify-content:space-between; height:100%;">
+                        <div>
+                            <div class="fed-jrn-highlight-top">
+                                <span class="fed-jrn-highlight-badge">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                    Jurnal Langganan Resmi UMS Terkait
+                                </span>
+                                <span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">Akses Sivitas UMS</span>
+                            </div>
+                            <h4 class="fed-jrn-highlight-title" style="font-size:0.95rem; margin:0.35rem 0; line-height:1.35;">${this.esc(j.title)}</h4>
+                            <div class="fed-jrn-highlight-meta" style="font-size:0.76rem;">
+                                <span>Penerbit: <strong>${this.esc(j.publisher || 'Internasional')}</strong></span>
+                                <span>•</span>
+                                <span>ISSN: <code>${this.esc(issns)}</code></span>
+                                ${j.subject ? `<span>•</span><span>Subjek: ${this.esc(j.subject)}</span>` : ''}
+                            </div>
                         </div>
-                        <h4 class="fed-jrn-highlight-title" style="font-size:0.98rem; margin:0.35rem 0;">${this.esc(j.title)}</h4>
-                        <div class="fed-jrn-highlight-meta">
-                            <span>Penerbit: <strong>${this.esc(j.publisher || 'Internasional')}</strong></span>
-                            <span>•</span>
-                            <span>ISSN: <code>${this.esc(issns)}</code></span>
-                            ${j.subject ? `<span>•</span><span>Subjek: ${this.esc(j.subject)}</span>` : ''}
-                        </div>
-                        <div class="fed-jrn-highlight-actions" style="margin-top:0.6rem;">
-                            <a href="${this.esc(j.url || '#')}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access">
+                        <div class="fed-jrn-highlight-actions" style="margin-top:0.75rem; padding-top:0.5rem; border-top:1px dashed rgba(217, 119, 6, 0.25);">
+                            <a href="${this.esc(j.url || '#')}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access" style="font-size:0.78rem; padding:0.4rem 0.85rem;">
                                 <span>Buka Laman Jurnal (Akses Kampus / SSO) ↗</span>
                             </a>
                         </div>
                     </div>
-                `;
+                `);
             }
 
             if (matchedSubEBooks && matchedSubEBooks.length > 0) {
                 const b = matchedSubEBooks[0];
-                matchedJournalsBannerHtml += `
-                    <div class="fed-journal-highlight-card" style="margin-bottom:1rem; border-color:rgba(37, 99, 235, 0.45);">
-                        <div class="fed-jrn-highlight-top">
-                            <span class="fed-jrn-highlight-badge" style="background:#2563eb;">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                                E-Book Langganan Resmi UMS Terkait
-                            </span>
-                            <span class="chip" style="background:rgba(37, 99, 235, 0.12); color:#2563eb; font-weight:600;">Akses Sivitas UMS</span>
+                subHighlights.push(`
+                    <div class="fed-journal-highlight-card" style="border-color:rgba(37, 99, 235, 0.45); margin:0; display:flex; flex-direction:column; justify-content:space-between; height:100%;">
+                        <div>
+                            <div class="fed-jrn-highlight-top">
+                                <span class="fed-jrn-highlight-badge" style="background:#2563eb;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                    E-Book Langganan Resmi UMS Terkait
+                                </span>
+                                <span class="chip" style="background:rgba(37, 99, 235, 0.12); color:#2563eb; font-weight:600;">Akses Sivitas UMS</span>
+                            </div>
+                            <h4 class="fed-jrn-highlight-title" style="font-size:0.95rem; margin:0.35rem 0; line-height:1.35;">${this.esc(b.title)}</h4>
+                            <div class="fed-jrn-highlight-meta" style="font-size:0.76rem;">
+                                <span>Penulis: <strong>${this.esc(b.author || 'Penulis')}</strong></span>
+                                <span>•</span>
+                                <span>Penerbit: <strong>${this.esc(b.publisher || 'Internasional')}</strong></span>
+                                ${b.year ? `<span>•</span><span>Tahun: ${b.year}</span>` : ''}
+                                ${b.isbn ? `<span>•</span><span>ISBN: <code>${this.esc(b.isbn)}</code></span>` : ''}
+                            </div>
                         </div>
-                        <h4 class="fed-jrn-highlight-title" style="font-size:0.98rem; margin:0.35rem 0;">${this.esc(b.title)}</h4>
-                        <div class="fed-jrn-highlight-meta">
-                            <span>Penulis: <strong>${this.esc(b.author || 'Penulis')}</strong></span>
-                            <span>•</span>
-                            <span>Penerbit: <strong>${this.esc(b.publisher || 'Internasional')}</strong></span>
-                            ${b.year ? `<span>•</span><span>Tahun: ${b.year}</span>` : ''}
-                            ${b.isbn ? `<span>•</span><span>ISBN: <code>${this.esc(b.isbn)}</code></span>` : ''}
-                        </div>
-                        <div class="fed-jrn-highlight-actions" style="margin-top:0.6rem;">
-                            <button type="button" class="btn btn-ghost" style="padding:0.35rem 0.75rem; font-size:0.78rem;" onclick="app.showEBookDetail(${this.idAttr(b.id)})">
+                        <div class="fed-jrn-highlight-actions" style="margin-top:0.75rem; padding-top:0.5rem; border-top:1px dashed rgba(37, 99, 235, 0.25); display:flex; justify-content:space-between; align-items:center; gap:0.4rem;">
+                            <button type="button" class="btn btn-xs btn-ghost" style="padding:0.35rem 0.65rem; font-size:0.75rem;" onclick="app.showEBookDetail(${this.idAttr(b.id)})">
                                 <span>Detail & Sitasi</span>
                             </button>
-                            <a href="${this.esc(b.url || '#')}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access">
-                                <span>Buka E-Book di Platform Resmi ↗</span>
+                            <a href="${this.esc(b.url || '#')}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access" style="font-size:0.78rem; padding:0.4rem 0.85rem; background:#1d4ed8;">
+                                <span>Buka E-Book Platform Resmi ↗</span>
                             </a>
                         </div>
+                    </div>
+                `);
+            }
+
+            let matchedJournalsBannerHtml = '';
+            if (subHighlights.length > 0) {
+                matchedJournalsBannerHtml = `
+                    <div class="fed-subscribed-highlights-row">
+                        ${subHighlights.join('')}
                     </div>
                 `;
             }
