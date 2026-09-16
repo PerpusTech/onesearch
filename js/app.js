@@ -2039,11 +2039,6 @@ const app = {
         const abstractText = article.abstract || 'Abstrak tidak disertakan dalam metadata ringkas publikasi ini.';
         const hasRealAbstract = Boolean(article.abstract && article.abstract.trim().length > 10);
 
-        // APA / MLA / Chicago citation formats
-        const apaCite = `${this.cleanAuth(authors)}. (${yr || 'n.d.'}). ${title}. ${pub !== '-' ? pub + '.' : ''} ${validDoi ? 'https://doi.org/' + validDoi : linkUrl}`;
-        const mlaCite = `${this.cleanAuth(authors)}. "${title}." ${pub !== '-' ? pub + ', ' : ''}${yr ? yr + '.' : ''} ${linkUrl}`;
-        const chiCite = `${this.cleanAuth(authors)}. "${title}." ${pub !== '-' ? pub : 'Publication'} (${yr || 'n.d.'}). ${linkUrl}`;
-
         document.getElementById('modal-body').innerHTML = `
         <div class="detail fed-detail">
             <div class="detail-head" style="min-height: auto; padding-bottom: 1rem;">
@@ -2114,18 +2109,7 @@ const app = {
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1.5rem; flex-wrap:wrap">
                     <div style="flex:1; min-width:260px">
                         <h3 style="font-size:1rem; margin-bottom:.85rem; font-weight:700">Format Sitasi Otomatis</h3>
-                        <div class="cite-group">
-                            <div class="cite-label">APA 7th Edition</div>
-                            <div class="cite-text">${this.esc(apaCite)}</div>
-                        </div>
-                        <div class="cite-group">
-                            <div class="cite-label">MLA 9th Edition</div>
-                            <div class="cite-text">${this.esc(mlaCite)}</div>
-                        </div>
-                        <div class="cite-group">
-                            <div class="cite-label">Chicago Manual</div>
-                            <div class="cite-text">${this.esc(chiCite)}</div>
-                        </div>
+                        ${this.renderCiteGroups({a: authors, t: title, yr, pub, doi: validDoi, url: linkUrl})}
                         <div style="margin-top:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
                             <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.8rem; padding:0.35rem 0.8rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .RIS untuk Mendeley, Zotero, EndNote">
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -4059,18 +4043,7 @@ const app = {
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1.5rem; flex-wrap:wrap">
                     <div style="flex:1; min-width:260px">
                         <h3 style="font-size:1rem; margin-bottom:.85rem; font-weight:700">${this.t('auto_cite')}</h3>
-                        <div class="cite-group">
-                            <div class="cite-label">APA 7th</div>
-                            <div class="cite-text">${this.esc(this.citeAPA(book))}</div>
-                        </div>
-                        <div class="cite-group">
-                            <div class="cite-label">MLA 9th</div>
-                            <div class="cite-text">${this.esc(this.citeMLA(book))}</div>
-                        </div>
-                        <div class="cite-group">
-                            <div class="cite-label">Chicago</div>
-                            <div class="cite-text">${this.esc(this.citeChicago(book))}</div>
-                        </div>
+                        ${this.renderCiteGroups(book)}
                         <div style="margin-top:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
                             <button type="button" class="btn btn-ghost" onclick="app.downloadCitation(app.searchEngine.getById('${book.id}') || ${JSON.stringify(book).replace(/"/g, '&quot;')}, 'ris')" style="font-size:0.8rem; padding:0.35rem 0.8rem" title="Unduh file .RIS untuk Mendeley, Zotero, EndNote">
                                 📥 Unduh .RIS (Mendeley/Zotero)
@@ -4686,21 +4659,32 @@ const app = {
 
     // ──── Kutipan & QR ────
     cleanAuth(a) { return a ? a.replace(/[0-9\-., ]+$/, '').trim() : this.t('anon'); },
-    citeAPA(b) {
-        const a = this.cleanAuth(b.a);
-        const y = b.yr || this.t('no_year');
-        return `${a}. (${y}). ${b.t}. ${b.pub || this.t('unknown_pub')}.`;
+    getCitations(item) {
+        if (!item) return { apa: '', mla: '', chicago: '' };
+        const a = this.cleanAuth(item.a || item.authors);
+        const t = item.t || item.title || 'Untitled';
+        const y = item.yr || item.year || '';
+        const p = item.pub || item.publicationName || '';
+        const doi = this.getCleanDoi ? this.getCleanDoi(item.doi) : '';
+        const url = item.url || (doi ? `https://doi.org/${doi}` : '');
+        const pubClean = p && p !== '-' ? p : '';
+        return {
+            apa: `${a}. (${y || this.t('no_year')}). ${t}. ${pubClean ? pubClean + '.' : (this.t('unknown_pub') ? this.t('unknown_pub') + '.' : '')} ${doi ? 'https://doi.org/' + doi : url}`.trim(),
+            mla: `${a}. "${t}." ${pubClean ? pubClean + ', ' : ''}${y ? y + '.' : ''} ${url}`.trim(),
+            chicago: `${a}. "${t}." ${pubClean || 'Pub.'} (${y || this.t('no_year')}). ${url}`.trim()
+        };
     },
-    citeMLA(b) {
-        const a = this.cleanAuth(b.a);
-        const y = b.yr || '';
-        return `${a}. ${b.t}. ${b.pub || ''}${b.pub && y ? ', ' : ''}${y}.`;
+    renderCiteGroups(item) {
+        const c = this.getCitations(item);
+        return `
+            <div class="cite-group"><div class="cite-label">APA 7th</div><div class="cite-text">${this.esc(c.apa)}</div></div>
+            <div class="cite-group"><div class="cite-label">MLA 9th</div><div class="cite-text">${this.esc(c.mla)}</div></div>
+            <div class="cite-group"><div class="cite-label">Chicago</div><div class="cite-text">${this.esc(c.chicago)}</div></div>
+        `;
     },
-    citeChicago(b) {
-        const a = this.cleanAuth(b.a);
-        const y = b.yr || this.t('no_year');
-        return `${a}. ${y}. ${b.t}. ${b.pub || this.t('unknown_pub')}.`;
-    },
+    citeAPA(b) { return this.getCitations(b).apa; },
+    citeMLA(b) { return this.getCitations(b).mla; },
+    citeChicago(b) { return this.getCitations(b).chicago; },
     renderQR(url, elId) {
         if (!url) return;
         const el = document.getElementById(elId);

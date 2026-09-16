@@ -639,12 +639,12 @@
     </div>
     <script src="js/search.js?v=18"></script>
     <script src="js/recommender.js?v=17"></script>
-    <script src="js/app.js?v=99"></script>
+    <script src="js/app.js?v=100"></script>
     <script>
         // Inisialisasi Service Worker untuk offline PWA caching & caching data discovery
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=99').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=100').then(reg => {
                     console.log('BookFinder Service Worker terdaftar:', reg.scope);
                 }).catch(err => {
                     console.warn('Gagal mendaftarkan Service Worker:', err);

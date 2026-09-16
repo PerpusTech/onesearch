@@ -3479,41 +3479,48 @@
                 document.getElementById('journal-import-modal').style.display = 'none';
             }
 
-            function onJournalPasteInput() {
-                const val = (document.getElementById('journal-paste-input')?.value || '').trim();
-                pendingJournalPasteText = val;
-                const counter = document.getElementById('journal-paste-counter');
-                const submitBtn = document.getElementById('btn-submit-import');
+            function handleTabularPasteInput(textareaId, counterId, submitBtnId, itemLabel) {
+                const val = (document.getElementById(textareaId)?.value || '').trim();
+                const counter = document.getElementById(counterId);
+                const submitBtn = document.getElementById(submitBtnId);
                 if (!val) {
                     if (counter) counter.innerHTML = '<span style="color:var(--text-muted);">Belum ada data yang ditempel.</span>';
                     if (submitBtn) submitBtn.disabled = true;
-                    return;
+                    return '';
                 }
                 const lines = val.split(/\r?\n/).filter(l => l.trim().length > 0);
                 let estCount = lines.length;
                 const firstLine = lines[0].toLowerCase();
-                if (firstLine.includes('judul') || firstLine.includes('title') || firstLine.includes('issn') || firstLine.includes('publisher')) {
+                if (firstLine.includes('judul') || firstLine.includes('title') || firstLine.includes('issn') || firstLine.includes('isbn') || firstLine.includes('publisher') || firstLine.includes('author')) {
                     estCount = Math.max(0, lines.length - 1);
                 }
                 if (counter) {
-                    counter.innerHTML = `<strong style="color:var(--status-online-text, #10b981);">✓ Terdeteksi ${lines.length} baris</strong> (estimasi ~${estCount} judul jurnal siap diimpor)`;
+                    counter.innerHTML = `<strong style="color:var(--status-online-text, #10b981);">✓ Terdeteksi ${lines.length} baris</strong> (estimasi ~${estCount} ${itemLabel} siap diimpor)`;
                 }
                 if (submitBtn) submitBtn.disabled = lines.length === 0;
+                return val;
             }
 
-            function handleJournalFilePaste(event) {
+            function handleTabularFile(event, textareaId, onInputFn) {
                 const file = event.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    const txt = e.target.result || '';
-                    const textarea = document.getElementById('journal-paste-input');
+                    const textarea = document.getElementById(textareaId);
                     if (textarea) {
-                        textarea.value = txt;
-                        onJournalPasteInput();
+                        textarea.value = e.target.result || '';
+                        onInputFn();
                     }
                 };
                 reader.readAsText(file);
+            }
+
+            function onJournalPasteInput() {
+                pendingJournalPasteText = handleTabularPasteInput('journal-paste-input', 'journal-paste-counter', 'btn-submit-import', 'judul jurnal');
+            }
+
+            function handleJournalFilePaste(event) {
+                handleTabularFile(event, 'journal-paste-input', onJournalPasteInput);
             }
 
             async function submitImportJournal() {
@@ -4067,40 +4074,11 @@
             }
 
             function onEBookPasteInput() {
-                const val = (document.getElementById('ebook-paste-input')?.value || '').trim();
-                pendingEBookPasteText = val;
-                const counter = document.getElementById('ebook-paste-counter');
-                const submitBtn = document.getElementById('btn-submit-ebook-import');
-                if (!val) {
-                    if (counter) counter.innerHTML = '<span style="color:var(--text-muted);">Belum ada data yang ditempel.</span>';
-                    if (submitBtn) submitBtn.disabled = true;
-                    return;
-                }
-                const lines = val.split(/\r?\n/).filter(l => l.trim().length > 0);
-                let estCount = lines.length;
-                const firstLine = lines[0].toLowerCase();
-                if (firstLine.includes('judul') || firstLine.includes('title') || firstLine.includes('isbn') || firstLine.includes('author')) {
-                    estCount = Math.max(0, lines.length - 1);
-                }
-                if (counter) {
-                    counter.innerHTML = `<strong style="color:var(--status-online-text, #10b981);">✓ Terdeteksi ${lines.length} baris</strong> (estimasi ~${estCount} judul e-book siap diimpor)`;
-                }
-                if (submitBtn) submitBtn.disabled = lines.length === 0;
+                pendingEBookPasteText = handleTabularPasteInput('ebook-paste-input', 'ebook-paste-counter', 'btn-submit-ebook-import', 'judul e-book');
             }
 
             function handleEBookFilePaste(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const txt = e.target.result || '';
-                    const textarea = document.getElementById('ebook-paste-input');
-                    if (textarea) {
-                        textarea.value = txt;
-                        onEBookPasteInput();
-                    }
-                };
-                reader.readAsText(file);
+                handleTabularFile(event, 'ebook-paste-input', onEBookPasteInput);
             }
 
             async function submitImportEBook() {
