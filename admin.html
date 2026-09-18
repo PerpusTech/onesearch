@@ -969,7 +969,9 @@
                         <span class="status-dot"></span>
                         <span id="status-text">Memuat status...</span>
                     </div>
-                    <button type="button" class="btn btn-xs btn-destructive" id="btn-unlock-scheduler" onclick="forceUnlockScheduler()" style="display:none; font-size:0.75rem;" title="Lepas status lock bila sync macet">
+                    <button type="button" class="btn btn-xs btn-destructive" id="btn-unlock-scheduler"
+                        onclick="forceUnlockScheduler()" style="display:none; font-size:0.75rem;"
+                        title="Lepas status lock bila sync macet">
                         🔓 Reset Lock
                     </button>
                     <button type="button" class="btn btn-xs" onclick="refreshDashboard(true)" title="Perbarui data">
@@ -1005,7 +1007,7 @@
                             d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
                         </path>
                     </svg>
-                    <span>Jurnal Internasional & E-Resources</span>
+                    <span>Jurnal Internasional & Langganan</span>
                 </button>
                 <button type="button" class="btn btn-xs admin-tab-btn" id="tab-btn-ebooks"
                     onclick="switchAdminTab('ebooks')"
@@ -1765,6 +1767,7 @@
                                 <option value="subscribed">Langganan Resmi UMS ★</option>
                                 <option value="etd">Skripsi & ETD UMS</option>
                                 <option value="journal">Artikel Jurnal UMS</option>
+                                <option value="sibi">Buku Digital (SIBI Kemdikbud)</option>
                             </select>
                         </div>
 
@@ -2232,7 +2235,10 @@
                             <li><strong>Cara 3 (Pakai Header):</strong> Tuliskan nama kolom di baris 1 Excel (misal:
                                 <em>Judul, Penerbit, ISSN, URL</em>). Kolom yang kosong tidak perlu dibuat sama sekali.
                             </li>
-                            <li><strong>Penerbit & Metode Akses:</strong> Jika nama penerbit tidak ada di dropdown (misal penerbit baru), tulis saja apa adanya—sistem otomatis menerimanya. Metode akses fleksibel (<code>kampus</code>, <code>ezproxy</code> / SSO, <code>open</code> / OA, <code>direct</code>). Jika dikosongkan, otomatis diatur ke <em>kampus</em>.
+                            <li><strong>Penerbit & Metode Akses:</strong> Jika nama penerbit tidak ada di dropdown
+                                (misal penerbit baru), tulis saja apa adanya—sistem otomatis menerimanya. Metode akses
+                                fleksibel (<code>kampus</code>, <code>ezproxy</code> / SSO, <code>open</code> / OA,
+                                <code>direct</code>). Jika dikosongkan, otomatis diatur ke <em>kampus</em>.
                             </li>
                         </ul>
                     </div>
@@ -2508,8 +2514,13 @@
                                 kolom yang belum ada datanya.</li>
                             <li><strong>Cara 3 (Pakai Header):</strong> Tuliskan nama kolom di baris 1 Excel (misal:
                                 <em>Judul, Pengarang, Penerbit, Tahun, URL Link</em>). Kolom yang kosong tidak perlu
-                                dibuat sama sekali.</li>
-                            <li><strong>Penerbit & Metode Akses:</strong> Jika nama penerbit tidak ada di dropdown, tulis saja apa adanya—sistem otomatis menerimanya. Metode akses fleksibel (<code>kampus</code>, <code>ezproxy</code> / SSO, <code>open</code> / OA, <code>direct</code>). Jika dikosongkan, otomatis diatur ke <em>kampus</em>.</li>
+                                dibuat sama sekali.
+                            </li>
+                            <li><strong>Penerbit & Metode Akses:</strong> Jika nama penerbit tidak ada di dropdown,
+                                tulis saja apa adanya—sistem otomatis menerimanya. Metode akses fleksibel
+                                (<code>kampus</code>, <code>ezproxy</code> / SSO, <code>open</code> / OA,
+                                <code>direct</code>). Jika dikosongkan, otomatis diatur ke <em>kampus</em>.
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -2790,7 +2801,7 @@
                 if (viewAnalytics) viewAnalytics.style.display = tab === 'analytics' ? 'flex' : 'none';
 
                 if (tab === 'international') {
-                    pageTitle.textContent = 'Manajemen Jurnal Internasional & E-Resources';
+                    pageTitle.textContent = 'Manajemen E-Resources';
                     pageDesc.textContent = 'Kontrol saklar database global (Scopus, Springer, dll.) dan katalog e-journal langganan resmi UMS.';
                     loadInternationalConfig();
                     loadSubscribedJournals();
@@ -2862,10 +2873,7 @@
                 if (iframe) {
                     iframe.style.maxWidth = maxWidth;
                     const previewUrl = `/embed/widget.html?target_url=${encodeURIComponent(baseUrl)}&target=${encodeURIComponent(targetWindow)}&theme=${encodeURIComponent(theme)}&default_tab=${encodeURIComponent(defaultTab)}`;
-                    if (iframe.dataset.currentSrc !== previewUrl) {
-                        iframe.dataset.currentSrc = previewUrl;
-                        iframe.src = previewUrl;
-                    }
+                    iframe.src = previewUrl;
                 }
 
                 // Generate snippets
@@ -2884,7 +2892,34 @@
                 const isTransparent = theme === 'transparent';
                 const themeClass = isDark ? ' theme-dark' : (isTransparent ? ' theme-transparent' : '');
 
-                return `<!-- ============================================================= -->\n<!-- UMS Library OneSearch - WordPress Custom HTML Widget          -->\n<!-- Petunjuk: Paste kode ini di Gutenberg "Custom HTML" Block    -->\n<!-- ============================================================= -->\n<div class="ums-os-widget-wrap" style="width:100%; max-width:${maxWidth}; margin:16px auto;">\n    <div class="ums-os-widget${themeClass}" id="ums-os-wp-widget">\n        <!-- Header -->\n        <div class="ums-os-header">\n            <a href="${baseUrl}" target="${targetWindow}" class="ums-os-brand" title="Buka UMS Library OneSearch">\n                <img src="${baseUrl}/img/logo4.png" alt="Logo UMS" class="ums-os-brand-logo" onerror="this.style.display='none'">\n                <span class="ums-os-brand-text">UMS OneSearch</span>\n            </a>\n            <span class="ums-os-tagline">Pencarian Satu Pintu Koleksi & Jurnal Ilmiah</span>\n        </div>\n\n        <!-- Segmented Tabs -->\n        <div class="ums-os-tabs">\n            <button type="button" class="ums-os-tab-btn ${defaultTab === 'local' ? 'active' : ''}" data-src="local" onclick="umsOsSetTab('local', this)">\n                <span>Katalog Buku</span>\n            </button>\n            <button type="button" class="ums-os-tab-btn ${defaultTab === 'ebooks' ? 'active' : ''}" data-src="ebooks" onclick="umsOsSetTab('ebooks', this)">\n                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>\n                <span>E-Book UMS</span>\n            </button>\n            <button type="button" class="ums-os-tab-btn ${defaultTab === 'all_global' ? 'active' : ''}" data-src="all_global" onclick="umsOsSetTab('all_global', this)">\n                <span>Jurnal Global</span>\n            </button>\n            <button type="button" class="ums-os-tab-btn tab-subscribed ${defaultTab === 'subscribed' ? 'active' : ''}" data-src="subscribed" onclick="umsOsSetTab('subscribed', this)">\n                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>\n                <span>Langganan UMS</span>\n            </button>\n            <button type="button" class="ums-os-tab-btn ${defaultTab === 'etd' ? 'active' : ''}" data-src="etd" onclick="umsOsSetTab('etd', this)">\n                <span>Skripsi & ETD</span>\n            </button>\n            <button type="button" class="ums-os-tab-btn ${defaultTab === 'journal' ? 'active' : ''}" data-src="journal" onclick="umsOsSetTab('journal', this)">\n                <span>Jurnal UMS</span>\n            </button>\n        </div>\n\n        <!-- Search Form -->\n        <form class="ums-os-search-row" onsubmit="return umsOsDoSubmit(event)">\n            <select class="ums-os-field-select" id="ums-os-field-sel">\n                <option value="all">Semua Field</option>\n                <option value="title">Judul</option>\n                <option value="author">Pengarang</option>\n                <option value="subject">Subjek</option>\n                <option value="ddc">No. Panggil</option>\n                <option value="isbn">ISBN / ISSN</option>\n            </select>\n\n            <div class="ums-os-input-wrap">\n                <span class="ums-os-input-icon">\n                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>\n                </span>\n                <input type="text" id="ums-os-inp" class="ums-os-input" placeholder="Cari judul buku, pengarang, artikel jurnal, atau topik..." autocomplete="off">\n            </div>\n\n            <button type="submit" class="ums-os-submit-btn">\n                <span>Cari</span>\n                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>\n            </button>\n        </form>\n\n        <!-- Footer -->\n        <div class="ums-os-footer">\n            <span>Terhubung ke Katalog Koha, E-Book, EPrints, Scopus & Jurnal Langganan</span>\n            <div style="display:flex; align-items:center; gap:8px;">\n                <a href="${baseUrl}?page=ejournals" target="${targetWindow}">Direktori Jurnal →</a>\n                <span>•</span>\n                <a href="${baseUrl}?page=ebooks" target="${targetWindow}">Direktori E-Book →</a>\n            </div>\n        </div>\n    </div>\n</div>\n\n<style>\n.ums-os-widget{background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:18px 20px 16px;box-shadow:0 4px 20px -2px rgba(15,23,42,0.08);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;box-sizing:border-box;}\n.ums-os-widget.theme-dark{background:#0f172a;border-color:#334155;color:#f8fafc;}\n.ums-os-widget.theme-transparent{background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);}\n.ums-os-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}\n.ums-os-brand{display:inline-flex;align-items:center;gap:8px;text-decoration:none;}\n.ums-os-brand-logo{width:26px;height:26px;object-fit:contain;border-radius:6px;}\n.ums-os-brand-text{font-size:0.92rem;font-weight:700;color:#1e3a8a;}\n.theme-dark .ums-os-brand-text{color:#60a5fa;}\n.ums-os-tagline{font-size:0.73rem;color:#64748b;}\n.theme-dark .ums-os-tagline{color:#94a3b8;}\n.ums-os-tabs{display:flex;align-items:center;gap:6px;margin-bottom:14px;overflow-x:auto;}\n.ums-os-tab-btn{appearance:none;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:0.77rem;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;transition:all .15s;}\n.ums-os-tab-btn:hover{background:#f1f5f9;color:#1e293b;}\n.ums-os-tab-btn.active{background:#1e3a8a;border-color:#1e3a8a;color:#ffffff;box-shadow:0 2px 6px rgba(30,58,138,0.25);}\n.ums-os-tab-btn.tab-subscribed.active{background:#d97706;border-color:#d97706;color:#ffffff;}\n.theme-dark .ums-os-tab-btn{background:#1e293b;border-color:#334155;color:#94a3b8;}\n.theme-dark .ums-os-tab-btn.active{background:#2563eb;color:#fff;}\n.ums-os-search-row{display:flex;align-items:stretch;gap:8px;}\n.ums-os-field-select{appearance:none;background-color:#f8fafc;border:1.5px solid #cbd5e1;border-radius:9px;padding:0 14px;font-size:0.82rem;font-weight:500;color:#334155;cursor:pointer;flex-shrink:0;}\n.theme-dark .ums-os-field-select{background-color:#1e293b;border-color:#334155;color:#e2e8f0;}\n.ums-os-input-wrap{position:relative;flex:1;display:flex;align-items:center;}\n.ums-os-input-icon{position:absolute;left:12px;color:#94a3b8;pointer-events:none;display:flex;}\n.ums-os-input{width:100%;height:44px;border:1.5px solid #cbd5e1;border-radius:9px;padding:0 14px 0 38px;font-size:0.88rem;color:#0f172a;background:#f8fafc;outline:none;}\n.ums-os-input:focus{border-color:#2563eb;background:#ffffff;box-shadow:0 0 0 3px rgba(37,99,235,0.12);}\n.theme-dark .ums-os-input{background:#1e293b;border-color:#334155;color:#f8fafc;}\n.ums-os-submit-btn{appearance:none;border:none;background:#1e3a8a;color:#ffffff;font-size:0.88rem;font-weight:600;padding:0 20px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,0.1);}\n.ums-os-submit-btn:hover{background:#1d4ed8;}\n.ums-os-footer{margin-top:10px;display:flex;align-items:center;justify-content:space-between;font-size:0.72rem;color:#94a3b8;flex-wrap:wrap;gap:6px;}\n.ums-os-footer a{color:#2563eb;text-decoration:none;font-weight:500;}\n@media (max-width:600px){.ums-os-search-row{flex-wrap:wrap;}.ums-os-field-select{width:100%;height:38px;}.ums-os-input-wrap{width:100%;}.ums-os-submit-btn{width:100%;height:42px;justify-content:center;}}\n</style>\n\n<script>\nwindow._umsOsCurrentTab = '${defaultTab}';\nfunction umsOsSetTab(src, btn) {\n    window._umsOsCurrentTab = src;\n    var container = btn.closest('.ums-os-widget');\n    if (!container) return;\n    container.querySelectorAll('.ums-os-tab-btn').forEach(function(b){ b.classList.remove('active'); });\n    btn.classList.add('active');\n    var inp = container.querySelector('.ums-os-input');\n    if (inp) {\n        if (src === 'ebooks') inp.placeholder = 'Cari judul e-book internasional, pengarang, ISBN...';\n        else if (src === 'all_global') inp.placeholder = 'Cari artikel ilmiah global (Scopus, Springer, Crossref)...';\n        else if (src === 'subscribed') inp.placeholder = 'Cari jurnal dan artikel langganan resmi UMS...';\n        else if (src === 'etd') inp.placeholder = 'Cari skripsi, tesis, dan disertasi UMS...';\n        else if (src === 'journal') inp.placeholder = 'Cari publikasi jurnal ilmiah sivitas UMS...';\n        else inp.placeholder = 'Cari judul buku, pengarang, subjek katalog Koha...';\n    }\n}\nfunction umsOsDoSubmit(e) {\n    if (e) e.preventDefault();\n    var q = (document.getElementById('ums-os-inp')?.value || '').trim();\n    var field = document.getElementById('ums-os-field-sel')?.value || 'all';\n    var src = window._umsOsCurrentTab || 'local';\n    var baseUrl = '${baseUrl}'.replace(/\\/$/, '');\n    var params = [];\n    if (q) params.push('q=' + encodeURIComponent(q));\n    if (field && field !== 'all') params.push('field=' + encodeURIComponent(field));\n    if (src === 'ebooks') {\n        params.push('page=ebooks');\n    } else if (src === 'subscribed') {\n        params.push('src=all_global');\n        params.push('submode=subscribed');\n    } else if (src && src !== 'local') {\n        params.push('src=' + encodeURIComponent(src));\n    }\n    var targetUrl = baseUrl + (params.length ? '?' + params.join('&') : '');\n    window.open(targetUrl, '${targetWindow}');\n    return false;\n}\n</` + `script>`;
+                const cfg = internationalConfig || {};
+                const isMasterGlobal = cfg.enabled !== false;
+                const src = cfg.sources || {};
+
+                const availableTabs = [
+                    { key: 'local', label: 'Katalog Buku', visible: true, icon: '' },
+                    { key: 'ebooks', label: 'E-Book UMS', visible: isMasterGlobal && (src['intl_ebooks'] !== false), icon: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>' },
+                    { key: 'all_global', label: 'Jurnal Global', visible: isMasterGlobal, icon: '' },
+                    { key: 'subscribed', label: 'Langganan UMS', visible: isMasterGlobal, isSub: true, icon: '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' },
+                    { key: 'etd', label: 'Skripsi & ETD', visible: true, icon: '' },
+                    { key: 'journal', label: 'Jurnal UMS', visible: src['journal'] !== false, icon: '' },
+                    { key: 'sibi', label: 'Buku SIBI', visible: src['sibi'] !== false, icon: '' }
+                ];
+
+                const activeTabs = availableTabs.filter(t => t.visible);
+                let resolvedDefaultTab = defaultTab;
+                if (!activeTabs.some(t => t.key === resolvedDefaultTab)) {
+                    resolvedDefaultTab = activeTabs[0]?.key || 'local';
+                }
+
+                const tabsHtml = activeTabs.map(t => {
+                    const isActive = t.key === resolvedDefaultTab ? ' active' : '';
+                    const subClass = t.isSub ? ' tab-subscribed' : '';
+                    const iconHtml = t.icon ? `${t.icon} ` : '';
+                    return `            <button type="button" class="ums-os-tab-btn${subClass}${isActive}" data-src="${t.key}" onclick="umsOsSetTab('${t.key}', this)">\n                ${iconHtml}<span>${t.label}</span>\n            </button>`;
+                }).join('\n');
+
+                return `<!-- ============================================================= -->\n<!-- UMS Library OneSearch - WordPress Custom HTML Widget          -->\n<!-- Petunjuk: Paste kode ini di Gutenberg "Custom HTML" Block    -->\n<!-- ============================================================= -->\n<div class="ums-os-widget-wrap" style="width:100%; max-width:${maxWidth}; margin:16px auto;">\n    <div class="ums-os-widget${themeClass}" id="ums-os-wp-widget">\n        <!-- Header -->\n        <div class="ums-os-header">\n            <a href="${baseUrl}" target="${targetWindow}" class="ums-os-brand" title="Buka UMS Library OneSearch">\n                <img src="${baseUrl}/img/logo4.png" alt="Logo UMS" class="ums-os-brand-logo" onerror="this.style.display='none'">\n                <span class="ums-os-brand-text">UMS OneSearch</span>\n            </a>\n            <span class="ums-os-tagline">Pencarian Satu Pintu Koleksi & Jurnal Ilmiah</span>\n        </div>\n\n        <!-- Segmented Tabs (Hanya Sumber yang Aktif) -->\n        <div class="ums-os-tabs" id="ums-os-tabs">\n${tabsHtml}\n        </div>\n\n        <!-- Search Form -->\n        <form class="ums-os-search-row" onsubmit="return umsOsDoSubmit(event)">\n            <select class="ums-os-field-select" id="ums-os-field-sel">\n                <option value="all">Semua Field</option>\n                <option value="title">Judul</option>\n                <option value="author">Pengarang</option>\n                <option value="subject">Subjek</option>\n                <option value="ddc">No. Panggil</option>\n                <option value="isbn">ISBN / ISSN</option>\n            </select>\n\n            <div class="ums-os-input-wrap">\n                <span class="ums-os-input-icon">\n                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>\n                </span>\n                <input type="text" id="ums-os-inp" class="ums-os-input" placeholder="Cari judul buku, pengarang, artikel jurnal, atau topik..." autocomplete="off">\n            </div>\n\n            <button type="submit" class="ums-os-submit-btn">\n                <span>Cari</span>\n                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>\n            </button>\n        </form>\n\n        <!-- Footer -->\n        <div class="ums-os-footer">\n            <span>Terhubung ke Katalog Koha, E-Book, EPrints, Scopus & Jurnal Langganan</span>\n            <div style="display:flex; align-items:center; gap:8px;">\n                <a href="${baseUrl}?page=ejournals" target="${targetWindow}">Direktori Jurnal →</a>\n                <span>•</span>\n                <a href="${baseUrl}?page=ebooks" target="${targetWindow}">Direktori E-Book →</a>\n            </div>\n        </div>\n    </div>\n</div>\n\n<style>\n.ums-os-widget{background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:18px 20px 16px;box-shadow:0 4px 20px -2px rgba(15,23,42,0.08);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;box-sizing:border-box;}\n.ums-os-widget.theme-dark{background:#0f172a;border-color:#334155;color:#f8fafc;}\n.ums-os-widget.theme-transparent{background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);}\n.ums-os-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}\n.ums-os-brand{display:inline-flex;align-items:center;gap:8px;text-decoration:none;}\n.ums-os-brand-logo{width:26px;height:26px;object-fit:contain;border-radius:6px;}\n.ums-os-brand-text{font-size:0.92rem;font-weight:700;color:#1e3a8a;}\n.theme-dark .ums-os-brand-text{color:#60a5fa;}\n.ums-os-tagline{font-size:0.73rem;color:#64748b;}\n.theme-dark .ums-os-tagline{color:#94a3b8;}\n.ums-os-tabs{display:flex;align-items:center;gap:6px;margin-bottom:14px;overflow-x:auto;}\n.ums-os-tab-btn{appearance:none;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:0.77rem;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;transition:all .15s;}\n.ums-os-tab-btn:hover{background:#f1f5f9;color:#1e293b;}\n.ums-os-tab-btn.active{background:#1e3a8a;border-color:#1e3a8a;color:#ffffff;box-shadow:0 2px 6px rgba(30,58,138,0.25);}\n.ums-os-tab-btn.tab-subscribed.active{background:#d97706;border-color:#d97706;color:#ffffff;}\n.theme-dark .ums-os-tab-btn{background:#1e293b;border-color:#334155;color:#94a3b8;}\n.theme-dark .ums-os-tab-btn.active{background:#2563eb;color:#fff;}\n.ums-os-search-row{display:flex;align-items:stretch;gap:8px;}\n.ums-os-field-select{appearance:none;background-color:#f8fafc;border:1.5px solid #cbd5e1;border-radius:9px;padding:0 14px;font-size:0.82rem;font-weight:500;color:#334155;cursor:pointer;flex-shrink:0;}\n.theme-dark .ums-os-field-select{background-color:#1e293b;border-color:#334155;color:#e2e8f0;}\n.ums-os-input-wrap{position:relative;flex:1;display:flex;align-items:center;}\n.ums-os-input-icon{position:absolute;left:12px;color:#94a3b8;pointer-events:none;display:flex;}\n.ums-os-input{width:100%;height:44px;border:1.5px solid #cbd5e1;border-radius:9px;padding:0 14px 0 38px;font-size:0.88rem;color:#0f172a;background:#f8fafc;outline:none;}\n.ums-os-input:focus{border-color:#2563eb;background:#ffffff;box-shadow:0 0 0 3px rgba(37,99,235,0.12);}\n.theme-dark .ums-os-input{background:#1e293b;border-color:#334155;color:#f8fafc;}\n.ums-os-submit-btn{appearance:none;border:none;background:#1e3a8a;color:#ffffff;font-size:0.88rem;font-weight:600;padding:0 20px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,0.1);}\n.ums-os-submit-btn:hover{background:#1d4ed8;}\n.ums-os-footer{margin-top:10px;display:flex;align-items:center;justify-content:space-between;font-size:0.72rem;color:#94a3b8;flex-wrap:wrap;gap:6px;}\n.ums-os-footer a{color:#2563eb;text-decoration:none;font-weight:500;}\n@media (max-width:600px){.ums-os-search-row{flex-wrap:wrap;}.ums-os-field-select{width:100%;height:38px;}.ums-os-input-wrap{width:100%;}.ums-os-submit-btn{width:100%;height:42px;justify-content:center;}}\n</style>\n\n<script>\nwindow._umsOsCurrentTab = '${resolvedDefaultTab}';\nfunction umsOsSetTab(src, btn) {\n    window._umsOsCurrentTab = src;\n    var container = btn.closest('.ums-os-widget');\n    if (!container) return;\n    container.querySelectorAll('.ums-os-tab-btn').forEach(function(b){ b.classList.remove('active'); });\n    btn.classList.add('active');\n    var inp = container.querySelector('.ums-os-input');\n    if (inp) {\n        if (src === 'ebooks') inp.placeholder = 'Cari judul e-book internasional, pengarang, ISBN...';\n        else if (src === 'all_global') inp.placeholder = 'Cari artikel ilmiah global (Scopus, Springer, Crossref)...';\n        else if (src === 'subscribed') inp.placeholder = 'Cari jurnal dan artikel langganan resmi UMS...';\n        else if (src === 'etd') inp.placeholder = 'Cari skripsi, tesis, dan disertasi UMS...';\n        else if (src === 'journal') inp.placeholder = 'Cari publikasi jurnal ilmiah sivitas UMS...';\n        else if (src === 'sibi') inp.placeholder = 'Cari buku teks pelajaran & buku digital Kemdikbud (SIBI)...';\n        else inp.placeholder = 'Cari judul buku, pengarang, subjek katalog Koha...';\n    }\n}\nfunction umsOsDoSubmit(e) {\n    if (e) e.preventDefault();\n    var q = (document.getElementById('ums-os-inp')?.value || '').trim();\n    var field = document.getElementById('ums-os-field-sel')?.value || 'all';\n    var src = window._umsOsCurrentTab || 'local';\n    var baseUrl = '${baseUrl}'.replace(/\\/$/, '');\n    var params = [];\n    if (q) params.push('q=' + encodeURIComponent(q));\n    if (field && field !== 'all') params.push('field=' + encodeURIComponent(field));\n    if (src === 'ebooks') {\n        params.push('page=ebooks');\n    } else if (src === 'subscribed') {\n        params.push('src=all_global');\n        params.push('submode=subscribed');\n    } else if (src && src !== 'local') {\n        params.push('src=' + encodeURIComponent(src));\n    }\n    var targetUrl = baseUrl + (params.length ? '?' + params.join('&') : '');\n    window.open(targetUrl, '${targetWindow}');\n    return false;\n}\n</` + `script>`;
             }
 
             function copyEmbedCodeToClipboard() {
@@ -3460,6 +3495,31 @@
                     ebkPill.className = isEbkActive ? 'status-pill idle' : 'status-pill error';
                     ebkPill.innerHTML = isEbkActive ? '<span class="status-dot"></span> AKTIF DI PORTAL' : '<span class="status-dot"></span> NONAKTIF';
                 }
+
+                // Dynamically sync embed tab options with active sources
+                const selTab = document.getElementById('cfg-embed-default-tab');
+                if (selTab) {
+                    const optionStatus = {
+                        'local': true,
+                        'ebooks': isMasterEnabled && (src['intl_ebooks'] !== false),
+                        'all_global': isMasterEnabled,
+                        'subscribed': isMasterEnabled,
+                        'etd': true,
+                        'journal': src['journal'] !== false,
+                        'sibi': src['sibi'] !== false
+                    };
+                    Array.from(selTab.options).forEach(opt => {
+                        const isOptEnabled = optionStatus[opt.value] !== false;
+                        opt.disabled = !isOptEnabled;
+                        let cleanText = opt.text.replace(/\s*\(Nonaktif\)/g, '');
+                        opt.text = isOptEnabled ? cleanText : `${cleanText} (Nonaktif)`;
+                    });
+
+                    if (selTab.selectedOptions.length && selTab.selectedOptions[0].disabled) {
+                        selTab.value = 'local';
+                    }
+                }
+                updateEmbedCodes();
             }
 
             async function saveInternationalMasterToggle(enabled) {

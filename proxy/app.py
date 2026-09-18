@@ -1680,11 +1680,14 @@ def api_international_config_public():
     cfg = _load_international_config()
     journals = _load_subscribed_journals()
     active_journals_count = sum(1 for j in journals if j.get('active', True))
+    ebooks = _load_subscribed_ebooks()
+    active_ebooks_count = sum(1 for b in ebooks if b.get('active', True))
     return jsonify({
         "enabled": cfg.get("enabled", True),
         "sources": cfg.get("sources", {}),
         "filter_subscribed_only_default": cfg.get("filter_subscribed_only_default", False),
-        "subscribed_journals_count": active_journals_count
+        "subscribed_journals_count": active_journals_count,
+        "subscribed_ebooks_count": active_ebooks_count
     })
 
 

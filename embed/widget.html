@@ -357,6 +357,9 @@
             <button type="button" class="ums-os-tab-btn" data-src="journal" onclick="umsOsSetSource('journal', this)">
                 <span>Jurnal UMS</span>
             </button>
+            <button type="button" class="ums-os-tab-btn" data-src="sibi" onclick="umsOsSetSource('sibi', this)">
+                <span>Buku SIBI</span>
+            </button>
         </div>
 
         <!-- Search Form -->
@@ -386,11 +389,11 @@
 
         <!-- Footer -->
         <div class="ums-os-footer">
-            <span>Terhubung ke Katalog Koha, E-Book, EPrints, Scopus & Jurnal Langganan</span>
+            <span id="ums-os-footer-info">Terhubung ke Katalog Koha, E-Book, EPrints, Scopus & Jurnal Langganan</span>
             <div style="display:flex; align-items:center; gap:8px;">
-                <a href="javascript:void(0)" onclick="umsOsOpenDirectory('ejournals')">Direktori Jurnal →</a>
-                <span>•</span>
-                <a href="javascript:void(0)" onclick="umsOsOpenDirectory('ebooks')">Direktori E-Book →</a>
+                <a href="javascript:void(0)" id="ums-os-link-ejournals" onclick="umsOsOpenDirectory('ejournals')">Direktori Jurnal →</a>
+                <span id="ums-os-link-sep">•</span>
+                <a href="javascript:void(0)" id="ums-os-link-ebooks" onclick="umsOsOpenDirectory('ebooks')">Direktori E-Book →</a>
             </div>
         </div>
     </div>
@@ -425,7 +428,73 @@
                     clearBtn.style.display = this.value.trim() ? 'block' : 'none';
                 });
             }
+
+            // Sync dynamic source toggles with server
+            umsOsSyncWithServerConfig();
         })();
+
+        async function umsOsSyncWithServerConfig() {
+            try {
+                const baseUrl = (window.UMS_ONESEARCH_BASE_URL || window.location.origin).replace(/\/$/, '');
+                const res = await fetch(`${baseUrl}/api/international/config`);
+                if (!res.ok) return;
+                const cfg = await res.json();
+
+                const sources = cfg.sources || {};
+                const isMasterGlobalEnabled = cfg.enabled !== false;
+                const hasSubscribedJournals = (cfg.subscribed_journals_count || 0) > 0;
+                const hasSubscribedEbooks = (cfg.subscribed_ebooks_count || 0) > 0;
+
+                const showEbooks = sources.intl_ebooks !== false || hasSubscribedEbooks;
+                const showGlobal = isMasterGlobalEnabled;
+                const showSubscribed = isMasterGlobalEnabled && (hasSubscribedJournals || hasSubscribedEbooks);
+                const showEtd = true;
+                const showJournal = sources.journal !== false;
+                const showSibi = sources.sibi !== false;
+
+                const visibilityMap = {
+                    'local': true,
+                    'ebooks': showEbooks,
+                    'all_global': showGlobal,
+                    'subscribed': showSubscribed,
+                    'etd': showEtd,
+                    'journal': showJournal,
+                    'sibi': showSibi
+                };
+
+                const tabsContainer = document.getElementById('ums-os-tabs');
+                if (tabsContainer) {
+                    tabsContainer.querySelectorAll('.ums-os-tab-btn').forEach(btn => {
+                        const src = btn.getAttribute('data-src');
+                        if (src in visibilityMap) {
+                            btn.style.display = visibilityMap[src] ? 'inline-flex' : 'none';
+                        }
+                    });
+
+                    // If active tab got hidden, fallback to 'local' or first visible tab
+                    if (visibilityMap[window._umsOsCurrentSource] === false) {
+                        const firstVisibleBtn = tabsContainer.querySelector('.ums-os-tab-btn:not([style*="display: none"])');
+                        if (firstVisibleBtn) {
+                            const newSrc = firstVisibleBtn.getAttribute('data-src') || 'local';
+                            umsOsSetSource(newSrc, firstVisibleBtn);
+                        }
+                    }
+                }
+
+                // Update footer directory links
+                const dirJournals = document.getElementById('ums-os-link-ejournals');
+                const dirEbooks = document.getElementById('ums-os-link-ebooks');
+                const dirSep = document.getElementById('ums-os-link-sep');
+                const canShowJournals = showGlobal || hasSubscribedJournals;
+                const canShowEbooks = showEbooks;
+
+                if (dirJournals) dirJournals.style.display = canShowJournals ? 'inline' : 'none';
+                if (dirEbooks) dirEbooks.style.display = canShowEbooks ? 'inline' : 'none';
+                if (dirSep) dirSep.style.display = (canShowJournals && canShowEbooks) ? 'inline' : 'none';
+            } catch (e) {
+                // Silently fallback to default tabs
+            }
+        }
 
         function umsOsSetSource(sourceKey, btn) {
             window._umsOsCurrentSource = sourceKey;
@@ -443,6 +512,8 @@
                 inp.placeholder = 'Cari skripsi, tesis, dan disertasi UMS...';
             } else if (sourceKey === 'journal') {
                 inp.placeholder = 'Cari publikasi jurnal ilmiah sivitas UMS...';
+            } else if (sourceKey === 'sibi') {
+                inp.placeholder = 'Cari buku teks pelajaran & buku digital Kemdikbud (SIBI)...';
             } else {
                 inp.placeholder = 'Cari judul buku, pengarang, subjek katalog Koha...';
             }
