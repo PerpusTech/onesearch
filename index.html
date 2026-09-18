@@ -726,12 +726,12 @@
     </div>
     <script src="js/search.js?v=18"></script>
     <script src="js/recommender.js?v=17"></script>
-    <script src="js/app.js?v=111"></script>
+    <script src="js/app.js?v=112"></script>
     <script>
         // Registrasi Service Worker PWA (Offline Support & Shell Caching)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=111').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=112').then(reg => {
                     console.log('BookFinder Service Worker terdaftar:', reg.scope);
                 }).catch(err => {
                     console.warn('Gagal mendaftarkan Service Worker:', err);

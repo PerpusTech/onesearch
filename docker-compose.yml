@@ -14,7 +14,7 @@ services:
     build: ./proxy
     container_name: ums-onesearch-proxy
     restart: unless-stopped
-    command: gunicorn -b 0.0.0.0:5000 -w 1 --threads 16 --timeout 120 --chdir /app/proxy app:app
+    command: gunicorn -b 0.0.0.0:5000 -w 1 --threads 16 --timeout 120 --chdir /app/proxy --reload app:app
     working_dir: /app
     volumes:
       - .:/app

@@ -541,13 +541,15 @@ const app = {
             bar.style.width = '15%';
             const t = new Date().getTime();
 
-            // 1. Muat metadata ringkas (Stats, DDC, Prodi, Konfigurasi Sumber) secara paralel
+            // 1. Muat metadata ringkas (Stats, DDC, Prodi, Konfigurasi Sumber, Jurnal & E-Book Langganan) secara paralel
             txt.textContent = this.t('loading_ddc');
-            const [localStats, ddcData, prodiData, intlCfg] = await Promise.all([
+            const [localStats, ddcData, prodiData, intlCfg, subJournalsRes, subEbooksRes] = await Promise.all([
                 fetch('data/stats.json?t=' + t).then(r => r.json()).catch(() => ({})),
                 fetch('data/ddc_tree.json?t=' + t).then(r => r.json()).catch(() => ({})),
                 fetch('data/prodi_index.json?t=' + t).then(r => r.json()).catch(() => ({})),
-                fetch('/api/international/config').then(r => r.json()).catch(() => ({ enabled: true, sources: {} }))
+                fetch('/api/international/config').then(r => r.json()).catch(() => ({ enabled: true, sources: {} })),
+                fetch('/api/international/journals').then(r => r.json()).catch(() => ({ items: [] })),
+                fetch('/api/international/ebooks').then(r => r.json()).catch(() => ({ items: [] }))
             ]);
 
             this.stats = localStats || {};
@@ -555,6 +557,12 @@ const app = {
             this.prodiIndex = prodiData || {};
             this.intlConfig = intlCfg || { enabled: true, sources: {} };
             const sourcesConfig = (this.intlConfig && this.intlConfig.sources) || {};
+
+            // Cache subscribed journals & ebooks
+            this._ejournalsList = Array.isArray(subJournalsRes) ? subJournalsRes : (subJournalsRes.items || []);
+            this._ebooksList = Array.isArray(subEbooksRes) ? subEbooksRes : (subEbooksRes.items || []);
+            this.populateEJournalFilters(this._ejournalsList);
+            this.populateEBookFilters(this._ebooksList);
 
             // Fetch SIBI books only if enabled
             let sibiBooks = [];
@@ -593,12 +601,44 @@ const app = {
                 });
             }
 
-            this.books = allBooks.concat(sibiBooks || []);
-            bar.style.width = '75%';
+            // Koleksi Langganan Resmi UMS (Harus Selalu Muncul & Prioritas)
+            const subJournalBooks = (this._ejournalsList || []).filter(j => j.active !== false).map(j => ({
+                id: 'sub-jrn-' + j.id,
+                t: j.title || '',
+                a: j.publisher || 'AI Access Foundation / Penerbit',
+                pub: j.publisher || 'Penerbit Jurnal',
+                yr: (j.updated_at || '2026').substring(0, 4),
+                isbn: [j.issn, j.eissn].filter(Boolean).join(' / '),
+                type: 'JRT',
+                src: 'Jurnal Langganan UMS',
+                url: j.url || '',
+                sub: [j.subject, j.faculty, 'Jurnal Ilmiah Langganan', 'Langganan Resmi UMS'].filter(Boolean),
+                isSubscribed: true,
+                accessType: j.accessType || 'kampus',
+                notes: j.notes || ''
+            }));
 
-            // Pre-load subscribed journals & ebooks data for unified search & highlighting
-            this.getSubscribedJournalsList();
-            this.getSubscribedEBooksList();
+            const subEbookBooks = (this._ebooksList || []).filter(b => b.active !== false).map(b => ({
+                id: 'sub-ebk-' + b.id,
+                t: b.title || '',
+                a: b.author || b.publisher || 'Penulis',
+                pub: b.publisher || 'Penerbit',
+                yr: b.year ? String(b.year) : '2026',
+                isbn: b.isbn || '',
+                type: 'BK',
+                src: 'E-Book Langganan UMS',
+                url: b.url || (b.pdf_filename ? `/api/ebooks/${encodeURIComponent(b.id)}/pdf` : '#'),
+                sub: [b.subject, 'E-Book Langganan UMS', 'Langganan Resmi UMS'].filter(Boolean),
+                img: b.cover_filename ? `/api/ebooks/cover/${encodeURIComponent(b.cover_filename)}` : '',
+                isSubscribed: true,
+                abstract: b.abstract || '',
+                desc: b.abstract || '',
+                faculty: b.faculty || '',
+                notes: b.notes || ''
+            }));
+
+            this.books = subJournalBooks.concat(subEbookBooks).concat(allBooks).concat(sibiBooks || []);
+            bar.style.width = '75%';
 
             txt.textContent = this.t('building_index');
             this.searchEngine.build(this.books);
@@ -4073,9 +4113,10 @@ const app = {
         const isMasterEnabled = !this.intlConfig || this.intlConfig.enabled !== false;
         const sourcesConfig = (this.intlConfig && this.intlConfig.sources) || {};
         const isIntlEbooksActive = isMasterEnabled && (sourcesConfig['intl_ebooks'] !== false);
+        const activeProviders = isMasterEnabled ? ['scopus', 'semanticscholar', 'lens', 'openalex', 'crossref', 'springer'].filter(s => sourcesConfig[s] !== false) : [];
 
-        // When Master Switch for international discovery is turned off
-        if (!isMasterEnabled) {
+        // When Master Switch is disabled OR all individual international providers are off:
+        if (!isMasterEnabled || (activeProviders.length === 0 && !isIntlEbooksActive)) {
             if (hasSubHighlights) {
                 container.style.display = 'block';
                 container.innerHTML = `
@@ -4092,21 +4133,19 @@ const app = {
             return;
         }
 
-        // When Master Switch is enabled, render loading state (including subscribed highlights immediately if matched!)
+        // When Master Switch & at least one provider is enabled, render loading state (including subscribed highlights immediately if matched!)
         container.style.display = 'block';
         container.innerHTML = `
             ${matchedJournalsBannerHtml}
             <div class="fed-insights-header">
                 <div class="fed-insights-title-group">
                     <h3>Literatur Ilmiah & E-Book Internasional Terkait "${this.esc(q)}"</h3>
-                    <p>Mencari ke basis data Scopus, Crossref, OpenAlex, Springer, DOAB & Open Library...</p>
+                    <p>Mencari ke basis data ${activeProviders.map(p => p.toUpperCase()).join(', ')}${isIntlEbooksActive ? ', DOAB & Open Library' : ''}...</p>
                 </div>
             </div>
             <div class="fed-insights-pills">
-                <span class="fed-insight-pill">Memuat estimasi Scopus...</span>
-                <span class="fed-insight-pill">Memuat OpenAlex...</span>
+                ${activeProviders.map(p => `<span class="fed-insight-pill">Memuat ${p.toUpperCase()}...</span>`).join('')}
                 ${isIntlEbooksActive ? '<span class="fed-insight-pill">Memuat E-Book DOAB & OL...</span>' : ''}
-                <span class="fed-insight-pill">Memuat Crossref...</span>
             </div>
             <div class="fed-insights-grid" style="opacity:0.6">
                 <div class="fed-insight-card" style="min-height:140px; display:flex; align-items:center; justify-content:center; color:var(--ink-3)">
@@ -4116,12 +4155,12 @@ const app = {
         `;
 
         const queryTerm = encodeURIComponent(q);
-        const reqScopus = fetch(`/api/federated?source=scopus&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
-        const reqSemantic = fetch(`/api/federated?source=semanticscholar&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
-        const reqLens = fetch(`/api/federated?source=lens&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
-        const reqOpenAlex = fetch(`/api/federated?source=openalex&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
-        const reqCrossref = fetch(`/api/federated?source=crossref&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
-        const reqSpringer = fetch(`/api/federated?source=springer&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null);
+        const reqScopus = activeProviders.includes('scopus') ? fetch(`/api/federated?source=scopus&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null) : Promise.resolve(null);
+        const reqSemantic = activeProviders.includes('semanticscholar') ? fetch(`/api/federated?source=semanticscholar&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null) : Promise.resolve(null);
+        const reqLens = activeProviders.includes('lens') ? fetch(`/api/federated?source=lens&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null) : Promise.resolve(null);
+        const reqOpenAlex = activeProviders.includes('openalex') ? fetch(`/api/federated?source=openalex&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null) : Promise.resolve(null);
+        const reqCrossref = activeProviders.includes('crossref') ? fetch(`/api/federated?source=crossref&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null) : Promise.resolve(null);
+        const reqSpringer = activeProviders.includes('springer') ? fetch(`/api/federated?source=springer&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null) : Promise.resolve(null);
         const reqIntlEbooks = isIntlEbooksActive
             ? fetch(`/api/international/ebooks/search?q=${queryTerm}&page=1&rows=3`).then(r => r.json()).catch(() => null)
             : Promise.resolve(null);
@@ -5351,7 +5390,7 @@ const app = {
                 ${b.ddc ? `<span class="chip chip-ddc" style="background:${c}14;color:${c}">DDC ${b.ddc}</span>` : ''}
                 ${b.yr ? `<span class="chip chip-year">${b.yr}</span>` : ''}
                 ${b.type ? `<span class="chip chip-type">${this.typeName(b.type)}</span>` : ''}
-                ${b.src ? `<span class="chip chip-sub">${b.src}</span>` : ''}
+                ${b.isSubscribed ? `<span class="chip chip-sub" style="background:rgba(217, 119, 6, 0.15); color:#b45309; font-weight:700;">★ Langganan Resmi</span>` : (b.src ? `<span class="chip chip-sub">${b.src}</span>` : '')}
             </div>
         </div>`;
     },
