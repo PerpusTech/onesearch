@@ -3955,16 +3955,127 @@ const app = {
         }, 1500);
     },
 
-    fetchAutoFederatedInsights(q, localCount = 0) {
+    buildSubscribedHighlightsHtml(matchedSubJournals, matchedSubEBooks, q) {
+        const subHighlights = [];
+
+        if (matchedSubJournals && matchedSubJournals.length > 0) {
+            const j = matchedSubJournals[0];
+            const issns = [j.issn, j.eissn].filter(Boolean).join(' / ') || '-';
+            subHighlights.push(`
+                <div class="fed-journal-highlight-card" style="border-color:rgba(217, 119, 6, 0.4); margin:0; display:flex; flex-direction:column; justify-content:space-between; height:100%;">
+                    <div>
+                        <div class="fed-jrn-highlight-top">
+                            <span class="fed-jrn-highlight-badge">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                Jurnal Langganan Resmi UMS Terkait
+                            </span>
+                            <span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">Akses Sivitas UMS</span>
+                        </div>
+                        <h4 class="fed-jrn-highlight-title" style="font-size:0.95rem; margin:0.35rem 0; line-height:1.35;">${this.hl(j.title, q)}</h4>
+                        <div class="fed-jrn-highlight-meta" style="font-size:0.76rem;">
+                            <span>Penerbit: <strong>${this.hl(j.publisher || 'Internasional', q)}</strong></span>
+                            <span>•</span>
+                            <span>ISSN: <code>${this.esc(issns)}</code></span>
+                            ${j.subject ? `<span>•</span><span>Subjek: ${this.hl(j.subject, q)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="fed-jrn-highlight-actions" style="margin-top:0.75rem; padding-top:0.5rem; border-top:1px dashed rgba(217, 119, 6, 0.25);">
+                        <a href="${this.safeUrl(j.url)}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access" style="font-size:0.78rem; padding:0.4rem 0.85rem;">
+                            <span>Buka Laman Jurnal (Akses Kampus / SSO) ↗</span>
+                        </a>
+                    </div>
+                </div>
+            `);
+        }
+
+        if (matchedSubEBooks && matchedSubEBooks.length > 0) {
+            const b = matchedSubEBooks[0];
+            subHighlights.push(`
+                <div class="fed-journal-highlight-card" style="border-color:rgba(37, 99, 235, 0.45); margin:0; display:flex; flex-direction:column; justify-content:space-between; height:100%;">
+                    <div>
+                        <div class="fed-jrn-highlight-top">
+                            <span class="fed-jrn-highlight-badge" style="background:#2563eb;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                E-Book Langganan Resmi UMS Terkait
+                            </span>
+                            <span class="chip" style="background:rgba(37, 99, 235, 0.12); color:#2563eb; font-weight:600;">Akses Sivitas UMS</span>
+                        </div>
+                        <h4 class="fed-jrn-highlight-title" style="font-size:0.95rem; margin:0.35rem 0; line-height:1.35;">${this.hl(b.title, q)}</h4>
+                        <div class="fed-jrn-highlight-meta" style="font-size:0.76rem;">
+                            <span>Penulis: <strong>${this.hl(b.author || 'Penulis', q)}</strong></span>
+                            <span>•</span>
+                            <span>Penerbit: <strong>${this.hl(b.publisher || 'Internasional', q)}</strong></span>
+                            ${b.year ? `<span>•</span><span>Tahun: ${b.year}</span>` : ''}
+                            ${b.isbn ? `<span>•</span><span>ISBN: <code>${this.esc(b.isbn)}</code></span>` : ''}
+                        </div>
+                    </div>
+                    <div class="fed-jrn-highlight-actions" style="margin-top:0.75rem; padding-top:0.5rem; border-top:1px dashed rgba(37, 99, 235, 0.25); display:flex; justify-content:space-between; align-items:center; gap:0.4rem;">
+                        <button type="button" class="btn btn-xs btn-ghost" style="padding:0.35rem 0.65rem; font-size:0.75rem;" onclick="app.showEBookDetail(${this.idAttr(b.id)})">
+                            <span>Detail & Sitasi</span>
+                        </button>
+                        <a href="${this.safeUrl(b.url)}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access" style="font-size:0.78rem; padding:0.4rem 0.85rem; background:#1d4ed8;">
+                            <span>Buka E-Book Platform Resmi ↗</span>
+                        </a>
+                    </div>
+                </div>
+            `);
+        }
+
+        if (subHighlights.length === 0) return '';
+        return `
+            <div class="fed-subscribed-highlights-row">
+                ${subHighlights.join('')}
+            </div>
+        `;
+    },
+
+    async fetchAutoFederatedInsights(q, localCount = 0) {
         const container = document.getElementById('fed-auto-insights');
         if (!container) return;
+
+        // Ensure subscribed journals & ebooks data are loaded
+        if (!this._ejournalsList || this._ejournalsList.length === 0) {
+            await this.getSubscribedJournalsList();
+        }
+        if (!this._ebooksList || this._ebooksList.length === 0) {
+            await this.getSubscribedEBooksList();
+        }
+
+        // Validate query hasn't changed during async fetch
+        const curInpCheck = (document.getElementById('search-input') || {}).value || '';
+        if (curInpCheck.trim().toLowerCase() !== q.toLowerCase()) return;
+
+        const matchedSubJournals = this.findMatchingSubscribedJournals(q);
+        const matchedSubEBooks = this.findMatchingSubscribedEBooks(q);
+        const matchedJournalsBannerHtml = this.buildSubscribedHighlightsHtml(matchedSubJournals, matchedSubEBooks, q);
+        const hasSubHighlights = Boolean(matchedJournalsBannerHtml && matchedJournalsBannerHtml.trim().length > 0);
 
         const isMasterEnabled = !this.intlConfig || this.intlConfig.enabled !== false;
         const sourcesConfig = (this.intlConfig && this.intlConfig.sources) || {};
         const isIntlEbooksActive = isMasterEnabled && (sourcesConfig['intl_ebooks'] !== false);
 
+        // When Master Switch for international discovery is turned off
+        if (!isMasterEnabled) {
+            if (hasSubHighlights) {
+                container.style.display = 'block';
+                container.innerHTML = `
+                    ${localCount === 0 ? `
+                        <div class="zero-local-alert">
+                            <div>Koleksi katalog lokal belum tersedia untuk kata kunci ini. Ditemukan akses resmi institusi UMS terkait:</div>
+                        </div>` : ''}
+                    ${matchedJournalsBannerHtml}
+                `;
+            } else {
+                container.style.display = 'none';
+                container.innerHTML = '';
+            }
+            return;
+        }
+
+        // When Master Switch is enabled, render loading state (including subscribed highlights immediately if matched!)
         container.style.display = 'block';
         container.innerHTML = `
+            ${matchedJournalsBannerHtml}
             <div class="fed-insights-header">
                 <div class="fed-insights-title-group">
                     <h3>Literatur Ilmiah & E-Book Internasional Terkait "${this.esc(q)}"</h3>
@@ -4019,7 +4130,16 @@ const app = {
 
             const totalGlobal = scopusTotal + semanticTotal + lensTotal + openalexTotal + crossrefTotal + springerTotal + intlEbooksTotal;
             if (totalGlobal === 0) {
-                if (localCount === 0) {
+                if (hasSubHighlights) {
+                    container.style.display = 'block';
+                    container.innerHTML = `
+                        ${localCount === 0 ? `
+                            <div class="zero-local-alert">
+                                <div>Koleksi lokal belum tersedia untuk kata kunci ini. Ditemukan akses resmi institusi UMS terkait:</div>
+                            </div>` : ''}
+                        ${matchedJournalsBannerHtml}
+                    `;
+                } else if (localCount === 0) {
                     container.innerHTML = `
                         <div style="text-align:center; padding:1.5rem; color:var(--ink-3)">
                             <p>Tidak ditemukan artikel atau e-book eksternal untuk kata kunci "<strong>${this.esc(q)}</strong>". Coba gunakan istilah pencarian yang lebih umum.</p>
@@ -4029,83 +4149,6 @@ const app = {
                     container.style.display = 'none';
                 }
                 return;
-            }
-
-            // Check matching subscribed journals and ebooks for this query
-            const matchedSubJournals = this.findMatchingSubscribedJournals(q);
-            const matchedSubEBooks = this.findMatchingSubscribedEBooks(q);
-            const subHighlights = [];
-
-            if (matchedSubJournals && matchedSubJournals.length > 0) {
-                const j = matchedSubJournals[0];
-                const issns = [j.issn, j.eissn].filter(Boolean).join(' / ') || '-';
-                subHighlights.push(`
-                    <div class="fed-journal-highlight-card" style="border-color:rgba(217, 119, 6, 0.4); margin:0; display:flex; flex-direction:column; justify-content:space-between; height:100%;">
-                        <div>
-                            <div class="fed-jrn-highlight-top">
-                                <span class="fed-jrn-highlight-badge">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                                    Jurnal Langganan Resmi UMS Terkait
-                                </span>
-                                <span class="chip" style="background:rgba(217, 119, 6, 0.12); color:#b45309; font-weight:600;">Akses Sivitas UMS</span>
-                            </div>
-                            <h4 class="fed-jrn-highlight-title" style="font-size:0.95rem; margin:0.35rem 0; line-height:1.35;">${this.hl(j.title, q)}</h4>
-                            <div class="fed-jrn-highlight-meta" style="font-size:0.76rem;">
-                                <span>Penerbit: <strong>${this.hl(j.publisher || 'Internasional', q)}</strong></span>
-                                <span>•</span>
-                                <span>ISSN: <code>${this.esc(issns)}</code></span>
-                                ${j.subject ? `<span>•</span><span>Subjek: ${this.hl(j.subject, q)}</span>` : ''}
-                            </div>
-                        </div>
-                        <div class="fed-jrn-highlight-actions" style="margin-top:0.75rem; padding-top:0.5rem; border-top:1px dashed rgba(217, 119, 6, 0.25);">
-                            <a href="${this.safeUrl(j.url)}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access" style="font-size:0.78rem; padding:0.4rem 0.85rem;">
-                                <span>Buka Laman Jurnal (Akses Kampus / SSO) ↗</span>
-                            </a>
-                        </div>
-                    </div>
-                `);
-            }
-
-            if (matchedSubEBooks && matchedSubEBooks.length > 0) {
-                const b = matchedSubEBooks[0];
-                subHighlights.push(`
-                    <div class="fed-journal-highlight-card" style="border-color:rgba(37, 99, 235, 0.45); margin:0; display:flex; flex-direction:column; justify-content:space-between; height:100%;">
-                        <div>
-                            <div class="fed-jrn-highlight-top">
-                                <span class="fed-jrn-highlight-badge" style="background:#2563eb;">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                                    E-Book Langganan Resmi UMS Terkait
-                                </span>
-                                <span class="chip" style="background:rgba(37, 99, 235, 0.12); color:#2563eb; font-weight:600;">Akses Sivitas UMS</span>
-                            </div>
-                            <h4 class="fed-jrn-highlight-title" style="font-size:0.95rem; margin:0.35rem 0; line-height:1.35;">${this.hl(b.title, q)}</h4>
-                            <div class="fed-jrn-highlight-meta" style="font-size:0.76rem;">
-                                <span>Penulis: <strong>${this.hl(b.author || 'Penulis', q)}</strong></span>
-                                <span>•</span>
-                                <span>Penerbit: <strong>${this.hl(b.publisher || 'Internasional', q)}</strong></span>
-                                ${b.year ? `<span>•</span><span>Tahun: ${b.year}</span>` : ''}
-                                ${b.isbn ? `<span>•</span><span>ISBN: <code>${this.esc(b.isbn)}</code></span>` : ''}
-                            </div>
-                        </div>
-                        <div class="fed-jrn-highlight-actions" style="margin-top:0.75rem; padding-top:0.5rem; border-top:1px dashed rgba(37, 99, 235, 0.25); display:flex; justify-content:space-between; align-items:center; gap:0.4rem;">
-                            <button type="button" class="btn btn-xs btn-ghost" style="padding:0.35rem 0.65rem; font-size:0.75rem;" onclick="app.showEBookDetail(${this.idAttr(b.id)})">
-                                <span>Detail & Sitasi</span>
-                            </button>
-                            <a href="${this.safeUrl(b.url)}" target="_blank" rel="noopener noreferrer" class="fed-btn-campus-access" style="font-size:0.78rem; padding:0.4rem 0.85rem; background:#1d4ed8;">
-                                <span>Buka E-Book Platform Resmi ↗</span>
-                            </a>
-                        </div>
-                    </div>
-                `);
-            }
-
-            let matchedJournalsBannerHtml = '';
-            if (subHighlights.length > 0) {
-                matchedJournalsBannerHtml = `
-                    <div class="fed-subscribed-highlights-row">
-                        ${subHighlights.join('')}
-                    </div>
-                `;
             }
 
             // Section E-Book Internasional Bebas Akses (DOAB, OpenAlex, Open Library)

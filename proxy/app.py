@@ -1688,10 +1688,6 @@ def api_international_config_public():
 @app.route('/api/international/journals')
 def api_international_journals_public():
     """Public A-Z listing of subscribed international journals with search & filter support."""
-    cfg = _load_international_config()
-    if not cfg.get('enabled', True):
-        return jsonify({"items": [], "total": 0, "disabled": True})
-
     journals = _load_subscribed_journals()
     active_only = [j for j in journals if j.get('active', True)]
 
