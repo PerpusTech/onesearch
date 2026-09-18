@@ -2178,6 +2178,15 @@
                         dengan baris judul/header atau tanpa header):</div>
                     <code
                         style="font-size:0.75rem; background:var(--bg-surface); padding:0.2rem 0.4rem; border-radius:3px; display:inline-block; border:1px solid var(--border-main);">Judul  |  Penerbit  |  ISSN  |  E-ISSN  |  Subjek / Bidang  |  Akses (kampus/open)  |  URL Link  |  Fakultas  |  Catatan</code>
+
+                    <div style="margin-top:0.5rem; padding-top:0.45rem; border-top:1px dashed var(--border-main); color:var(--text-muted); font-size:0.73rem;">
+                        <strong style="color:var(--text-main);">💡 Ada Kolom yang Kosong (Misal: Subjek / E-ISSN / Fakultas)?</strong>
+                        <ul style="margin:0.25rem 0 0 1.1rem; padding:0; line-height:1.6;">
+                            <li><strong>Cara 1 (Kosongkan Sel Excel):</strong> Biarkan sel kolom tersebut kosong di Excel (jangan hapus kolomnya). Saat di-Ctrl+C lalu Ctrl+V, jeda kolom otomatis terbaca.</li>
+                            <li><strong>Cara 2 (Tanda Strip):</strong> Ketikkan tanda strip <code>-</code> pada sel kolom yang belum ada datanya.</li>
+                            <li><strong>Cara 3 (Pakai Header):</strong> Tuliskan nama kolom di baris 1 Excel (misal: <em>Judul, Penerbit, ISSN, URL</em>). Kolom yang kosong tidak perlu dibuat sama sekali.</li>
+                        </ul>
+                    </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom:0.5rem;">
@@ -2188,7 +2197,7 @@
                             Titik-koma / Koma otomatis dideteksi</span>
                     </label>
                     <textarea id="journal-paste-input" class="input" rows="8"
-                        placeholder="Contoh salin langsung dari Excel (Ctrl+V di sini):&#10;Nature	Nature Publishing Group	0028-0836	1476-4687	Multidisciplinary	kampus	https://www.nature.com	Sains	Langganan 2026&#10;The Lancet	Elsevier	0140-6736	1474-547X	Medicine	kampus	https://www.thelancet.com	Kedokteran	Langganan 2026"
+                        placeholder="Contoh salin langsung dari Excel (Ctrl+V di sini):&#10;Nature	Nature Publishing Group	0028-0836	1476-4687	Multidisciplinary	kampus	https://www.nature.com	Sains	Langganan 2026&#10;The Lancet	Elsevier	0140-6736	1474-547X	Medicine	kampus	https://www.thelancet.com	Kedokteran	Langganan 2026&#10;Journal of AI Research	AI Access Foundation	1076-9757	1943-5037	-	kampus	https://jair.org	FTI	Contoh: Subjek diisi tanda strip (-)"
                         style="font-family:monospace; font-size:0.78rem; line-height:1.45; white-space:pre; resize:vertical; min-height:160px;"
                         oninput="onJournalPasteInput()"></textarea>
                 </div>
@@ -2409,6 +2418,15 @@
                         dengan baris judul/header atau tanpa header):</div>
                     <code
                         style="font-size:0.75rem; background:var(--bg-surface); padding:0.2rem 0.4rem; border-radius:3px; display:inline-block; border:1px solid var(--border-main);">Judul  |  Pengarang  |  Penerbit  |  Tahun  |  ISBN  |  Subjek  |  Akses (kampus/open)  |  URL Link  |  URL Cover  |  Catatan</code>
+
+                    <div style="margin-top:0.5rem; padding-top:0.45rem; border-top:1px dashed var(--border-main); color:var(--text-muted); font-size:0.73rem;">
+                        <strong style="color:var(--text-main);">💡 Ada Kolom yang Kosong (Misal: Subjek / ISBN / URL Cover)?</strong>
+                        <ul style="margin:0.25rem 0 0 1.1rem; padding:0; line-height:1.6;">
+                            <li><strong>Cara 1 (Kosongkan Sel Excel):</strong> Biarkan sel kolom tersebut kosong di Excel (jangan hapus kolomnya). Saat di-Ctrl+C lalu Ctrl+V, jeda kolom otomatis terbaca.</li>
+                            <li><strong>Cara 2 (Tanda Strip):</strong> Ketikkan tanda strip <code>-</code> pada sel kolom yang belum ada datanya.</li>
+                            <li><strong>Cara 3 (Pakai Header):</strong> Tuliskan nama kolom di baris 1 Excel (misal: <em>Judul, Pengarang, Penerbit, Tahun, URL Link</em>). Kolom yang kosong tidak perlu dibuat sama sekali.</li>
+                        </ul>
+                    </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom:0.5rem;">
@@ -2419,7 +2437,7 @@
                             Titik-koma / Koma otomatis dideteksi</span>
                     </label>
                     <textarea id="ebook-paste-input" class="input" rows="8"
-                        placeholder="Contoh salin langsung dari Excel (Ctrl+V di sini):&#10;Artificial Intelligence: A Modern Approach	Stuart Russell	Pearson	2020	978-0134610993	Computer Science	kampus	https://example.com/ai	https://.../cover.jpg	Edisi ke-4&#10;Clean Architecture	Robert C. Martin	Prentice Hall	2017	978-0134494166	Software Engineering	kampus	https://example.com/clean	https://.../cover.jpg	Koleksi Terbaru"
+                        placeholder="Contoh salin langsung dari Excel (Ctrl+V di sini):&#10;Artificial Intelligence: A Modern Approach	Stuart Russell	Pearson	2020	978-0134610993	Computer Science	kampus	https://example.com/ai	https://.../cover.jpg	Edisi ke-4&#10;Clean Architecture	Robert C. Martin	Prentice Hall	2017	978-0134494166	Software Engineering	kampus	https://example.com/clean	https://.../cover.jpg	Koleksi Terbaru&#10;Deep Learning	Ian Goodfellow	MIT Press	2016	978-0262035613	-	kampus	https://example.com/dl	-	Contoh: Subjek dan Cover diisi tanda strip (-)"
                         style="font-family:monospace; font-size:0.78rem; line-height:1.45; white-space:pre; resize:vertical; min-height:160px;"
                         oninput="onEBookPasteInput()"></textarea>
                 </div>
