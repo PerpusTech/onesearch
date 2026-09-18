@@ -440,6 +440,9 @@ const app = {
 
     // ──── SIBI API Fetch ────
     async fetchSibiBooks() {
+        const sourcesConfig = (this.intlConfig && this.intlConfig.sources) || {};
+        if (sourcesConfig['sibi'] === false) return [];
+
         const base_uri = 'https://api.buku.cloudapp.web.id';
         const endpoints = {
             'Kurikulum Merdeka': '/api/catalogue/getPenggerakTextBooks?limit=3000&order_by=updated_at',
@@ -538,18 +541,26 @@ const app = {
             bar.style.width = '15%';
             const t = new Date().getTime();
 
-            // 1. Muat metadata ringkas (Stats, DDC, Prodi, SIBI) secara paralel
+            // 1. Muat metadata ringkas (Stats, DDC, Prodi, Konfigurasi Sumber) secara paralel
             txt.textContent = this.t('loading_ddc');
-            const [localStats, ddcData, prodiData, sibiBooks] = await Promise.all([
+            const [localStats, ddcData, prodiData, intlCfg] = await Promise.all([
                 fetch('data/stats.json?t=' + t).then(r => r.json()).catch(() => ({})),
                 fetch('data/ddc_tree.json?t=' + t).then(r => r.json()).catch(() => ({})),
                 fetch('data/prodi_index.json?t=' + t).then(r => r.json()).catch(() => ({})),
-                this.fetchSibiBooks().catch(() => [])
+                fetch('/api/international/config').then(r => r.json()).catch(() => ({ enabled: true, sources: {} }))
             ]);
 
             this.stats = localStats || {};
             this.ddcTree = ddcData || {};
             this.prodiIndex = prodiData || {};
+            this.intlConfig = intlCfg || { enabled: true, sources: {} };
+            const sourcesConfig = (this.intlConfig && this.intlConfig.sources) || {};
+
+            // Fetch SIBI books only if enabled
+            let sibiBooks = [];
+            if (sourcesConfig['sibi'] !== false) {
+                sibiBooks = await this.fetchSibiBooks().catch(() => []);
+            }
             bar.style.width = '35%';
 
             // 2. Cek apakah katalog lokal di IndexedDB masih up-to-date
@@ -570,15 +581,20 @@ const app = {
                 localStorage.setItem('bf_books_version', currentVersion);
             }
 
-            this.books = localBooks.concat(sibiBooks || []);
-            bar.style.width = '75%';
-
-            // Load international configuration (toggles & active sources)
-            try {
-                this.intlConfig = await (await fetch('/api/international/config')).json();
-            } catch (e) {
-                this.intlConfig = { enabled: true, sources: {} };
+            let allBooks = localBooks.slice();
+            if (sourcesConfig['journal'] === false) {
+                allBooks = allBooks.filter(b => {
+                    const s = (b.src || '').toLowerCase();
+                    const u = (b.url || '').toLowerCase();
+                    const t = (b.type || '').toUpperCase();
+                    const id = String(b.id || '').toLowerCase();
+                    const isJournal = b.src === 'UMS (Journal)' || s.includes('journal') || u.includes('journal') || id.startsWith('ojs') || t === 'JR' || t === 'ARTICLE';
+                    return !isJournal;
+                });
             }
+
+            this.books = allBooks.concat(sibiBooks || []);
+            bar.style.width = '75%';
 
             // Pre-load subscribed journals & ebooks data for unified search & highlighting
             this.getSubscribedJournalsList();
@@ -2555,6 +2571,8 @@ const app = {
         const sourcesConfig = (this.intlConfig && this.intlConfig.sources) || {};
 
         const row1 = this._fedSourcesRow1.filter(s => {
+            if (s.id === 'journal') return sourcesConfig['journal'] !== false;
+            if (s.id === 'sibi') return sourcesConfig['sibi'] !== false;
             if (s.id === 'all_global') return isMasterEnabled;
             if (s.id === 'intl_ebooks') return isMasterEnabled && sourcesConfig['intl_ebooks'] !== false;
             return true;
@@ -2582,6 +2600,8 @@ const app = {
         };
 
         const row1List = this._fedSourcesRow1.filter(s => {
+            if (s.id === 'journal') return sourcesConfig['journal'] !== false;
+            if (s.id === 'sibi') return sourcesConfig['sibi'] !== false;
             if (s.id === 'all_global') return isMasterEnabled;
             if (s.id === 'intl_ebooks') return isMasterEnabled && sourcesConfig['intl_ebooks'] !== false;
             return true;

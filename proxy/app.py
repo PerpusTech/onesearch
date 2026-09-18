@@ -74,7 +74,10 @@ DEFAULT_INTERNATIONAL_CONFIG = {
         "lens": True,
         "openalex": True,
         "crossref": True,
-        "emerald": True
+        "emerald": True,
+        "intl_ebooks": True,
+        "journal": True,
+        "sibi": True
     },
     "filter_subscribed_only_default": False
 }
