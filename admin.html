@@ -969,6 +969,9 @@
                         <span class="status-dot"></span>
                         <span id="status-text">Memuat status...</span>
                     </div>
+                    <button type="button" class="btn btn-xs btn-destructive" id="btn-unlock-scheduler" onclick="forceUnlockScheduler()" style="display:none; font-size:0.75rem;" title="Lepas status lock bila sync macet">
+                        🔓 Reset Lock
+                    </button>
                     <button type="button" class="btn btn-xs" onclick="refreshDashboard(true)" title="Perbarui data">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -1344,10 +1347,12 @@
                         <div class="card"
                             style="display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1rem; border-left:3px solid #2563eb;">
                             <div>
-                                <div style="font-weight:600; font-size:0.85rem; color:var(--text-main); display:flex; align-items:center; gap:0.4rem;">
+                                <div
+                                    style="font-weight:600; font-size:0.85rem; color:var(--text-main); display:flex; align-items:center; gap:0.4rem;">
                                     <span>E-Book Internasional</span>
                                 </div>
-                                <div style="font-size:0.72rem; color:var(--text-muted);">DOAB, OpenAlex & Open Library</div>
+                                <div style="font-size:0.72rem; color:var(--text-muted);">DOAB, OpenAlex & Open Library
+                                </div>
                             </div>
                             <label class="switch">
                                 <input type="checkbox" id="src-toggle-intl_ebooks"
@@ -1360,7 +1365,8 @@
                         <div class="card"
                             style="display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1rem; border-left:3px solid #10b981;">
                             <div>
-                                <div style="font-weight:600; font-size:0.85rem; color:var(--text-main); display:flex; align-items:center; gap:0.4rem;">
+                                <div
+                                    style="font-weight:600; font-size:0.85rem; color:var(--text-main); display:flex; align-items:center; gap:0.4rem;">
                                     <span>Artikel Jurnal UMS</span>
                                 </div>
                                 <div style="font-size:0.72rem; color:var(--text-muted);">journals.ums.ac.id</div>
@@ -1376,7 +1382,8 @@
                         <div class="card"
                             style="display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1rem; border-left:3px solid #f59e0b;">
                             <div>
-                                <div style="font-weight:600; font-size:0.85rem; color:var(--text-main); display:flex; align-items:center; gap:0.4rem;">
+                                <div
+                                    style="font-weight:600; font-size:0.85rem; color:var(--text-main); display:flex; align-items:center; gap:0.4rem;">
                                     <span>Buku Digital (SIBI)</span>
                                 </div>
                                 <div style="font-size:0.72rem; color:var(--text-muted);">Katalog SIBI Kemdikbud</div>
@@ -1517,14 +1524,19 @@
             <div id="view-ebooks" style="display:none; flex-direction:column; gap:1.75rem;">
 
                 <!-- International E-Books Discovery Switch Banner -->
-                <div class="card" style="padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; border-left:4px solid #2563eb;">
+                <div class="card"
+                    style="padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; border-left:4px solid #2563eb;">
                     <div>
-                        <div style="font-weight:600; font-size:0.92rem; color:var(--text-main); display:flex; align-items:center; gap:0.5rem;">
+                        <div
+                            style="font-weight:600; font-size:0.92rem; color:var(--text-main); display:flex; align-items:center; gap:0.5rem;">
                             <span>Saklar Sumber: E-Book Internasional Bebas Akses (Open Access)</span>
                             <span id="ebk-switch-status-pill" class="status-pill idle">Memuat...</span>
                         </div>
-                        <p style="font-size:0.77rem; color:var(--text-muted); margin:0.25rem 0 0; max-width:680px; line-height:1.45;">
-                            Jika diaktifkan, pengguna dapat mencari ratusan ribu e-book digital bebas akses internasional dari <strong>DOAB</strong>, <strong>OpenAlex</strong>, dan <strong>Open Library</strong> di beranda pencarian dan halaman e-book.
+                        <p
+                            style="font-size:0.77rem; color:var(--text-muted); margin:0.25rem 0 0; max-width:680px; line-height:1.45;">
+                            Jika diaktifkan, pengguna dapat mencari ratusan ribu e-book digital bebas akses
+                            internasional dari <strong>DOAB</strong>, <strong>OpenAlex</strong>, dan <strong>Open
+                                Library</strong> di beranda pencarian dan halaman e-book.
                         </p>
                     </div>
                     <label class="switch" style="transform:scale(1.2);">
@@ -1846,7 +1858,8 @@
                         <ol
                             style="margin:0; padding-left:1.35rem; font-size:0.8rem; color:var(--text-muted); line-height:1.65;">
                             <li>Buka dashboard WordPress Anda, lalu edit halaman yang ingin dipasangi pencarian (misal:
-                                <strong>Halaman Utama / Beranda</strong>).</li>
+                                <strong>Halaman Utama / Beranda</strong>).
+                            </li>
                             <li>Tambahkan blok baru dengan mencari blok <strong>"Custom HTML"</strong> (di Gutenberg
                                 Editor) atau elemen <strong>"HTML"</strong> (di Elementor / Page Builder lain).</li>
                             <li>Paste kode yang telah disalin di atas ke dalam blok tersebut, lalu klik <strong>Update /
@@ -1862,26 +1875,34 @@
                 <!-- Action Bar -->
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
                     <div>
-                        <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0 0 0.25rem 0;">Laporan Tren Kata Kunci & Usulan Pengadaan Buku</h2>
-                        <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Merekam kata kunci pencarian sivitas akademika secara anonim untuk evaluasi kurikulum & pengadaan koleksi pustaka UMS.</p>
+                        <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0 0 0.25rem 0;">
+                            Laporan Tren Kata Kunci & Usulan Pengadaan Buku</h2>
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Merekam kata kunci pencarian
+                            sivitas akademika secara anonim untuk evaluasi kurikulum & pengadaan koleksi pustaka UMS.
+                        </p>
                     </div>
                     <div style="display:flex; gap:0.5rem; align-items:center;">
-                        <button type="button" class="btn btn-xs" onclick="loadSearchAnalytics()" title="Muat ulang data analitik">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <button type="button" class="btn btn-xs" onclick="loadSearchAnalytics()"
+                            title="Muat ulang data analitik">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
                                 <path d="M23 4v6h-6M1 20v-6h6"></path>
                                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                             </svg>
                             Refresh
                         </button>
-                        <button type="button" class="btn btn-xs btn-primary" onclick="downloadAnalyticsCSV()" title="Unduh laporan dalam format CSV / Excel">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <button type="button" class="btn btn-xs btn-primary" onclick="downloadAnalyticsCSV()"
+                            title="Unduh laporan dalam format CSV / Excel">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                                 <polyline points="7 10 12 15 17 10" />
                                 <line x1="12" x2="12" y1="15" y2="3" />
                             </svg>
                             Unduh Laporan (.csv)
                         </button>
-                        <button type="button" class="btn btn-xs btn-danger" onclick="resetSearchAnalytics()" title="Reset data log analitik">
+                        <button type="button" class="btn btn-xs btn-danger" onclick="resetSearchAnalytics()"
+                            title="Reset data log analitik">
                             Reset Log
                         </button>
                     </div>
@@ -1896,7 +1917,8 @@
                     </div>
                     <div class="card">
                         <div class="card-label">Pencarian Tanpa Hasil (Zero-Result)</div>
-                        <div class="card-value" id="metric-analytics-zero" style="color:var(--color-danger, #ef4444);">0</div>
+                        <div class="card-value" id="metric-analytics-zero" style="color:var(--color-danger, #ef4444);">0
+                        </div>
                         <div class="card-sub">Koleksi belum ada di UMS</div>
                     </div>
                     <div class="card">
@@ -1915,10 +1937,13 @@
                 <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap:1.5rem;">
                     <!-- Left: Top Popular Queries -->
                     <div class="card" style="padding:1.25rem;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border-main); padding-bottom:0.75rem;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border-main); padding-bottom:0.75rem;">
                             <div>
-                                <h3 style="font-size:0.95rem; font-weight:700; color:var(--text-main); margin:0;">Top 20 Kata Kunci Populer</h3>
-                                <p style="font-size:0.75rem; color:var(--text-muted); margin:2px 0 0 0;">Topik & judul yang paling diminati mahasiswa</p>
+                                <h3 style="font-size:0.95rem; font-weight:700; color:var(--text-main); margin:0;">Top 20
+                                    Kata Kunci Populer</h3>
+                                <p style="font-size:0.75rem; color:var(--text-muted); margin:2px 0 0 0;">Topik & judul
+                                    yang paling diminati mahasiswa</p>
                             </div>
                             <span class="badge badge-neutral">Tren Minat</span>
                         </div>
@@ -1933,7 +1958,11 @@
                                     </tr>
                                 </thead>
                                 <tbody id="analytics-top-tbody">
-                                    <tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--text-muted);">Memuat data tren...</td></tr>
+                                    <tr>
+                                        <td colspan="4"
+                                            style="text-align:center; padding:1.5rem; color:var(--text-muted);">Memuat
+                                            data tren...</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -1941,15 +1970,22 @@
 
                     <!-- Right: Zero-Result Queries (Procurement Opportunity) -->
                     <div class="card" style="padding:1.25rem; border-color: rgba(239, 68, 68, 0.25);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:1px solid var(--border-main); padding-bottom:0.75rem;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:1px solid var(--border-main); padding-bottom:0.75rem;">
                             <div>
-                                <h3 style="font-size:0.95rem; font-weight:700; color:var(--color-danger, #ef4444); margin:0;">Top 20 Kata Kunci Tanpa Hasil (Zero-Result)</h3>
-                                <p style="font-size:0.75rem; color:var(--text-muted); margin:2px 0 0 0;">Pencarian yang menghasilkan 0 buku di katalog</p>
+                                <h3
+                                    style="font-size:0.95rem; font-weight:700; color:var(--color-danger, #ef4444); margin:0;">
+                                    Top 20 Kata Kunci Tanpa Hasil (Zero-Result)</h3>
+                                <p style="font-size:0.75rem; color:var(--text-muted); margin:2px 0 0 0;">Pencarian yang
+                                    menghasilkan 0 buku di katalog</p>
                             </div>
                             <span class="badge badge-danger">Usulan Pengadaan</span>
                         </div>
-                        <div style="background:rgba(239, 68, 68, 0.05); border-left:3px solid #ef4444; padding:0.6rem 0.75rem; border-radius:var(--radius-xs); margin-bottom:1rem; font-size:0.75rem; color:var(--text-muted); line-height:1.45;">
-                            <strong style="color:var(--text-main);">Rekomendasi Pustakawan:</strong> Data di bawah menunjukkan buku yang dibutuhkan sivitas akademika namun belum dimiliki perpustakaan. Jadikan sebagai prioritas belanja buku baru.
+                        <div
+                            style="background:rgba(239, 68, 68, 0.05); border-left:3px solid #ef4444; padding:0.6rem 0.75rem; border-radius:var(--radius-xs); margin-bottom:1rem; font-size:0.75rem; color:var(--text-muted); line-height:1.45;">
+                            <strong style="color:var(--text-main);">Rekomendasi Pustakawan:</strong> Data di bawah
+                            menunjukkan buku yang dibutuhkan sivitas akademika namun belum dimiliki perpustakaan.
+                            Jadikan sebagai prioritas belanja buku baru.
                         </div>
                         <div style="overflow-x:auto;">
                             <table class="data-table" style="width:100%; font-size:0.8rem;">
@@ -1962,7 +1998,11 @@
                                     </tr>
                                 </thead>
                                 <tbody id="analytics-zero-tbody">
-                                    <tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--text-muted);">Memuat data zero-result...</td></tr>
+                                    <tr>
+                                        <td colspan="4"
+                                            style="text-align:center; padding:1.5rem; color:var(--text-muted);">Memuat
+                                            data zero-result...</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -2179,12 +2219,21 @@
                     <code
                         style="font-size:0.75rem; background:var(--bg-surface); padding:0.2rem 0.4rem; border-radius:3px; display:inline-block; border:1px solid var(--border-main);">Judul  |  Penerbit  |  ISSN  |  E-ISSN  |  Subjek / Bidang  |  Akses (kampus/open)  |  URL Link  |  Fakultas  |  Catatan</code>
 
-                    <div style="margin-top:0.5rem; padding-top:0.45rem; border-top:1px dashed var(--border-main); color:var(--text-muted); font-size:0.73rem;">
-                        <strong style="color:var(--text-main);">💡 Ada Kolom yang Kosong (Misal: Subjek / E-ISSN / Fakultas)?</strong>
+                    <div
+                        style="margin-top:0.5rem; padding-top:0.45rem; border-top:1px dashed var(--border-main); color:var(--text-muted); font-size:0.73rem;">
+                        <strong style="color:var(--text-main);">💡 Ada Kolom yang Kosong (Misal: Subjek / E-ISSN /
+                            Fakultas)?</strong>
                         <ul style="margin:0.25rem 0 0 1.1rem; padding:0; line-height:1.6;">
-                            <li><strong>Cara 1 (Kosongkan Sel Excel):</strong> Biarkan sel kolom tersebut kosong di Excel (jangan hapus kolomnya). Saat di-Ctrl+C lalu Ctrl+V, jeda kolom otomatis terbaca.</li>
-                            <li><strong>Cara 2 (Tanda Strip):</strong> Ketikkan tanda strip <code>-</code> pada sel kolom yang belum ada datanya.</li>
-                            <li><strong>Cara 3 (Pakai Header):</strong> Tuliskan nama kolom di baris 1 Excel (misal: <em>Judul, Penerbit, ISSN, URL</em>). Kolom yang kosong tidak perlu dibuat sama sekali.</li>
+                            <li><strong>Cara 1 (Kosongkan Sel Excel):</strong> Biarkan sel kolom tersebut kosong di
+                                Excel (jangan hapus kolomnya). Saat di-Ctrl+C lalu Ctrl+V, jeda kolom otomatis terbaca.
+                            </li>
+                            <li><strong>Cara 2 (Tanda Strip):</strong> Ketikkan tanda strip <code>-</code> pada sel
+                                kolom yang belum ada datanya.</li>
+                            <li><strong>Cara 3 (Pakai Header):</strong> Tuliskan nama kolom di baris 1 Excel (misal:
+                                <em>Judul, Penerbit, ISSN, URL</em>). Kolom yang kosong tidak perlu dibuat sama sekali.
+                            </li>
+                            <li><strong>Penerbit & Metode Akses:</strong> Jika nama penerbit tidak ada di dropdown (misal penerbit baru), tulis saja apa adanya—sistem otomatis menerimanya. Metode akses fleksibel (<code>kampus</code>, <code>ezproxy</code> / SSO, <code>open</code> / OA, <code>direct</code>). Jika dikosongkan, otomatis diatur ke <em>kampus</em>.
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -2291,13 +2340,19 @@
                     </div>
 
                     <!-- PDF E-Book Attachment Section (Upload up to 150MB) -->
-                    <div class="form-group" style="background:var(--bg-subtle, #f9fafb); border:1px dashed var(--border-main, #e5e7eb); border-radius:var(--radius-md, 8px); padding:0.85rem; margin-bottom:1rem;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.45rem;">
-                            <label class="form-label" style="margin-bottom:0; font-weight:600; display:flex; align-items:center; gap:0.4rem;">
+                    <div class="form-group"
+                        style="background:var(--bg-subtle, #f9fafb); border:1px dashed var(--border-main, #e5e7eb); border-radius:var(--radius-md, 8px); padding:0.85rem; margin-bottom:1rem;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.45rem;">
+                            <label class="form-label"
+                                style="margin-bottom:0; font-weight:600; display:flex; align-items:center; gap:0.4rem;">
                                 <span>📄 File Dokumen PDF (Maks 150 MB)</span>
-                                <span style="font-size:0.68rem; font-weight:500; background:var(--accent-soft, #eff6ff); color:var(--accent, #1d4ed8); padding:1px 6px; border-radius:10px; border:1px solid var(--accent-border, #bfdbfe);">Lokal Server</span>
+                                <span
+                                    style="font-size:0.68rem; font-weight:500; background:var(--accent-soft, #eff6ff); color:var(--accent, #1d4ed8); padding:1px 6px; border-radius:10px; border:1px solid var(--accent-border, #bfdbfe);">Lokal
+                                    Server</span>
                             </label>
-                            <span id="ebook-pdf-status-badge" style="font-size:0.72rem; color:var(--text-muted);">Belum ada PDF</span>
+                            <span id="ebook-pdf-status-badge" style="font-size:0.72rem; color:var(--text-muted);">Belum
+                                ada PDF</span>
                         </div>
 
                         <!-- Hidden input fields for stored PDF state -->
@@ -2305,52 +2360,74 @@
                         <input type="hidden" id="ebook-pdf-size" value="">
 
                         <!-- Upload Dropzone / Trigger -->
-                        <div id="ebook-pdf-dropzone" style="text-align:center; padding:0.9rem 0.6rem; border:1px dashed var(--border-main, #d1d5db); border-radius:var(--radius-sm, 6px); background:var(--bg-surface, #ffffff); cursor:pointer; transition:all 0.15s ease;" onclick="document.getElementById('ebook-pdf-file-input').click()">
-                            <input type="file" id="ebook-pdf-file-input" accept="application/pdf" style="display:none;" onchange="handleEBookPdfSelected(event)">
+                        <div id="ebook-pdf-dropzone"
+                            style="text-align:center; padding:0.9rem 0.6rem; border:1px dashed var(--border-main, #d1d5db); border-radius:var(--radius-sm, 6px); background:var(--bg-surface, #ffffff); cursor:pointer; transition:all 0.15s ease;"
+                            onclick="document.getElementById('ebook-pdf-file-input').click()">
+                            <input type="file" id="ebook-pdf-file-input" accept="application/pdf" style="display:none;"
+                                onchange="handleEBookPdfSelected(event)">
                             <div style="font-size:1.4rem; margin-bottom:0.2rem;">📤</div>
-                            <div style="font-size:0.82rem; font-weight:600; color:var(--text-main);">Pilih atau Seret (Drag) File PDF ke Sini</div>
-                            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Ukuran maks 150 MB. Pemustaka dapat membaca langsung di OneSearch & mengunduhnya.</div>
+                            <div style="font-size:0.82rem; font-weight:600; color:var(--text-main);">Pilih atau Seret
+                                (Drag) File PDF ke Sini</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Ukuran maks 150 MB.
+                                Pemustaka dapat membaca langsung di OneSearch & mengunduhnya.</div>
                         </div>
 
                         <!-- Upload Progress Bar (hidden by default) -->
                         <div id="ebook-pdf-progress-wrap" style="display:none; margin-top:0.6rem;">
-                            <div style="display:flex; justify-content:space-between; font-size:0.72rem; margin-bottom:0.25rem;">
+                            <div
+                                style="display:flex; justify-content:space-between; font-size:0.72rem; margin-bottom:0.25rem;">
                                 <span id="ebook-pdf-progress-text" style="font-weight:500;">Mengunggah PDF...</span>
-                                <span id="ebook-pdf-progress-pct" style="font-weight:600; font-family:var(--font-mono); color:var(--accent);">0%</span>
+                                <span id="ebook-pdf-progress-pct"
+                                    style="font-weight:600; font-family:var(--font-mono); color:var(--accent);">0%</span>
                             </div>
-                            <div style="width:100%; height:6px; background:var(--bg-muted, #e5e7eb); border-radius:3px; overflow:hidden;">
-                                <div id="ebook-pdf-progress-bar" style="width:0%; height:100%; background:var(--accent, #1d4ed8); transition:width 0.15s ease;"></div>
+                            <div
+                                style="width:100%; height:6px; background:var(--bg-muted, #e5e7eb); border-radius:3px; overflow:hidden;">
+                                <div id="ebook-pdf-progress-bar"
+                                    style="width:0%; height:100%; background:var(--accent, #1d4ed8); transition:width 0.15s ease;">
+                                </div>
                             </div>
                         </div>
 
                         <!-- Attached PDF Preview Card -->
-                        <div id="ebook-pdf-attached-card" style="display:none; margin-top:0.6rem; padding:0.5rem 0.65rem; background:var(--bg-surface, #ffffff); border:1px solid var(--accent-border, #bfdbfe); border-radius:var(--radius-sm, 6px); align-items:center; justify-content:space-between;">
+                        <div id="ebook-pdf-attached-card"
+                            style="display:none; margin-top:0.6rem; padding:0.5rem 0.65rem; background:var(--bg-surface, #ffffff); border:1px solid var(--accent-border, #bfdbfe); border-radius:var(--radius-sm, 6px); align-items:center; justify-content:space-between;">
                             <div style="display:flex; align-items:center; gap:0.55rem; min-width:0;">
                                 <span style="font-size:1.15rem;">📑</span>
                                 <div style="min-width:0;">
-                                    <div id="ebook-pdf-display-name" style="font-size:0.78rem; font-weight:600; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">nama_file.pdf</div>
-                                    <div id="ebook-pdf-display-size" style="font-size:0.7rem; color:var(--text-muted); font-family:var(--font-mono);">0 MB</div>
+                                    <div id="ebook-pdf-display-name"
+                                        style="font-size:0.78rem; font-weight:600; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                        nama_file.pdf</div>
+                                    <div id="ebook-pdf-display-size"
+                                        style="font-size:0.7rem; color:var(--text-muted); font-family:var(--font-mono);">
+                                        0 MB</div>
                                 </div>
                             </div>
                             <div style="display:flex; gap:0.35rem; align-items:center; flex-shrink:0;">
-                                <a id="ebook-pdf-preview-link" href="#" target="_blank" class="btn btn-xs" style="text-decoration:none; padding:2px 8px; font-size:0.72rem;">👁 Buka</a>
-                                <button type="button" class="btn btn-destructive btn-xs" style="padding:2px 8px; font-size:0.72rem;" onclick="removeAttachedEBookPdf()">✕ Lepas</button>
+                                <a id="ebook-pdf-preview-link" href="#" target="_blank" class="btn btn-xs"
+                                    style="text-decoration:none; padding:2px 8px; font-size:0.72rem;">👁 Buka</a>
+                                <button type="button" class="btn btn-destructive btn-xs"
+                                    style="padding:2px 8px; font-size:0.72rem;" onclick="removeAttachedEBookPdf()">✕
+                                    Lepas</button>
                             </div>
                         </div>
 
                         <!-- Download policy toggle -->
-                        <div style="margin-top:0.65rem; padding-top:0.55rem; border-top:1px solid var(--border-subtle, #f3f4f6); display:flex; align-items:center; justify-content:space-between;">
-                            <label style="display:flex; align-items:center; gap:0.45rem; font-size:0.78rem; cursor:pointer; user-select:none; margin:0;">
+                        <div
+                            style="margin-top:0.65rem; padding-top:0.55rem; border-top:1px solid var(--border-subtle, #f3f4f6); display:flex; align-items:center; justify-content:space-between;">
+                            <label
+                                style="display:flex; align-items:center; gap:0.45rem; font-size:0.78rem; cursor:pointer; user-select:none; margin:0;">
                                 <input type="checkbox" id="ebook-allow-download" checked>
                                 <span style="font-weight:500;">Izinkan Pemustaka Mengunduh (Download) PDF</span>
                             </label>
-                            <span style="font-size:0.7rem; color:var(--text-muted);">(Tombol unduh aktif di katalog)</span>
+                            <span style="font-size:0.7rem; color:var(--text-muted);">(Tombol unduh aktif di
+                                katalog)</span>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" for="ebook-url">URL Eksternal Platform E-Book (atau Link EZProxy)
-                            <span style="font-weight:normal; font-size:0.75rem; color:var(--text-muted);">(Opsional jika sudah upload PDF)</span>:</label>
+                            <span style="font-weight:normal; font-size:0.75rem; color:var(--text-muted);">(Opsional jika
+                                sudah upload PDF)</span>:</label>
                         <input type="url" id="ebook-url" class="input" placeholder="https://link.springer.com/book/...">
                     </div>
 
@@ -2419,12 +2496,20 @@
                     <code
                         style="font-size:0.75rem; background:var(--bg-surface); padding:0.2rem 0.4rem; border-radius:3px; display:inline-block; border:1px solid var(--border-main);">Judul  |  Pengarang  |  Penerbit  |  Tahun  |  ISBN  |  Subjek  |  Akses (kampus/open)  |  URL Link  |  URL Cover  |  Catatan</code>
 
-                    <div style="margin-top:0.5rem; padding-top:0.45rem; border-top:1px dashed var(--border-main); color:var(--text-muted); font-size:0.73rem;">
-                        <strong style="color:var(--text-main);">💡 Ada Kolom yang Kosong (Misal: Subjek / ISBN / URL Cover)?</strong>
+                    <div
+                        style="margin-top:0.5rem; padding-top:0.45rem; border-top:1px dashed var(--border-main); color:var(--text-muted); font-size:0.73rem;">
+                        <strong style="color:var(--text-main);">💡 Ada Kolom yang Kosong (Misal: Subjek / ISBN / URL
+                            Cover)?</strong>
                         <ul style="margin:0.25rem 0 0 1.1rem; padding:0; line-height:1.6;">
-                            <li><strong>Cara 1 (Kosongkan Sel Excel):</strong> Biarkan sel kolom tersebut kosong di Excel (jangan hapus kolomnya). Saat di-Ctrl+C lalu Ctrl+V, jeda kolom otomatis terbaca.</li>
-                            <li><strong>Cara 2 (Tanda Strip):</strong> Ketikkan tanda strip <code>-</code> pada sel kolom yang belum ada datanya.</li>
-                            <li><strong>Cara 3 (Pakai Header):</strong> Tuliskan nama kolom di baris 1 Excel (misal: <em>Judul, Pengarang, Penerbit, Tahun, URL Link</em>). Kolom yang kosong tidak perlu dibuat sama sekali.</li>
+                            <li><strong>Cara 1 (Kosongkan Sel Excel):</strong> Biarkan sel kolom tersebut kosong di
+                                Excel (jangan hapus kolomnya). Saat di-Ctrl+C lalu Ctrl+V, jeda kolom otomatis terbaca.
+                            </li>
+                            <li><strong>Cara 2 (Tanda Strip):</strong> Ketikkan tanda strip <code>-</code> pada sel
+                                kolom yang belum ada datanya.</li>
+                            <li><strong>Cara 3 (Pakai Header):</strong> Tuliskan nama kolom di baris 1 Excel (misal:
+                                <em>Judul, Pengarang, Penerbit, Tahun, URL Link</em>). Kolom yang kosong tidak perlu
+                                dibuat sama sekali.</li>
+                            <li><strong>Penerbit & Metode Akses:</strong> Jika nama penerbit tidak ada di dropdown, tulis saja apa adanya—sistem otomatis menerimanya. Metode akses fleksibel (<code>kampus</code>, <code>ezproxy</code> / SSO, <code>open</code> / OA, <code>direct</code>). Jika dikosongkan, otomatis diatur ke <em>kampus</em>.</li>
                         </ul>
                     </div>
                 </div>
@@ -2922,21 +3007,25 @@
 
                 document.getElementById('metric-schedule').textContent = `${scheduleTime} WIB`;
 
+                const unlockBtn = document.getElementById('btn-unlock-scheduler');
                 if (status === 'RUNNING') {
                     badge.className = 'status-pill running';
                     statusText.textContent = `Sedang Sync (${(data.current_mode || 'inkremental').toUpperCase()})`;
                     btnInc.disabled = true;
                     btnFull.disabled = true;
+                    if (unlockBtn) unlockBtn.style.display = 'inline-flex';
                 } else if (status === 'ERROR') {
                     badge.className = 'status-pill error';
                     statusText.textContent = 'Eksekusi Mengalami Kendala';
                     btnInc.disabled = false;
                     btnFull.disabled = false;
+                    if (unlockBtn) unlockBtn.style.display = 'none';
                 } else {
                     badge.className = 'status-pill idle';
                     statusText.textContent = 'Scheduler Siap';
                     btnInc.disabled = false;
                     btnFull.disabled = false;
+                    if (unlockBtn) unlockBtn.style.display = 'none';
                 }
 
                 if (data.last_run) {
@@ -2945,6 +3034,23 @@
                 } else {
                     document.getElementById('metric-last-run').textContent = 'Belum Ada';
                     document.getElementById('metric-last-meta').textContent = 'Menunggu siklus';
+                }
+            }
+
+            async function forceUnlockScheduler() {
+                const isAuthed = await checkAuth();
+                if (!isAuthed) return;
+                try {
+                    const res = await adminFetch('/api/admin/harvest/unlock', { method: 'POST' });
+                    const resData = await res.json();
+                    if (res.ok) {
+                        showToast(resData.message || 'Status scheduler berhasil di-reset.');
+                        refreshDashboard(true);
+                    } else {
+                        showToast(`Gagal: ${resData.error || 'Terjadi kesalahan'}`);
+                    }
+                } catch (e) {
+                    if (e.message !== 'Unauthorized') showToast(`Error: ${e.message}`);
                 }
             }
 
@@ -4040,7 +4146,7 @@
                 formData.append('id', ebkId);
 
                 const xhr = new XMLHttpRequest();
-                const uploadUrl = adminKey 
+                const uploadUrl = adminKey
                     ? `/api/admin/international/ebooks/upload-pdf?key=${encodeURIComponent(adminKey)}`
                     : '/api/admin/international/ebooks/upload-pdf';
 
@@ -4049,7 +4155,7 @@
                     xhr.setRequestHeader('X-Admin-Key', adminKey);
                 }
 
-                xhr.upload.onprogress = function(e) {
+                xhr.upload.onprogress = function (e) {
                     if (e.lengthComputable) {
                         const pct = Math.round((e.loaded / e.total) * 100);
                         if (progressBar) progressBar.style.width = pct + '%';
@@ -4057,7 +4163,7 @@
                     }
                 };
 
-                xhr.onload = function() {
+                xhr.onload = function () {
                     if (progressWrap) progressWrap.style.display = 'none';
                     if (xhr.status >= 200 && xhr.status < 300) {
                         try {
@@ -4077,7 +4183,7 @@
                     document.getElementById('ebook-pdf-file-input').value = '';
                 };
 
-                xhr.onerror = function() {
+                xhr.onerror = function () {
                     if (progressWrap) progressWrap.style.display = 'none';
                     showToast('Koneksi terputus saat mengunggah PDF.');
                     document.getElementById('ebook-pdf-file-input').value = '';
@@ -4095,7 +4201,7 @@
                 const ebkId = document.getElementById('ebook-id').value.trim();
                 if (ebkId) {
                     adminFetch(`/api/admin/international/ebooks/${encodeURIComponent(ebkId)}/pdf`, { method: 'DELETE' })
-                        .catch(() => {});
+                        .catch(() => { });
                 }
 
                 updateEBookPdfUi('', '', ebkId);
@@ -4208,10 +4314,10 @@
                     return;
                 }
 
-                const payload = { 
-                    id, title, author, publisher, year, isbn, url, cover_url, 
-                    subject, access_type, notes, pdf_filename, pdf_size, 
-                    allow_download, active 
+                const payload = {
+                    id, title, author, publisher, year, isbn, url, cover_url,
+                    subject, access_type, notes, pdf_filename, pdf_size,
+                    allow_download, active
                 };
 
                 try {

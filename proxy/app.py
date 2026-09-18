@@ -1753,6 +1753,71 @@ def admin_international_config():
     })
 
 
+def _normalize_access_type(val):
+    """
+    Normalizes access type keywords from user input/copas to standard keys:
+    'kampus', 'ezproxy', 'open', 'direct'.
+    """
+    if not val:
+        return 'kampus'
+    s = str(val).strip().lower()
+    if any(k in s for k in ['open', 'oa', 'bebas', 'gratis', 'public', 'free']):
+        return 'open'
+    if any(k in s for k in ['ezproxy', 'proxy', 'sso', 'login', 'remote', 'single sign']):
+        return 'ezproxy'
+    if any(k in s for k in ['direct', 'portal', 'langsung', 'link']):
+        return 'direct'
+    if any(k in s for k in ['kampus', 'campus', 'ip', 'eduroam', 'lokal', 'local', 'wifi', 'lan']):
+        return 'kampus'
+    return 'kampus'
+
+
+def _normalize_publisher(val):
+    """
+    Cleans up publisher name. Standardizes known major publishers while safely
+    preserving any custom/new publisher string exactly as entered.
+    """
+    if not val:
+        return 'Other'
+    s = str(val).strip()
+    if not s or s == '-':
+        return 'Other'
+    s_lower = s.lower()
+    if 'elsevier' in s_lower or 'sciencedirect' in s_lower:
+        return 'Elsevier'
+    if 'springer' in s_lower:
+        return 'Springer Nature'
+    if 'nature' in s_lower and 'publishing' in s_lower:
+        return 'Nature Publishing Group'
+    if 'ieee' in s_lower:
+        return 'IEEE'
+    if 'wiley' in s_lower:
+        return 'Wiley'
+    if 'cambridge' in s_lower:
+        return 'Cambridge University Press'
+    if 'oxford' in s_lower:
+        return 'Oxford University Press'
+    if 'taylor' in s_lower or 'francis' in s_lower or 'routledge' in s_lower:
+        return 'Taylor & Francis'
+    if 'sage' in s_lower:
+        return 'SAGE Publications'
+    if 'emerald' in s_lower:
+        return 'Emerald Publishing'
+    if 'ebsco' in s_lower:
+        return 'EBSCO'
+    if 'jstor' in s_lower:
+        return 'JSTOR'
+    if 'proquest' in s_lower:
+        return 'ProQuest'
+    if 'mcgraw' in s_lower:
+        return 'McGraw-Hill Education'
+    if 'edward elgar' in s_lower:
+        return 'Edward Elgar Publishing'
+    if 'pearson' in s_lower:
+        return 'Pearson'
+    return s
+
+
 @app.route('/api/admin/international/journals', methods=['GET', 'POST'])
 def admin_subscribed_journals():
     """List or Add/Update subscribed international journals."""
@@ -1778,6 +1843,9 @@ def admin_subscribed_journals():
     notes = str(data.get('notes', '')).strip()
     active = bool(data.get('active', True))
 
+    access_type = _normalize_access_type(data.get('accessType') or data.get('access_type') or 'kampus')
+    faculty = str(data.get('faculty', '')).strip()
+
     if not title:
         return jsonify({"error": "Judul Jurnal wajib diisi."}), 400
 
@@ -1794,8 +1862,10 @@ def admin_subscribed_journals():
         "issn": issn,
         "eissn": eissn,
         "publisher": publisher,
+        "accessType": access_type,
         "url": url,
         "subject": subject,
+        "faculty": faculty,
         "notes": notes,
         "active": active,
         "updated_at": datetime.now().isoformat()
@@ -1941,10 +2011,10 @@ def admin_import_subscribed_journals():
         title = (row.get('Title') or row.get('Judul') or row.get('title') or row.get('judul') or '').strip()
         issn = (row.get('ISSN') or row.get('issn') or row.get('Print ISSN') or row.get('p_issn') or '').strip()
         eissn = (row.get('E-ISSN') or row.get('eissn') or row.get('e_issn') or row.get('Online ISSN') or '').strip()
-        publisher = (row.get('Publisher') or row.get('Penerbit') or row.get('publisher') or row.get('Database') or '').strip()
+        publisher = _normalize_publisher(row.get('Publisher') or row.get('Penerbit') or row.get('publisher') or row.get('Database') or '')
         url = (row.get('URL') or row.get('Url') or row.get('Link') or row.get('Akses') or row.get('url') or '').strip()
         subject = (row.get('Subject') or row.get('Subjek') or row.get('Fakultas') or row.get('subject') or '').strip()
-        access_type = (row.get('Access') or row.get('access_type') or row.get('Akses') or 'kampus').strip().lower()
+        access_type = _normalize_access_type(row.get('Access') or row.get('access_type') or row.get('Akses') or row.get('Metode Akses') or 'kampus')
         faculty = (row.get('Faculty') or row.get('Fakultas') or row.get('faculty') or '').strip()
         notes = (row.get('Notes') or row.get('Catatan') or row.get('notes') or '').strip()
 
@@ -2641,7 +2711,7 @@ def admin_import_subscribed_ebooks():
     for idx, row in enumerate(rows):
         title = (row.get('Title') or row.get('Judul') or row.get('title') or row.get('judul') or '').strip()
         author = (row.get('Author') or row.get('Pengarang') or row.get('Penulis') or row.get('author') or row.get('penulis') or '').strip()
-        publisher = (row.get('Publisher') or row.get('Penerbit') or row.get('publisher') or '').strip()
+        publisher = _normalize_publisher(row.get('Publisher') or row.get('Penerbit') or row.get('publisher') or '')
         year_val = (row.get('Year') or row.get('Tahun') or row.get('year') or row.get('tahun') or '').strip()
         year = None
         try:
@@ -2652,7 +2722,7 @@ def admin_import_subscribed_ebooks():
         url = (row.get('URL') or row.get('Url') or row.get('Link') or row.get('Akses') or row.get('url') or '').strip()
         cover_url = (row.get('Cover') or row.get('cover_url') or row.get('cover') or '').strip()
         subject = (row.get('Subject') or row.get('Subjek') or row.get('Kategori') or row.get('subject') or '').strip()
-        access_type = (row.get('Access') or row.get('access_type') or row.get('Akses') or 'kampus').strip().lower()
+        access_type = _normalize_access_type(row.get('Access') or row.get('access_type') or row.get('Akses') or row.get('Metode Akses') or 'kampus')
         notes = (row.get('Notes') or row.get('Catatan') or row.get('notes') or '').strip()
 
         if not title and not isbn:
@@ -2768,6 +2838,32 @@ def harvest_status():
             with open(STATE_FILE, 'r', encoding='utf-8') as f:
                 saved = json.load(f)
                 state.update(saved)
+
+            # Auto-clear stale RUNNING lock (> 30 minutes)
+            if state.get("status") == "RUNNING":
+                run_start = state.get("current_run_start") or state.get("updated_at")
+                is_stale = False
+                if run_start:
+                    try:
+                        start_dt = datetime.fromisoformat(run_start)
+                        if (datetime.now() - start_dt).total_seconds() > 1800:
+                            is_stale = True
+                    except Exception:
+                        is_stale = True
+                else:
+                    is_stale = True
+
+                if is_stale:
+                    state["status"] = "IDLE"
+                    state["last_error"] = "Siklus harvest sebelumnya timeout atau terhenti tiba-tiba."
+                    state.pop("current_run_start", None)
+                    state.pop("current_mode", None)
+                    state["updated_at"] = datetime.now().isoformat()
+                    try:
+                        with open(STATE_FILE, 'w', encoding='utf-8') as f:
+                            json.dump(state, f, indent=2)
+                    except Exception:
+                        pass
         except Exception:
             pass
     return jsonify(state)
