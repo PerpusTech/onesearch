@@ -64,6 +64,10 @@ SUBSCRIBED_EBOOKS_PDF_DIR = os.path.join(DATA_DIR, 'ebooks_pdf')
 os.makedirs(SUBSCRIBED_EBOOKS_PDF_DIR, exist_ok=True)
 SEARCH_ANALYTICS_FILE = os.path.join(DATA_DIR, 'search_analytics.json')
 _analytics_lock = threading.Lock()
+DDC_MASTER_FILE = os.path.join(DATA_DIR, 'ddc_master.json')
+PRODI_RULES_FILE = os.path.join(DATA_DIR, 'prodi_rules.json')
+_ddc_lock = threading.Lock()
+_prodi_lock = threading.Lock()
 
 DEFAULT_INTERNATIONAL_CONFIG = {
     "enabled": True,
@@ -3305,6 +3309,571 @@ def admin_analytics_reset():
         _save_search_analytics(data)
 
     return jsonify({"ok": True, "message": "Log analitik pencarian berhasil direset."})
+
+
+# ─── MASTER DDC & PRODI MANAGEMENT ──────────────────────────────────────────
+
+def _get_ddc_master():
+    with _ddc_lock:
+        if os.path.exists(DDC_MASTER_FILE):
+            try:
+                with open(DDC_MASTER_FILE, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception:
+                pass
+
+        SCRIPTS_DIR = os.path.join(BASE_DIR, 'scripts')
+        if SCRIPTS_DIR not in sys.path:
+            sys.path.insert(0, SCRIPTS_DIR)
+        try:
+            from ddc_sections import DDC_SECTIONS
+            sec_dict = dict(DDC_SECTIONS)
+        except Exception:
+            sec_dict = {}
+
+        default_classes = {
+            '0': {'label': 'Komputer, Informasi & Referensi Umum', 'label_en': 'Computer Science, Information & General Works', 'icon': 'monitor', 'color': '#38bdf8'},
+            '1': {'label': 'Filsafat & Psikologi', 'label_en': 'Philosophy & Psychology', 'icon': 'lightbulb', 'color': '#a855f7'},
+            '2': {'label': 'Agama', 'label_en': 'Religion', 'icon': 'bookmark', 'color': '#10b981'},
+            '3': {'label': 'Ilmu Sosial', 'label_en': 'Social Sciences', 'icon': 'users', 'color': '#f59e0b'},
+            '4': {'label': 'Bahasa', 'label_en': 'Language', 'icon': 'message-square', 'color': '#ec4899'},
+            '5': {'label': 'Sains & Matematika', 'label_en': 'Science & Mathematics', 'icon': 'compass', 'color': '#06b6d4'},
+            '6': {'label': 'Teknologi', 'label_en': 'Technology', 'icon': 'cpu', 'color': '#6366f1'},
+            '7': {'label': 'Kesenian & Rekreasi', 'label_en': 'Arts & Recreation', 'icon': 'palette', 'color': '#f97316'},
+            '8': {'label': 'Sastra', 'label_en': 'Literature', 'icon': 'book-open', 'color': '#8b5cf6'},
+            '9': {'label': 'Sejarah & Geografi', 'label_en': 'History & Geography', 'icon': 'globe', 'color': '#14b8a6'},
+        }
+        master = {
+            "classes": default_classes,
+            "sections": sec_dict,
+            "updated_at": datetime.now().isoformat()
+        }
+        _save_json_file(DDC_MASTER_FILE, master)
+        return master
+
+
+def _save_ddc_master(data):
+    with _ddc_lock:
+        data["updated_at"] = datetime.now().isoformat()
+        _save_json_file(DDC_MASTER_FILE, data)
+
+
+def _get_prodi_rules_data():
+    with _prodi_lock:
+        if os.path.exists(PRODI_RULES_FILE):
+            try:
+                with open(PRODI_RULES_FILE, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception:
+                pass
+
+        SCRIPTS_DIR = os.path.join(BASE_DIR, 'scripts')
+        if SCRIPTS_DIR not in sys.path:
+            sys.path.insert(0, SCRIPTS_DIR)
+        try:
+            from prodi_rules import PRODI_RULES, PRODI_META
+            rules_dict = dict(PRODI_RULES)
+            meta_dict = dict(PRODI_META)
+        except Exception:
+            rules_dict = {}
+            meta_dict = {}
+
+        data = {
+            "rules": rules_dict,
+            "meta": meta_dict,
+            "updated_at": datetime.now().isoformat()
+        }
+        _save_json_file(PRODI_RULES_FILE, data)
+        return data
+
+
+def _save_prodi_rules_data(data):
+    with _prodi_lock:
+        data["updated_at"] = datetime.now().isoformat()
+        _save_json_file(PRODI_RULES_FILE, data)
+
+
+@app.route('/api/admin/ddc', methods=['GET'])
+def admin_ddc_get():
+    """Ambil data master Kelas beserta ringkasan jumlah buku per kelas dan kelas."""
+    if not _check_admin_auth():
+        return _admin_auth_failed_response()
+
+    master = _get_ddc_master()
+    tree_path = os.path.join(DATA_DIR, 'ddc_tree.json')
+    class_counts = {}
+    section_counts = {}
+    total_classified = 0
+
+    if os.path.exists(tree_path):
+        try:
+            with open(tree_path, 'r', encoding='utf-8') as f:
+                tree = json.load(f)
+            for cls_code, cls_info in tree.items():
+                c_cnt = cls_info.get('count', 0)
+                class_counts[cls_code] = c_cnt
+                total_classified += c_cnt
+                for div_code, div_info in cls_info.get('divisions', {}).items():
+                    for sec_code, sec_info in div_info.get('sections', {}).items():
+                        section_counts[sec_code] = sec_info.get('count', 0)
+        except Exception:
+            pass
+
+    return jsonify({
+        "ok": True,
+        "classes": master.get("classes", {}),
+        "sections": master.get("sections", {}),
+        "class_counts": class_counts,
+        "section_counts": section_counts,
+        "total_classified": total_classified,
+        "total_sections": len(master.get("sections", {})),
+        "updated_at": master.get("updated_at", "")
+    })
+
+
+@app.route('/api/admin/ddc/class', methods=['POST'])
+def admin_ddc_class_update():
+    """Update metadata kelas utama DDC (0-9)."""
+    if not _check_admin_auth():
+        return _admin_auth_failed_response()
+
+    data = request.get_json(silent=True) or {}
+    code = str(data.get('code', '')).strip()
+    if not code or code not in [str(i) for i in range(10)]:
+        return jsonify({"error": "Kode kelas harus berupa digit 0-9"}), 400
+
+    label = str(data.get('label', '')).strip()
+    if not label:
+        return jsonify({"error": "Label kelas tidak boleh kosong"}), 400
+
+    label_en = str(data.get('label_en', '')).strip() or label
+    icon = str(data.get('icon', '')).strip() or '📚'
+    color = str(data.get('color', '')).strip() or '#38bdf8'
+
+    master = _get_ddc_master()
+    if 'classes' not in master:
+        master['classes'] = {}
+    master['classes'][code] = {
+        'label': label,
+        'label_en': label_en,
+        'icon': icon,
+        'color': color
+    }
+    _save_ddc_master(master)
+    return jsonify({"ok": True, "message": f"Kelas DDC {code}00 berhasil disimpan.", "class": master['classes'][code]})
+
+
+@app.route('/api/admin/ddc/section', methods=['POST'])
+def admin_ddc_section_update():
+    """Tambah atau ubah label kelas 3-digit DDC."""
+    if not _check_admin_auth():
+        return _admin_auth_failed_response()
+
+    data = request.get_json(silent=True) or {}
+    code = str(data.get('code', '')).strip()
+    if not code or not re.match(r'^\d{3}$', code):
+        return jsonify({"error": "Kode kelas harus berupa 3 digit angka (contoh: 004, 297)"}), 400
+
+    label = str(data.get('label', '')).strip()
+    if not label:
+        return jsonify({"error": "Nama kelas tidak boleh kosong"}), 400
+
+    master = _get_ddc_master()
+    if 'sections' not in master:
+        master['sections'] = {}
+    master['sections'][code] = label
+    _save_ddc_master(master)
+    return jsonify({"ok": True, "message": f"kelas DDC {code} berhasil disimpan.", "code": code, "label": label})
+
+
+@app.route('/api/admin/ddc/section/<code>', methods=['DELETE', 'POST'])
+def admin_ddc_section_delete(code):
+    """Hapus kelas DDC dari daftar master."""
+    if not _check_admin_auth():
+        return _admin_auth_failed_response()
+
+    code = str(code).strip()
+    master = _get_ddc_master()
+    if 'sections' in master and code in master['sections']:
+        del master['sections'][code]
+        _save_ddc_master(master)
+        return jsonify({"ok": True, "message": f"kelas DDC {code} berhasil dihapus."})
+    return jsonify({"error": f"kelas DDC {code} tidak ditemukan."}), 404
+
+
+@app.route('/api/admin/ddc/apply', methods=['POST'])
+def admin_ddc_apply():
+    """Terapkan label master DDC secara instan ke ddc_tree.json dan ddc_tree.json.gz."""
+    if not _check_admin_auth():
+        return _admin_auth_failed_response()
+
+    master = _get_ddc_master()
+    tree_path = os.path.join(DATA_DIR, 'ddc_tree.json')
+    tree_gz_path = os.path.join(DATA_DIR, 'ddc_tree.json.gz')
+
+    if not os.path.exists(tree_path):
+        return jsonify({"error": "File ddc_tree.json belum ditemukan di server."}), 404
+
+    try:
+        with open(tree_path, 'r', encoding='utf-8') as f:
+            tree = json.load(f)
+
+        classes_master = master.get('classes', {})
+        sections_master = master.get('sections', {})
+
+        # Terapkan label baru tanpa mengubah hitungan buku
+        for cls_code, cls_data in tree.items():
+            if cls_code in classes_master:
+                cls_data['label'] = classes_master[cls_code].get('label', cls_data.get('label', ''))
+                cls_data['label_en'] = classes_master[cls_code].get('label_en', cls_data.get('label_en', ''))
+                cls_data['icon'] = classes_master[cls_code].get('icon', cls_data.get('icon', ''))
+            for div_code, div_data in cls_data.get('divisions', {}).items():
+                if div_code in sections_master:
+                    div_data['label'] = sections_master[div_code]
+                for sec_code, sec_data in div_data.get('sections', {}).items():
+                    if sec_code in sections_master:
+                        sec_data['label'] = sections_master[sec_code]
+
+        # Simpan kembali ddc_tree.json
+        with open(tree_path, 'w', encoding='utf-8') as f:
+            json.dump(tree, f, ensure_ascii=False, indent=2)
+
+        # Kompresi ulang ddc_tree.json.gz
+        import gzip
+        with open(tree_path, 'rb') as f_in:
+            with gzip.open(tree_gz_path, 'wb') as f_out:
+                f_out.writelines(f_in)
+
+        return jsonify({
+            "ok": True,
+            "message": "Master DDC berhasil diterapkan ke katalog publik (ddc_tree.json & .gz terupdate).",
+            "applied_at": datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({"error": f"Gagal menerapkan master DDC: {str(e)}"}), 500
+
+
+# ─── PENGATURAN DDC PER PROGRAM STUDI ────────────────────────────────────────
+
+@app.route('/api/admin/prodi', methods=['GET'])
+def admin_prodi_get():
+    """Ambil daftar program studi, fakultas, aturan DDC aktif, dan jumlah buku."""
+    if not _check_admin_auth():
+        return _admin_auth_failed_response()
+
+    prodi_data = _get_prodi_rules_data()
+    rules = prodi_data.get("rules", {})
+    meta = prodi_data.get("meta", {})
+
+    prodi_meta_file = os.path.join(DATA_DIR, 'prodi_meta.json')
+    counts = {}
+    if os.path.exists(prodi_meta_file):
+        try:
+            with open(prodi_meta_file, 'r', encoding='utf-8') as f:
+                pm = json.load(f)
+                for k, v in pm.items():
+                    counts[k] = v.get('count', 0)
+        except Exception:
+            pass
+
+    prodi_list = []
+    fakultas_set = set()
+    for code, m in meta.items():
+        fak = m.get('fakultas', 'Lainnya')
+        fakultas_set.add(fak)
+        prodi_list.append({
+            "code": code,
+            "label": m.get('label', code),
+            "label_short": m.get('label_short', m.get('label', code)),
+            "fakultas": fak,
+            "fakultas_label": m.get('fakultas_label', fak),
+            "rules": rules.get(code, []),
+            "count": counts.get(code, 0)
+        })
+
+    prodi_list.sort(key=lambda x: (x['fakultas'], x['label']))
+
+    return jsonify({
+        "ok": True,
+        "prodi": prodi_list,
+        "fakultas_list": sorted(list(fakultas_set)),
+        "total_prodi": len(prodi_list),
+        "updated_at": prodi_data.get("updated_at", "")
+    })
+
+
+@app.route('/api/admin/prodi', methods=['POST'])
+def admin_prodi_create_or_update():
+    """Tambah atau perbarui data Program Studi beserta aturan DDC."""
+    if not _check_admin_auth():
+        return _admin_auth_failed_response()
+
+    data = request.get_json(silent=True) or {}
+    code = str(data.get('code', '')).strip().upper()
+    label = str(data.get('label', '')).strip()
+    fakultas = str(data.get('fakultas', '')).strip().upper()
+    fakultas_label = str(data.get('fakultas_label', '')).strip() or fakultas
+    rules = data.get('rules', [])
+
+    if not code or not label or not fakultas:
+        return jsonify({"error": "Kode Prodi, Nama Program Studi, dan Fakultas wajib diisi"}), 400
+
+    prodi_data = _get_prodi_rules_data()
+    if 'meta' not in prodi_data:
+        prodi_data['meta'] = {}
+    if 'rules' not in prodi_data:
+        prodi_data['rules'] = {}
+
+    prodi_data['meta'][code] = {
+        'label': label,
+        'label_short': label,
+        'fakultas': fakultas,
+        'fakultas_label': fakultas_label
+    }
+
+    if isinstance(rules, list):
+        cleaned_rules = []
+        for r in rules:
+            r_str = str(r).strip()
+            if r_str and r_str not in cleaned_rules:
+                cleaned_rules.append(r_str)
+        prodi_data['rules'][code] = cleaned_rules
+    elif code not in prodi_data['rules']:
+        prodi_data['rules'][code] = []
+
+    _save_prodi_rules_data(prodi_data)
+
+    # Sinkronkan juga ke data/prodi_meta.json
+    prodi_meta_file = os.path.join(DATA_DIR, 'prodi_meta.json')
+    if os.path.exists(prodi_meta_file):
+        try:
+            with open(prodi_meta_file, 'r', encoding='utf-8') as f:
+                pm = json.load(f)
+            if code in pm:
+                pm[code]['label'] = label
+                pm[code]['label_short'] = label
+                pm[code]['fakultas'] = fakultas
+                pm[code]['fakultas_label'] = fakultas_label
+            else:
+                pm[code] = {
+                    'label': label,
+                    'label_short': label,
+                    'fakultas': fakultas,
+                    'fakultas_label': fakultas_label,
+                    'count': 0
+                }
+            with open(prodi_meta_file, 'w', encoding='utf-8') as f:
+                json.dump(pm, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    return jsonify({
+        "ok": True,
+        "message": f"Program studi {code} ({label}) berhasil disimpan.",
+        "code": code,
+        "label": label
+    })
+
+
+@app.route('/api/admin/prodi/<code>', methods=['DELETE', 'POST'])
+def admin_prodi_delete(code):
+    """Hapus program studi dari master."""
+    if not _check_admin_auth():
+        return _admin_auth_failed_response()
+
+    code = str(code).strip().upper()
+    prodi_data = _get_prodi_rules_data()
+    found = False
+    if 'meta' in prodi_data and code in prodi_data['meta']:
+        del prodi_data['meta'][code]
+        found = True
+    if 'rules' in prodi_data and code in prodi_data['rules']:
+        del prodi_data['rules'][code]
+        found = True
+
+    if found:
+        _save_prodi_rules_data(prodi_data)
+
+        # Juga hapus dari prodi_meta.json agar langsung bersih dari frontend
+        prodi_meta_file = os.path.join(DATA_DIR, 'prodi_meta.json')
+        if os.path.exists(prodi_meta_file):
+            try:
+                with open(prodi_meta_file, 'r', encoding='utf-8') as f:
+                    pm = json.load(f)
+                if code in pm:
+                    del pm[code]
+                    with open(prodi_meta_file, 'w', encoding='utf-8') as f:
+                        json.dump(pm, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
+
+        return jsonify({"ok": True, "message": f"Program studi {code} berhasil dihapus."})
+    return jsonify({"error": f"Program studi {code} tidak ditemukan."}), 404
+
+
+@app.route('/api/admin/prodi/rules', methods=['POST'])
+def admin_prodi_rules_update():
+    """Simpan pembaruan aturan DDC dan informasi fakultas untuk program studi tertentu."""
+    if not _check_admin_auth():
+        return _admin_auth_failed_response()
+
+    data = request.get_json(silent=True) or {}
+    code = str(data.get('code', '')).strip().upper()
+    if not code:
+        return jsonify({"error": "Kode program studi wajib diisi"}), 400
+
+    raw_rules = data.get('rules', [])
+    if not isinstance(raw_rules, list):
+        return jsonify({"error": "Rules harus berupa daftar array kode DDC"}), 400
+
+    cleaned_rules = []
+    for r in raw_rules:
+        r_str = str(r).strip()
+        if r_str and r_str not in cleaned_rules:
+            cleaned_rules.append(r_str)
+
+    prodi_data = _get_prodi_rules_data()
+    if 'rules' not in prodi_data:
+        prodi_data['rules'] = {}
+    prodi_data['rules'][code] = cleaned_rules
+
+    if 'meta' not in prodi_data:
+        prodi_data['meta'] = {}
+    if code not in prodi_data['meta']:
+        prodi_data['meta'][code] = {}
+
+    label = str(data.get('label', '')).strip()
+    if label:
+        prodi_data['meta'][code]['label'] = label
+        prodi_data['meta'][code]['label_short'] = label
+
+    fakultas = str(data.get('fakultas', '')).strip().upper()
+    if fakultas:
+        prodi_data['meta'][code]['fakultas'] = fakultas
+
+    fakultas_label = str(data.get('fakultas_label', '')).strip()
+    if fakultas_label:
+        prodi_data['meta'][code]['fakultas_label'] = fakultas_label
+    elif fakultas and 'fakultas_label' not in prodi_data['meta'][code]:
+        prodi_data['meta'][code]['fakultas_label'] = fakultas
+
+    _save_prodi_rules_data(prodi_data)
+
+    # Sinkronkan juga ke data/prodi_meta.json
+    prodi_meta_file = os.path.join(DATA_DIR, 'prodi_meta.json')
+    if os.path.exists(prodi_meta_file):
+        try:
+            with open(prodi_meta_file, 'r', encoding='utf-8') as f:
+                pm = json.load(f)
+            if code in pm:
+                if label:
+                    pm[code]['label'] = label
+                    pm[code]['label_short'] = label
+                if fakultas:
+                    pm[code]['fakultas'] = fakultas
+                if fakultas_label:
+                    pm[code]['fakultas_label'] = fakultas_label
+            else:
+                pm[code] = {
+                    'label': label or code,
+                    'label_short': label or code,
+                    'fakultas': fakultas or 'Lainnya',
+                    'fakultas_label': fakultas_label or fakultas or 'Lainnya',
+                    'count': 0
+                }
+            with open(prodi_meta_file, 'w', encoding='utf-8') as f:
+                json.dump(pm, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    return jsonify({
+        "ok": True,
+        "message": f"Data program studi {code} dan aturan DDC berhasil disimpan.",
+        "code": code,
+        "label": prodi_data['meta'][code].get('label', code),
+        "fakultas": prodi_data['meta'][code].get('fakultas', ''),
+        "fakultas_label": prodi_data['meta'][code].get('fakultas_label', ''),
+        "rules": cleaned_rules
+    })
+
+
+@app.route('/api/admin/prodi/apply', methods=['POST'])
+def admin_prodi_apply():
+    """Terapkan aturan DDC prodi secara instan: evaluasi ulang pemetaan buku ke prodi tanpa panen ulang."""
+    if not _check_admin_auth():
+        return _admin_auth_failed_response()
+
+    books_path = os.path.join(DATA_DIR, 'books.json')
+    prodi_index_path = os.path.join(DATA_DIR, 'prodi_index.json')
+    prodi_index_gz_path = os.path.join(DATA_DIR, 'prodi_index.json.gz')
+    prodi_meta_path = os.path.join(DATA_DIR, 'prodi_meta.json')
+
+    if not os.path.exists(books_path):
+        return jsonify({"error": "File books.json belum ditemukan di server."}), 404
+
+    try:
+        SCRIPTS_DIR = os.path.join(BASE_DIR, 'scripts')
+        if SCRIPTS_DIR not in sys.path:
+            sys.path.insert(0, SCRIPTS_DIR)
+        from prodi_rules import compile_rules_map, extract_ddc_num, match_compiled_rules
+
+        prodi_data = _get_prodi_rules_data()
+        rules_map = prodi_data.get("rules", {})
+        meta_map = prodi_data.get("meta", {})
+
+        compiled_map = compile_rules_map(rules_map)
+
+        with open(books_path, 'r', encoding='utf-8') as f:
+            books = json.load(f)
+
+        index = {}
+        for kode, meta in meta_map.items():
+            index[kode] = {
+                'label': meta.get('label', kode),
+                'label_short': meta.get('label_short', meta.get('label', kode)),
+                'fakultas': meta.get('fakultas', 'Lainnya'),
+                'fakultas_label': meta.get('fakultas_label', meta.get('fakultas', 'Lainnya')),
+                'count': 0,
+                'ids': [],
+            }
+
+        active_prodis = [(kode, compiled_map[kode]) for kode in index if kode in compiled_map]
+
+        for b in books:
+            ddc = b.get('ddc', '')
+            if not ddc:
+                continue
+            ddc_clean, ddc_val = extract_ddc_num(ddc)
+            book_id = b.get('id')
+            for kode, crules in active_prodis:
+                if match_compiled_rules(ddc, ddc_clean, ddc_val, crules):
+                    index[kode]['count'] += 1
+                    index[kode]['ids'].append(book_id)
+
+        for kode in index:
+            index[kode]['ids'] = list(dict.fromkeys(index[kode]['ids']))
+
+        with open(prodi_index_path, 'w', encoding='utf-8') as f:
+            json.dump(index, f, ensure_ascii=False, separators=(',', ':'))
+
+        import gzip
+        with open(prodi_index_path, 'rb') as f_in:
+            with gzip.open(prodi_index_gz_path, 'wb') as f_out:
+                f_out.writelines(f_in)
+
+        prodi_meta_out = {kode: {k: v for k, v in info.items() if k != 'ids'} for kode, info in index.items()}
+        with open(prodi_meta_path, 'w', encoding='utf-8') as f:
+            json.dump(prodi_meta_out, f, ensure_ascii=False, indent=2)
+
+        return jsonify({
+            "ok": True,
+            "message": f"Aturan DDC Prodi berhasil diterapkan! Total {len(index)} program studi berhasil diindeks.",
+            "total_books_scanned": len(books),
+            "prodi_with_books": sum(1 for v in index.values() if v['count'] > 0),
+            "applied_at": datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({"error": f"Gagal menerapkan aturan DDC prodi: {str(e)}"}), 500
 
 
 if __name__ == '__main__':

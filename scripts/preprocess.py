@@ -28,22 +28,49 @@ os.chdir(PROJECT_ROOT)
 sys.path.insert(0, os.path.join(PROJECT_ROOT, 'scripts'))
 
 from ddc_sections import DDC_SECTIONS
-from prodi_rules import PRODI_RULES, PRODI_META, get_prodi_for_ddc
+from prodi_rules import PRODI_RULES, PRODI_META, get_prodi_for_ddc, invalidate_compiled_rules
 
 
 # DDC Main Classes (Bahasa Indonesia)
 DDC_CLASSES = {
-    '0': {'label': 'Komputer, Informasi & Referensi Umum', 'label_en': 'Computer Science, Information & General Works', 'icon': '💻'},
-    '1': {'label': 'Filsafat & Psikologi', 'label_en': 'Philosophy & Psychology', 'icon': '🧠'},
-    '2': {'label': 'Agama', 'label_en': 'Religion', 'icon': '🕌'},
-    '3': {'label': 'Ilmu Sosial', 'label_en': 'Social Sciences', 'icon': '👥'},
-    '4': {'label': 'Bahasa', 'label_en': 'Language', 'icon': '🗣️'},
-    '5': {'label': 'Sains & Matematika', 'label_en': 'Science & Mathematics', 'icon': '🔬'},
-    '6': {'label': 'Teknologi', 'label_en': 'Technology', 'icon': '⚙️'},
-    '7': {'label': 'Kesenian & Rekreasi', 'label_en': 'Arts & Recreation', 'icon': '🎨'},
-    '8': {'label': 'Sastra', 'label_en': 'Literature', 'icon': '📖'},
-    '9': {'label': 'Sejarah & Geografi', 'label_en': 'History & Geography', 'icon': '🌍'},
+    '0': {'label': 'Komputer, Informasi & Referensi Umum', 'label_en': 'Computer Science, Information & General Works', 'icon': 'monitor', 'color': '#38bdf8'},
+    '1': {'label': 'Filsafat & Psikologi', 'label_en': 'Philosophy & Psychology', 'icon': 'lightbulb', 'color': '#a855f7'},
+    '2': {'label': 'Agama', 'label_en': 'Religion', 'icon': 'bookmark', 'color': '#10b981'},
+    '3': {'label': 'Ilmu Sosial', 'label_en': 'Social Sciences', 'icon': 'users', 'color': '#f59e0b'},
+    '4': {'label': 'Bahasa', 'label_en': 'Language', 'icon': 'message-square', 'color': '#ec4899'},
+    '5': {'label': 'Sains & Matematika', 'label_en': 'Science & Mathematics', 'icon': 'compass', 'color': '#06b6d4'},
+    '6': {'label': 'Teknologi', 'label_en': 'Technology', 'icon': 'cpu', 'color': '#6366f1'},
+    '7': {'label': 'Kesenian & Rekreasi', 'label_en': 'Arts & Recreation', 'icon': 'palette', 'color': '#f97316'},
+    '8': {'label': 'Sastra', 'label_en': 'Literature', 'icon': 'book-open', 'color': '#8b5cf6'},
+    '9': {'label': 'Sejarah & Geografi', 'label_en': 'History & Geography', 'icon': 'globe', 'color': '#14b8a6'},
 }
+
+# Load master DDC overrides if configured via admin panel
+ddc_master_file = os.path.join(PROJECT_ROOT, 'data', 'ddc_master.json')
+if os.path.exists(ddc_master_file):
+    try:
+        with open(ddc_master_file, 'r', encoding='utf-8') as f:
+            m_data = json.load(f)
+            if 'classes' in m_data and isinstance(m_data['classes'], dict):
+                DDC_CLASSES.update(m_data['classes'])
+            if 'sections' in m_data and isinstance(m_data['sections'], dict):
+                DDC_SECTIONS.update(m_data['sections'])
+    except Exception as e:
+        print(f"Warning: Failed to load ddc_master.json: {e}")
+
+# Load master prodi rules overrides if configured via admin panel
+prodi_rules_file = os.path.join(PROJECT_ROOT, 'data', 'prodi_rules.json')
+if os.path.exists(prodi_rules_file):
+    try:
+        with open(prodi_rules_file, 'r', encoding='utf-8') as f:
+            pr_data = json.load(f)
+            if 'rules' in pr_data and isinstance(pr_data['rules'], dict):
+                PRODI_RULES.update(pr_data['rules'])
+                invalidate_compiled_rules()
+            if 'meta' in pr_data and isinstance(pr_data['meta'], dict):
+                PRODI_META.update(pr_data['meta'])
+    except Exception as e:
+        print(f"Warning: Failed to load prodi_rules.json: {e}")
 
 # DDC Divisions - uses comprehensive DDC_SECTIONS from ddc_sections.py
 # This alias ensures backward compatibility with any code referencing DDC_DIVISIONS
@@ -719,7 +746,7 @@ def build_prodi_index(books):
     for kode, meta in PRODI_META.items():
         index[kode] = {
             'label': meta['label'],
-            'label_short': meta['label'].split('(')[0].strip(),
+            'label_short': meta.get('label_short', meta['label']),
             'fakultas': meta['fakultas'],
             'fakultas_label': meta['fakultas_label'],
             'count': 0,

@@ -154,7 +154,7 @@
                                     <kbd class="search-kbd-hint" id="search-kbd-hint"><span class="kbd-mod">Ctrl</span>
                                         K</kbd>
                                     <button class="clear-btn" id="search-clear" onclick="app.clearSearch()"
-                                        style="display:none">✕</button>
+                                        style="display:none" title="Hapus pencarian"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                                 </div>
                                 <select class="search-field-sel" id="search-field-sel">
                                     <option value="all" data-i18n="sf_all">Semua</option>
@@ -289,6 +289,28 @@
                         onclick="app.setBrowseMode('prodi')" style="font-size:0.85rem; padding:0.4rem 1rem;">
                         Program Studi & Fakultas
                     </button>
+                </div>
+
+                <!-- Browse Search Bar -->
+                <div class="browse-search-box-wrap" style="margin-bottom: 1.25rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <div style="position: relative; flex: 1; min-width: 260px;">
+                        <span style="position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%); color: var(--ink-muted); pointer-events: none; display: flex; align-items: center;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </span>
+                        <input type="text" id="browse-search-input" 
+                            placeholder="Cari spesifik judul buku, pengarang, atau nomor panggil di koleksi ini..." 
+                            oninput="app.handleBrowseSearch(this.value)"
+                            style="width: 100%; padding: 0.65rem 2.25rem 0.65rem 2.6rem; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); font-size: 0.92rem; outline: none; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: border-color 0.2s, box-shadow 0.2s;"
+                            onfocus="this.style.borderColor='var(--brand)'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.15)';"
+                            onblur="this.style.borderColor='var(--border)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)';"
+                        />
+                        <button type="button" id="browse-search-clear" onclick="app.clearBrowseSearch()" 
+                            style="display: none; position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--ink-muted); cursor: pointer; padding: 0.2rem; align-items: center; justify-content: center;" title="Hapus pencarian">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                    <div id="browse-search-count-badge" style="display: none; font-size: 0.82rem; font-weight: 600; padding: 0.4rem 0.85rem; border-radius: 20px; background: rgba(59,130,246,0.12); color: var(--brand, #2563eb); white-space: nowrap;">
+                    </div>
                 </div>
 
                 <div class="crumbs" id="crumbs"></div>
@@ -655,7 +677,7 @@
         <!-- Detail Modal -->
         <div class="modal-bg" id="modal" style="display:none" onclick="app.closeModal(event)">
             <div class="modal-box" onclick="event.stopPropagation()">
-                <button class="modal-x" onclick="app.closeBookDetail()">✕</button>
+                <button class="modal-x" onclick="app.closeBookDetail()" title="Tutup"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                 <div id="modal-body"></div>
             </div>
         </div>
@@ -672,7 +694,7 @@
                             Buka di Tab Baru ↗
                         </button>
                         <button class="modal-x" style="position:static; margin:0;"
-                            onclick="app.closePdfViewer()">✕</button>
+                            onclick="app.closePdfViewer()" title="Tutup"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                     </div>
                 </div>
                 <div class="pdf-modal-body">

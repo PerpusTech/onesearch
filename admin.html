@@ -161,6 +161,67 @@
             gap: 0.5rem;
         }
 
+        /* Workspace Tab Nav inside Header */
+        .admin-tab-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            padding: 4px 0;
+        }
+
+        .admin-tab-nav::-webkit-scrollbar {
+            display: none;
+        }
+
+        .admin-tab-btn {
+            font-size: 0.73rem;
+            font-weight: 500;
+            padding: 0.32rem 0.65rem;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            background: var(--bg-surface);
+            border: 1px solid var(--border-main);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            white-space: nowrap;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+
+        .admin-tab-btn:hover {
+            color: var(--text-main);
+            background: var(--bg-muted);
+            border-color: var(--border-main);
+        }
+
+        .admin-tab-btn.active {
+            font-weight: 600;
+            color: var(--accent);
+            background: var(--accent-soft);
+            border-color: var(--accent-border);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        @media (max-width: 1080px) {
+            .app-header {
+                height: auto;
+                padding: 0.6rem 1rem;
+                flex-wrap: wrap;
+                gap: 0.6rem;
+            }
+            .admin-tab-nav {
+                order: 3;
+                width: 100%;
+                overflow-x: auto;
+                padding-bottom: 2px;
+            }
+        }
+
         /* Buttons */
         .btn {
             display: inline-flex;
@@ -920,12 +981,73 @@
     <div id="admin-app" style="display:none; flex-direction:column; min-height:100vh;">
         <!-- Header Navigation -->
         <header class="app-header">
-            <a href="/admin.html" class="header-brand">
-                <img src="img/logo4.png" alt="UMS Logo">
-                <span class="header-brand-title">UMS OneSearch</span>
-                <span class="header-tag">Console</span>
-            </a>
-            <div class="header-actions">
+            <div style="display:flex; align-items:center; gap:1.25rem; flex-shrink:0;">
+                <a href="/admin.html" class="header-brand">
+                    <img src="img/logo4.png" alt="UMS Logo">
+                    <span class="header-brand-title">UMS OneSearch</span>
+                    <span class="header-tag">Console</span>
+                </a>
+            </div>
+
+            <!-- Workspace Navigation Menu (Dipindah sejajar ke Header) -->
+            <nav class="admin-tab-nav" id="admin-tab-nav">
+                <button type="button" class="admin-tab-btn active" id="tab-btn-harvest"
+                    onclick="switchAdminTab('harvest')" title="Katalog & Harvester OAI-PMH">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <span>Katalog & Harvester</span>
+                </button>
+                <button type="button" class="admin-tab-btn" id="tab-btn-international"
+                    onclick="switchAdminTab('international')" title="Jurnal Internasional & Langganan">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path
+                            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                        </path>
+                    </svg>
+                    <span>Jurnal Internasional</span>
+                </button>
+                <button type="button" class="admin-tab-btn" id="tab-btn-ebooks"
+                    onclick="switchAdminTab('ebooks')" title="E-Book Langganan">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <span>E-Book Langganan</span>
+                </button>
+                <button type="button" class="admin-tab-btn" id="tab-btn-embed"
+                    onclick="switchAdminTab('embed')" title="Widget Embed WordPress">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="16 18 22 12 16 6"></polyline>
+                        <polyline points="8 6 2 12 8 18"></polyline>
+                    </svg>
+                    <span>Widget Embed</span>
+                </button>
+                <button type="button" class="admin-tab-btn" id="tab-btn-analytics"
+                    onclick="switchAdminTab('analytics')" title="Analitik Pencarian">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    <span>Analitik</span>
+                </button>
+                <button type="button" class="admin-tab-btn" id="tab-btn-ddc" onclick="switchAdminTab('ddc')"
+                    title="Master Data DDC & Pemetaan Program Studi">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>Master DDC & Prodi</span>
+                </button>
+            </nav>
+
+            <div class="header-actions" style="flex-shrink:0;">
                 <span class="auth-status-badge">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         stroke-width="2.5">
@@ -972,7 +1094,12 @@
                     <button type="button" class="btn btn-xs btn-destructive" id="btn-unlock-scheduler"
                         onclick="forceUnlockScheduler()" style="display:none; font-size:0.75rem;"
                         title="Lepas status lock bila sync macet">
-                        🔓 Reset Lock
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="vertical-align:-1px; margin-right:3px;">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                        </svg>
+                        Reset Lock
                     </button>
                     <button type="button" class="btn btn-xs" onclick="refreshDashboard(true)" title="Perbarui data">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -983,60 +1110,6 @@
                         Refresh
                     </button>
                 </div>
-            </div>
-
-            <!-- Admin Workspace Tabs -->
-            <div class="admin-tab-nav"
-                style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid var(--border-main); padding-bottom:0.75rem;">
-                <button type="button" class="btn btn-xs admin-tab-btn active" id="tab-btn-harvest"
-                    onclick="switchAdminTab('harvest')"
-                    style="font-weight:600; padding:0.45rem 0.85rem; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:0.45rem;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                    </svg>
-                    <span>Katalog & Harvester OAI-PMH</span>
-                </button>
-                <button type="button" class="btn btn-xs admin-tab-btn" id="tab-btn-international"
-                    onclick="switchAdminTab('international')"
-                    style="font-weight:600; padding:0.45rem 0.85rem; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:0.45rem;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="2" y1="12" x2="22" y2="12"></line>
-                        <path
-                            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
-                        </path>
-                    </svg>
-                    <span>Jurnal Internasional & Langganan</span>
-                </button>
-                <button type="button" class="btn btn-xs admin-tab-btn" id="tab-btn-ebooks"
-                    onclick="switchAdminTab('ebooks')"
-                    style="font-weight:600; padding:0.45rem 0.85rem; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:0.45rem;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                    </svg>
-                    <span>E-Book Langganan</span>
-                </button>
-                <button type="button" class="btn btn-xs admin-tab-btn" id="tab-btn-embed"
-                    onclick="switchAdminTab('embed')"
-                    style="font-weight:600; padding:0.45rem 0.85rem; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:0.45rem;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="16 18 22 12 16 6"></polyline>
-                        <polyline points="8 6 2 12 8 18"></polyline>
-                    </svg>
-                    <span>Widget Embed WordPress</span>
-                </button>
-                <button type="button" class="btn btn-xs admin-tab-btn" id="tab-btn-analytics"
-                    onclick="switchAdminTab('analytics')"
-                    style="font-weight:600; padding:0.45rem 0.85rem; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:0.45rem;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="20" x2="18" y2="10"></line>
-                        <line x1="12" y1="20" x2="12" y2="4"></line>
-                        <line x1="6" y1="20" x2="6" y2="14"></line>
-                    </svg>
-                    <span>Analitik Pencarian</span>
-                </button>
             </div>
 
             <!-- TAB 1: HARVESTER & LOCAL REPOSITORY -->
@@ -1764,7 +1837,7 @@
                                 <option value="local" selected>Katalog Buku (Koha & Mitra)</option>
                                 <option value="ebooks">E-Book Langganan UMS</option>
                                 <option value="all_global">Seluruh Jurnal Global (Scopus, Springer, dll)</option>
-                                <option value="subscribed">Langganan Resmi UMS ★</option>
+                                <option value="subscribed">Langganan Resmi UMS (Subscribed)</option>
                                 <option value="etd">Skripsi & ETD UMS</option>
                                 <option value="journal">Artikel Jurnal UMS</option>
                                 <option value="sibi">Buku Digital (SIBI Kemdikbud)</option>
@@ -2013,6 +2086,234 @@
                 </div>
             </div>
 
+            <!-- TAB 6: MASTER DDC & PRODI -->
+            <div id="view-ddc" style="display:none; flex-direction:column; gap:1.75rem;">
+
+                <!-- Sub-tab Selector for DDC vs Prodi -->
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; background:var(--bg-surface); padding:1rem 1.25rem; border:1px solid var(--border-main); border-radius:var(--radius-lg); box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                    <div
+                        style="display:flex; gap:0.5rem; background:var(--bg-muted); padding:0.3rem; border-radius:var(--radius-md);">
+                        <button type="button" id="subtab-btn-ddc-taxonomy" class="btn btn-xs active"
+                            onclick="switchDdcSubTab('taxonomy')"
+                            style="font-weight:600; padding:0.4rem 0.9rem; border-radius:var(--radius-sm); transition:all 0.15s; display:inline-flex; align-items:center; gap:0.4rem;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                            </svg>
+                            <span>Kelas (000–900)</span>
+                        </button>
+                        <button type="button" id="subtab-btn-ddc-prodi" class="btn btn-xs"
+                            onclick="switchDdcSubTab('prodi')"
+                            style="font-weight:600; padding:0.4rem 0.9rem; border-radius:var(--radius-sm); transition:all 0.15s; display:inline-flex; align-items:center; gap:0.4rem;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                                <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                            </svg>
+                            <span>Atur DDC Program Studi</span>
+                        </button>
+                    </div>
+
+                    <!-- Instant Apply Action Buttons -->
+                    <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                        <button type="button" class="btn btn-xs" onclick="exportDdcMasterJson()"
+                            title="Unduh file data/ddc_master.json">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            <span>Unduh Cadangan Master</span>
+                        </button>
+                        <button type="button" class="btn btn-xs btn-primary" id="btn-apply-ddc"
+                            onclick="applyDdcToCatalog()" style="background:#059669; border-color:#059669; color:#fff;"
+                            title="Perbarui ddc_tree.json publik secara instan tanpa panen ulang">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <span>Terapkan ke Katalog Web</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 1: Kelas -->
+                <div id="ddc-subview-taxonomy" style="display:flex; flex-direction:column; gap:1.75rem;">
+                    <!-- 10 Main Classes Grid Card -->
+                    <div class="card" style="padding:1.25rem;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border-main); padding-bottom:0.75rem;">
+                            <div>
+                                <h3 style="font-size:0.95rem; font-weight:700; color:var(--text-main); margin:0;">10
+                                    Kelas Utama Dewey Decimal (000–900)</h3>
+                                <p style="font-size:0.75rem; color:var(--text-muted); margin:2px 0 0 0;">Klik tombol
+                                    edit pada kelas untuk mengubah nama Bahasa Indonesia, Bahasa Inggris, emoji ikon,
+                                </p>
+                            </div>
+                            <span class="badge badge-neutral">10 Divisi Dasar</span>
+                        </div>
+                        <div id="ddc-classes-grid"
+                            style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:0.85rem;">
+                            <!-- Filled dynamically by renderDdcClasses() -->
+                        </div>
+                    </div>
+
+                    <!-- 3-Digit Sections Table Card -->
+                    <div class="card" style="padding:1.25rem;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.75rem; border-bottom:1px solid var(--border-main); padding-bottom:0.75rem;">
+                            <div>
+                                <h3 style="font-size:0.95rem; font-weight:700; color:var(--text-main); margin:0;">Daftar
+                                    kelas 3-Digit DDC (000–999)</h3>
+                                <p style="font-size:0.75rem; color:var(--text-muted); margin:2px 0 0 0;">Kelola label
+                                    nama kelas DDC bahasa Indonesia yang ditampilkan di menu Jelajahi Publik.</p>
+                            </div>
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <button type="button" class="btn btn-primary btn-xs" onclick="openAddDdcSectionModal()">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    <span>Tambah Kelas DDC</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Table Filter Toolbar -->
+                        <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:240px; position:relative;">
+                                <input type="text" id="ddc-section-search" class="input"
+                                    placeholder="Cari kode DDC (misal: 297, 004) atau nama kelas..."
+                                    oninput="filterDdcSectionsTable()"
+                                    style="font-size:0.82rem; padding:0.45rem 0.75rem;">
+                            </div>
+                            <div style="width:230px;">
+                                <select id="ddc-class-filter" class="select" onchange="filterDdcSectionsTable()"
+                                    style="width:100%; font-size:0.82rem;">
+                                    <option value="all">Semua Kelas (000–900)</option>
+                                    <option value="0">000 - Komputer, Informasi & Umum</option>
+                                    <option value="1">100 - Filsafat & Psikologi</option>
+                                    <option value="2">200 - Agama</option>
+                                    <option value="3">300 - Ilmu Sosial</option>
+                                    <option value="4">400 - Bahasa</option>
+                                    <option value="5">500 - Sains & Matematika</option>
+                                    <option value="6">600 - Teknologi</option>
+                                    <option value="7">700 - Kesenian & Rekreasi</option>
+                                    <option value="8">800 - Sastra</option>
+                                    <option value="9">900 - Sejarah & Geografi</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Table -->
+                        <div style="overflow-x:auto;">
+                            <table class="data-table" style="width:100%; font-size:0.82rem;">
+                                <thead>
+                                    <tr>
+                                        <th style="width:75px;">Kode</th>
+                                        <th style="width:140px;">Kelas Induk</th>
+                                        <th>Nama kelas / Klasifikasi (Bahasa Indonesia)</th>
+                                        <th style="text-align:right; width:110px;">Jumlah Buku</th>
+                                        <th style="text-align:center; width:140px;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ddc-sections-tbody">
+                                    <tr>
+                                        <td colspan="5"
+                                            style="text-align:center; padding:2rem; color:var(--text-muted);">Memuat
+                                            data master DDC...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="ddc-sections-pagination"
+                            style="display:flex; justify-content:space-between; align-items:center; margin-top:0.85rem; font-size:0.75rem; color:var(--text-muted);">
+                            <span id="ddc-sections-count-info"></span>
+                            <div style="display:flex; gap:0.35rem;" id="ddc-sections-page-btns"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- SUB-VIEW 2: ATUR DDC PROGRAM STUDI -->
+                <div id="ddc-subview-prodi" style="display:none; flex-direction:column; gap:1.75rem;">
+
+                    <div class="card" style="padding:1.25rem;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.75rem; border-bottom:1px solid var(--border-main); padding-bottom:0.75rem;">
+                            <div>
+                                <h3 style="font-size:0.95rem; font-weight:700; color:var(--text-main); margin:0;">
+                                    Pemetaan Aturan DDC per Program Studi UMS</h3>
+                                <p style="font-size:0.75rem; color:var(--text-muted); margin:2px 0 0 0;">Tentukan kode
+                                    DDC, wildcard (misal <code>297*</code>), atau range klasifikasi buku yang relevan
+                                    untuk tiap Program Studi.</p>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                                <button type="button" class="btn btn-xs" onclick="openAddProdiModal()" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                    <span>Tambah Prodi Baru</span>
+                                </button>
+                                <button type="button" class="btn btn-xs btn-primary" id="btn-apply-prodi"
+                                    onclick="applyProdiRulesToCatalog()"
+                                    style="background:#2563eb; border-color:#2563eb; color:#fff;"
+                                    title="Re-indeks koleksi prodi secara instan tanpa re-harvest">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    <span>Terapkan Aturan DDC Prodi</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Prodi Toolbar Filter -->
+                        <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:240px;">
+                                <input type="text" id="prodi-search-input" class="input"
+                                    placeholder="Cari nama program studi atau kode..." oninput="filterProdiRulesTable()"
+                                    style="font-size:0.82rem; padding:0.45rem 0.75rem;">
+                            </div>
+                            <div style="width:220px;">
+                                <select id="prodi-fakultas-filter" class="select" onchange="filterProdiRulesTable()"
+                                    style="width:100%; font-size:0.82rem;">
+                                    <option value="all">Semua Fakultas</option>
+                                    <!-- Filled dynamically -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Prodi Table -->
+                        <div style="overflow-x:auto;">
+                            <table class="data-table" style="width:100%; font-size:0.82rem;">
+                                <thead>
+                                    <tr>
+                                        <th style="width:110px;">Kode Prodi</th>
+                                        <th style="width:220px;">Program Studi</th>
+                                        <th style="width:150px;">Fakultas</th>
+                                        <th>Aturan DDC Aktif</th>
+                                        <th style="text-align:right; width:110px;">Jumlah Buku</th>
+                                        <th style="text-align:center; width:160px;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="prodi-rules-tbody">
+                                    <tr>
+                                        <td colspan="6"
+                                            style="text-align:center; padding:2rem; color:var(--text-muted);">Memuat
+                                            daftar program studi...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
         </main>
 
         <!-- Modal: Hasil Uji OAI-PMH -->
@@ -2224,8 +2525,8 @@
 
                     <div
                         style="margin-top:0.5rem; padding-top:0.45rem; border-top:1px dashed var(--border-main); color:var(--text-muted); font-size:0.73rem;">
-                        <strong style="color:var(--text-main);">💡 Ada Kolom yang Kosong (Misal: Subjek / E-ISSN /
-                            Fakultas)?</strong>
+                        <strong style="color:var(--text-main);">Panduan Kolom Kosong (Misal: Subjek / E-ISSN /
+                            Fakultas):</strong>
                         <ul style="margin:0.25rem 0 0 1.1rem; padding:0; line-height:1.6;">
                             <li><strong>Cara 1 (Kosongkan Sel Excel):</strong> Biarkan sel kolom tersebut kosong di
                                 Excel (jangan hapus kolomnya). Saat di-Ctrl+C lalu Ctrl+V, jeda kolom otomatis terbaca.
@@ -2352,7 +2653,15 @@
                             style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.45rem;">
                             <label class="form-label"
                                 style="margin-bottom:0; font-weight:600; display:flex; align-items:center; gap:0.4rem;">
-                                <span>📄 File Dokumen PDF (Maks 150 MB)</span>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                                <span>File Dokumen PDF (Maks 150 MB)</span>
                                 <span
                                     style="font-size:0.68rem; font-weight:500; background:var(--accent-soft, #eff6ff); color:var(--accent, #1d4ed8); padding:1px 6px; border-radius:10px; border:1px solid var(--accent-border, #bfdbfe);">Lokal
                                     Server</span>
@@ -2371,7 +2680,14 @@
                             onclick="document.getElementById('ebook-pdf-file-input').click()">
                             <input type="file" id="ebook-pdf-file-input" accept="application/pdf" style="display:none;"
                                 onchange="handleEBookPdfSelected(event)">
-                            <div style="font-size:1.4rem; margin-bottom:0.2rem;">📤</div>
+                            <div style="display:flex; justify-content:center; margin-bottom:0.35rem;">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.75" style="color:var(--text-muted);">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                            </div>
                             <div style="font-size:0.82rem; font-weight:600; color:var(--text-main);">Pilih atau Seret
                                 (Drag) File PDF ke Sini</div>
                             <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Ukuran maks 150 MB.
@@ -2398,7 +2714,14 @@
                         <div id="ebook-pdf-attached-card"
                             style="display:none; margin-top:0.6rem; padding:0.5rem 0.65rem; background:var(--bg-surface, #ffffff); border:1px solid var(--accent-border, #bfdbfe); border-radius:var(--radius-sm, 6px); align-items:center; justify-content:space-between;">
                             <div style="display:flex; align-items:center; gap:0.55rem; min-width:0;">
-                                <span style="font-size:1.15rem;">📑</span>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="color:var(--accent); flex-shrink:0;">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
                                 <div style="min-width:0;">
                                     <div id="ebook-pdf-display-name"
                                         style="font-size:0.78rem; font-weight:600; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
@@ -2410,10 +2733,25 @@
                             </div>
                             <div style="display:flex; gap:0.35rem; align-items:center; flex-shrink:0;">
                                 <a id="ebook-pdf-preview-link" href="#" target="_blank" class="btn btn-xs"
-                                    style="text-decoration:none; padding:2px 8px; font-size:0.72rem;">👁 Buka</a>
+                                    style="text-decoration:none; padding:2px 8px; font-size:0.72rem; display:inline-flex; align-items:center; gap:3px;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                        <polyline points="15 3 21 3 21 9"></polyline>
+                                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                                    </svg>
+                                    <span>Buka</span>
+                                </a>
                                 <button type="button" class="btn btn-destructive btn-xs"
-                                    style="padding:2px 8px; font-size:0.72rem;" onclick="removeAttachedEBookPdf()">✕
-                                    Lepas</button>
+                                    style="padding:2px 8px; font-size:0.72rem; display:inline-flex; align-items:center; gap:3px;"
+                                    onclick="removeAttachedEBookPdf()">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2.5">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                    <span>Lepas</span>
+                                </button>
                             </div>
                         </div>
 
@@ -2504,8 +2842,8 @@
 
                     <div
                         style="margin-top:0.5rem; padding-top:0.45rem; border-top:1px dashed var(--border-main); color:var(--text-muted); font-size:0.73rem;">
-                        <strong style="color:var(--text-main);">💡 Ada Kolom yang Kosong (Misal: Subjek / ISBN / URL
-                            Cover)?</strong>
+                        <strong style="color:var(--text-main);">Panduan Kolom Kosong (Misal: Subjek / ISBN / URL
+                            Cover):</strong>
                         <ul style="margin:0.25rem 0 0 1.1rem; padding:0; line-height:1.6;">
                             <li><strong>Cara 1 (Kosongkan Sel Excel):</strong> Biarkan sel kolom tersebut kosong di
                                 Excel (jangan hapus kolomnya). Saat di-Ctrl+C lalu Ctrl+V, jeda kolom otomatis terbaca.
@@ -2565,6 +2903,220 @@
                         Mulai Impor Data
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Modal: Edit Kelas Utama DDC (0-9) -->
+        <div class="modal-backdrop" id="ddc-class-modal" style="display:none;">
+            <div class="modal-dialog" style="max-width:480px;">
+                <h2 class="modal-title" id="ddc-class-modal-title">Edit Kelas Utama DDC</h2>
+                <p class="modal-desc">Perbarui nama dan tampilan visual divisi utama Dewey Decimal Classification.</p>
+                <form id="ddc-class-form" onsubmit="event.preventDefault(); saveDdcClass();">
+                    <input type="hidden" id="ddc-class-code">
+                    <div class="form-group">
+                        <label class="form-label">Kode Kelas Utama:</label>
+                        <input type="text" id="ddc-class-code-display" class="input" readonly
+                            style="background:var(--bg-muted); font-weight:700;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="ddc-class-label">Nama Bahasa Indonesia * :</label>
+                        <input type="text" id="ddc-class-label" class="input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="ddc-class-label-en">Nama Bahasa Inggris:</label>
+                        <input type="text" id="ddc-class-label-en" class="input">
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        <div class="form-group">
+                            <label class="form-label" for="ddc-class-icon">Ikon SVG:</label>
+                            <select id="ddc-class-icon" class="select" style="width:100%;">
+                                <option value="monitor">monitor (000 Komputer/Umum)</option>
+                                <option value="lightbulb">lightbulb (100 Filsafat/Psikologi)</option>
+                                <option value="bookmark">bookmark (200 Agama)</option>
+                                <option value="users">users (300 Ilmu Sosial)</option>
+                                <option value="message-square">message-square (400 Bahasa)</option>
+                                <option value="compass">compass (500 Sains/Matematika)</option>
+                                <option value="cpu">cpu (600 Teknologi/Rekayasa)</option>
+                                <option value="palette">palette (700 Seni/Rekreasi)</option>
+                                <option value="book-open">book-open (800 Sastra)</option>
+                                <option value="globe">globe (900 Sejarah/Geografi)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.25rem;">
+                        <button type="button" class="btn btn-xs" onclick="closeDdcClassModal()">Batal</button>
+                        <button type="submit" class="btn btn-primary btn-xs">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Tambah / Edit kelas DDC 3 Digit -->
+        <div class="modal-backdrop" id="ddc-section-modal" style="display:none;">
+            <div class="modal-dialog" style="max-width:440px;">
+                <h2 class="modal-title" id="ddc-section-modal-title">Tambah Kelas DDC</h2>
+                <p class="modal-desc">Daftarkan atau ubah label kelas 3-digit Dewey Decimal Classification.</p>
+                <form id="ddc-section-form" onsubmit="event.preventDefault(); saveDdcSection();">
+                    <input type="hidden" id="ddc-section-mode" value="add">
+                    <div class="form-group">
+                        <label class="form-label" for="ddc-section-code">Kode kelas 3-Digit * :</label>
+                        <input type="text" id="ddc-section-code" class="input" placeholder="Contoh: 004, 297, 658"
+                            maxlength="3" pattern="\d{3}" required>
+                        <small style="color:var(--text-muted); font-size:0.72rem;">Harus berupa 3 digit angka standar
+                            DDC (000–999).</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="ddc-section-label">Nama kelas / Klasifikasi (Bahasa Indonesia) *
+                            :</label>
+                        <input type="text" id="ddc-section-label" class="input"
+                            placeholder="Contoh: Pemrosesan Data & Ilmu Komputer" required>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.25rem;">
+                        <button type="button" class="btn btn-xs" onclick="closeDdcSectionModal()">Batal</button>
+                        <button type="submit" class="btn btn-primary btn-xs" id="ddc-section-submit-btn">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Atur Aturan DDC Program Studi -->
+        <div class="modal-backdrop" id="prodi-rules-modal" style="display:none;">
+            <div class="modal-dialog" style="max-width:620px;">
+                <h2 class="modal-title" id="prodi-rules-modal-title">Edit Program Studi & Aturan DDC</h2>
+                <p class="modal-desc" id="prodi-rules-modal-subtitle">Kelola nama program studi, fakultas terkait, dan aturan klasifikasi DDC.</p>
+                <input type="hidden" id="prodi-rules-code">
+
+                <!-- Prodi & Fakultas Metadata Form -->
+                <div style="display:flex; flex-direction:column; gap:0.85rem; margin-bottom:1.15rem; padding-bottom:1rem; border-bottom:1px solid var(--border-main);">
+                    <div class="form-group">
+                        <label class="form-label" for="prodi-rules-label">Nama Program Studi (Lengkap dengan Jenjang) *:</label>
+                        <input type="text" id="prodi-rules-label" class="input" placeholder="Contoh: Teknik Informatika (S1)" required>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        <div class="form-group">
+                            <label class="form-label" for="prodi-rules-fakultas">Singkatan Fakultas *:</label>
+                            <input type="text" id="prodi-rules-fakultas" class="input" list="prodi-fakultas-datalist" placeholder="Contoh: FT, FAI, FEB" required style="text-transform:uppercase;" oninput="syncProdiRulesFakultasSuggestion(this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="prodi-rules-fakultas-label">Nama Lengkap Fakultas:</label>
+                            <input type="text" id="prodi-rules-fakultas-label" class="input" placeholder="Contoh: Fak. Teknik">
+                        </div>
+                    </div>
+                </div>
+
+                <datalist id="prodi-fakultas-datalist">
+                    <option value="FAI">Fak. Agama Islam</option>
+                    <option value="FEB">Fak. Ekonomi & Bisnis</option>
+                    <option value="FF">Fak. Farmasi</option>
+                    <option value="FGY">Fak. Geografi</option>
+                    <option value="FHIP">Fak. Hukum & Ilmu Politik</option>
+                    <option value="FIK">Fak. Ilmu Kesehatan</option>
+                    <option value="FK">Fak. Kedokteran</option>
+                    <option value="FKG">Fak. Kedokteran Gigi</option>
+                    <option value="FKI">Fak. Komunikasi & Informatika</option>
+                    <option value="FKIP">Fak. Keguruan & Ilmu Pendidikan</option>
+                    <option value="FP">Fak. Psikologi</option>
+                    <option value="FT">Fak. Teknik</option>
+                    <option value="PASCA">Sekolah Pascasarjana</option>
+                </datalist>
+
+                <!-- Rule Tags Box -->
+                <div class="form-group">
+                    <label class="form-label">Daftar Aturan DDC Aktif:</label>
+                    <div id="prodi-rules-tags-container"
+                        style="min-height:75px; max-height:160px; overflow-y:auto; padding:0.6rem; border:1px solid var(--border-main); border-radius:var(--radius-sm); background:var(--bg-muted); display:flex; flex-wrap:wrap; gap:0.4rem; align-content:flex-start;">
+                        <!-- Filled with tags dynamically -->
+                    </div>
+                    <small style="color:var(--text-muted); font-size:0.72rem; display:block; margin-top:4px;">Klik tanda
+                        × pada badge untuk menghapus kode DDC.</small>
+                </div>
+
+                <!-- Add Rule Input -->
+                <div style="margin-bottom:0.85rem;">
+                    <div style="display:flex; gap:0.5rem; align-items:flex-end;">
+                        <div style="flex:1;">
+                            <label class="form-label" for="prodi-add-rule-input">Tambah Kode, Wildcard, atau Rentang DDC:</label>
+                            <input type="text" id="prodi-add-rule-input" class="input"
+                                placeholder="Misal rentang 610-618, wildcard 297*, atau spesifik 657.1"
+                                onkeydown="if(event.key==='Enter'){event.preventDefault();addProdiRuleFromInput();}">
+                        </div>
+                        <button type="button" class="btn btn-xs btn-primary" onclick="addProdiRuleFromInput()">+ Tambah</button>
+                    </div>
+                    <small style="color:var(--text-muted); font-size:0.72rem; display:block; margin-top:3px;">
+                        Mendukung rentang angka seperti <code>610-618</code>, wildcard <code>297*</code>, atau kode spesifik <code>657.1</code>. Bisa dipisah tanda koma.
+                    </small>
+                </div>
+
+                <!-- Quick Pick from Master DDC Dropdown -->
+                <div class="form-group">
+                    <label class="form-label" for="prodi-pick-ddc-select">Atau Pilih Cepat dari Rentang / Kelas DDC Populer:</label>
+                    <div style="display:flex; gap:0.5rem;">
+                        <select id="prodi-pick-ddc-select" class="select" style="flex:1; font-size:0.8rem;">
+                            <option value="">-- Pilih Cepat Kelas / Rentang Populer --</option>
+                        </select>
+                        <button type="button" class="btn btn-xs" onclick="addProdiRuleFromSelect()">+ Masukkan</button>
+                    </div>
+                </div>
+
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; margin-top:1.5rem; border-top:1px solid var(--border-main); padding-top:0.85rem; flex-wrap:wrap; gap:0.5rem;">
+                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                        <span id="prodi-rules-tag-count" style="font-size:0.75rem; color:var(--text-muted);">0 aturan aktif</span>
+                        <button type="button" class="btn btn-xs" onclick="clearAllProdiRulesTags()" style="color:#dc2626; border-color:#fca5a5; font-size:0.72rem; padding:0.2rem 0.45rem; background:rgba(239,68,68,0.05);" title="Kosongkan semua aturan">
+                            Kosongkan Aturan
+                        </button>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <button type="button" class="btn btn-xs" onclick="deleteCurrentProdiFromModal()" style="color:#dc2626; border-color:#fca5a5; font-size:0.72rem; padding:0.2rem 0.5rem; background:rgba(239,68,68,0.05);" title="Hapus seluruh program studi ini">
+                            Hapus Prodi Ini
+                        </button>
+                        <button type="button" class="btn btn-xs" onclick="closeProdiRulesModal()">Batal</button>
+                        <button type="button" class="btn btn-primary btn-xs" id="prodi-rules-save-btn"
+                            onclick="saveProdiRules()">Simpan Perubahan</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Tambah Program Studi Baru -->
+        <div class="modal-backdrop" id="prodi-create-modal" style="display:none;">
+            <div class="modal-dialog" style="max-width:500px;">
+                <h2 class="modal-title" id="prodi-create-modal-title">Tambah Program Studi Baru</h2>
+                <p class="modal-desc">Daftarkan Program Studi baru beserta pemetaan aturan DDC untuk katalog perpustakaan.</p>
+
+                <form onsubmit="event.preventDefault(); saveNewProdi();">
+                    <div style="display:flex; flex-direction:column; gap:0.85rem;">
+                        <div class="form-group">
+                            <label class="form-label" for="prodi-new-code">Kode Program Studi:</label>
+                            <input type="text" id="prodi-new-code" class="input" placeholder="Misal: FT-INFOS2 atau FAI-HES-S3" required style="font-family:var(--font-mono); text-transform:uppercase;">
+                            <small style="color:var(--text-muted); font-size:0.72rem;">Gunakan format kode unik tanpa spasi.</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="prodi-new-label">Nama Program Studi (Lengkap dengan Jenjang):</label>
+                            <input type="text" id="prodi-new-label" class="input" placeholder="Misal: Magister Teknik Informatika (S2)" required>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                            <div class="form-group">
+                                <label class="form-label" for="prodi-new-fakultas">Singkatan Fakultas:</label>
+                                <input type="text" id="prodi-new-fakultas" class="input" placeholder="Misal: FT, FAI, FEB" required style="text-transform:uppercase;">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="prodi-new-fakultas-label">Nama Lengkap Fakultas:</label>
+                                <input type="text" id="prodi-new-fakultas-label" class="input" placeholder="Misal: Fak. Teknik">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="prodi-new-rules">Aturan DDC Awal (Dipisah koma):</label>
+                            <input type="text" id="prodi-new-rules" class="input" placeholder="Misal: 004*, 510*, 610-618, 621.3*">
+                            <small style="color:var(--text-muted); font-size:0.72rem;">Bisa berupa rentang angka (<code>610-618</code>), wildcard (<code>297*</code>), atau kode spesifik (<code>657.1</code>).</small>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.25rem;">
+                        <button type="button" class="btn btn-xs" onclick="closeAddProdiModal()">Batal</button>
+                        <button type="submit" class="btn btn-primary btn-xs" id="btn-save-new-prodi">Simpan Program Studi</button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -2780,11 +3332,13 @@
                 const btnEbooks = document.getElementById('tab-btn-ebooks');
                 const btnEmbed = document.getElementById('tab-btn-embed');
                 const btnAnalytics = document.getElementById('tab-btn-analytics');
+                const btnDdc = document.getElementById('tab-btn-ddc');
                 const viewHarvest = document.getElementById('view-harvest');
                 const viewIntl = document.getElementById('view-international');
                 const viewEbooks = document.getElementById('view-ebooks');
                 const viewEmbed = document.getElementById('view-embed');
                 const viewAnalytics = document.getElementById('view-analytics');
+                const viewDdc = document.getElementById('view-ddc');
                 const pageTitle = document.getElementById('page-main-title');
                 const pageDesc = document.getElementById('page-main-desc');
 
@@ -2793,12 +3347,14 @@
                 if (btnEbooks) btnEbooks.classList.toggle('active', tab === 'ebooks');
                 if (btnEmbed) btnEmbed.classList.toggle('active', tab === 'embed');
                 if (btnAnalytics) btnAnalytics.classList.toggle('active', tab === 'analytics');
+                if (btnDdc) btnDdc.classList.toggle('active', tab === 'ddc');
 
                 if (viewHarvest) viewHarvest.style.display = tab === 'harvest' ? 'flex' : 'none';
                 if (viewIntl) viewIntl.style.display = tab === 'international' ? 'flex' : 'none';
                 if (viewEbooks) viewEbooks.style.display = tab === 'ebooks' ? 'flex' : 'none';
                 if (viewEmbed) viewEmbed.style.display = tab === 'embed' ? 'flex' : 'none';
                 if (viewAnalytics) viewAnalytics.style.display = tab === 'analytics' ? 'flex' : 'none';
+                if (viewDdc) viewDdc.style.display = tab === 'ddc' ? 'flex' : 'none';
 
                 if (tab === 'international') {
                     pageTitle.textContent = 'Manajemen E-Resources';
@@ -2818,6 +3374,11 @@
                     pageTitle.textContent = 'Analisis Tren Pencarian & Usulan Pengadaan';
                     pageDesc.textContent = 'Wawasan kata kunci pencarian sivitas akademika dan daftar buku yang belum tersedia (zero-result) untuk prioritas belanja pustaka.';
                     loadSearchAnalytics();
+                } else if (tab === 'ddc') {
+                    pageTitle.textContent = 'Master Data DDC & Pemetaan Program Studi';
+                    pageDesc.textContent = 'Kelola taksonomi Dewey Decimal Classification (10 kelas utama & kelas 3-digit) serta aturan pemetaan DDC Program Studi UMS.';
+                    loadDdcMaster();
+                    loadProdiRules();
                 } else {
                     pageTitle.textContent = 'Harvester & Repository Management';
                     pageDesc.textContent = 'Monitoring sinkronisasi otomatis OAI-PMH katalog Koha, EPrints, Jurnal, dan institusi mitra.';
@@ -2926,11 +3487,11 @@
                 const textarea = document.getElementById('embed-code-output');
                 if (!textarea || !textarea.value) return;
                 navigator.clipboard.writeText(textarea.value).then(() => {
-                    showToast('✓ Kode berhasil disalin ke clipboard! Siap dipaste ke WordPress.');
+                    showToast('Kode berhasil disalin ke clipboard! Siap dipaste ke WordPress.');
                 }).catch(() => {
                     textarea.select();
                     document.execCommand('copy');
-                    showToast('✓ Kode berhasil disalin!');
+                    showToast('Kode berhasil disalin!');
                 });
             }
 
@@ -2965,7 +3526,7 @@
                 if (data.ok) {
                     body.innerHTML = `
                     <div style="background:var(--status-idle-bg); border:1px solid var(--status-idle-border); color:var(--status-idle-text); padding:0.75rem; border-radius:var(--radius-sm);">
-                        <div style="font-weight:600; font-size:0.85rem; margin-bottom:0.25rem;">✓ Endpoint Terhubung (HTTP ${data.status_code})</div>
+                        <div style="font-weight:600; font-size:0.85rem; margin-bottom:0.25rem; display:flex; align-items:center; gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>Endpoint Terhubung (HTTP ${data.status_code})</div>
                         <div style="font-size:0.75rem;">${esc(data.message)}</div>
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
@@ -2980,7 +3541,7 @@
                 } else {
                     body.innerHTML = `
                     <div style="background:var(--status-err-bg); border:1px solid var(--status-err-border); color:var(--status-err-text); padding:0.75rem; border-radius:var(--radius-sm);">
-                        <div style="font-weight:600; font-size:0.85rem; margin-bottom:0.25rem;">⚠️ Respon Endpoint Gagal</div>
+                        <div style="font-weight:600; font-size:0.85rem; margin-bottom:0.25rem; display:flex; align-items:center; gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Respon Endpoint Gagal</div>
                         <div style="font-size:0.75rem;">${esc(data.message)}</div>
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
@@ -3894,7 +4455,7 @@
                     estCount = Math.max(0, lines.length - 1);
                 }
                 if (counter) {
-                    counter.innerHTML = `<strong style="color:var(--status-online-text, #10b981);">✓ Terdeteksi ${lines.length} baris</strong> (estimasi ~${estCount} ${itemLabel} siap diimpor)`;
+                    counter.innerHTML = `<strong style="color:var(--status-online-text, #10b981); display:inline-flex; align-items:center; gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Terdeteksi ${lines.length} baris</strong> (estimasi ~${estCount} ${itemLabel} siap diimpor)`;
                 }
                 if (submitBtn) submitBtn.disabled = lines.length === 0;
                 return val;
@@ -4048,7 +4609,8 @@
                             ${it.pdf_filename ? `
                                 <div style="margin-top:4px;">
                                     <a href="/api/ebooks/${encodeURIComponent(it.id)}/pdf" target="_blank" class="code-tag" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; font-size:0.7rem; text-decoration:none; display:inline-flex; align-items:center; gap:3px;" title="Buka PDF di tab baru">
-                                        <span>📄 PDF</span> <span>${esc(it.pdf_size || '')}</span> ↗
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                        <span>PDF</span> <span>${esc(it.pdf_size || '')}</span>
                                     </a>
                                 </div>
                             ` : ''}
@@ -4156,7 +4718,7 @@
                     if (displayName) displayName.textContent = pdfFilename;
                     if (displaySize) displaySize.textContent = pdfSize ? `${pdfSize}` : 'PDF Tersimpan';
                     if (previewLink) previewLink.href = `/api/ebooks/${encodeURIComponent(ebkId || 'temp')}/pdf`;
-                    if (statusBadge) statusBadge.textContent = `✓ PDF Siap (${pdfSize || 'Tersimpan'})`;
+                    if (statusBadge) statusBadge.textContent = `PDF Siap (${pdfSize || 'Tersimpan'})`;
                 } else {
                     if (attachedCard) attachedCard.style.display = 'none';
                     if (statusBadge) statusBadge.textContent = 'Belum ada PDF';
@@ -4600,6 +5162,785 @@
                     }
                 } catch (e) {
                     showToast('Terjadi kesalahan saat mereset analitik.');
+                }
+            }
+
+            // ── Master DDC & Prodi State & Controller ──
+            let ddcMasterData = null;
+            let ddcSectionsList = [];
+            let ddcFilteredSections = [];
+            let ddcCurrentPage = 1;
+            const DDC_SECTIONS_PER_PAGE = 25;
+            let prodiRulesList = [];
+            let activeEditingProdiCode = null;
+            let activeProdiRulesTags = [];
+
+            function switchDdcSubTab(subtab) {
+                const btnTax = document.getElementById('subtab-btn-ddc-taxonomy');
+                const btnProdi = document.getElementById('subtab-btn-ddc-prodi');
+                const viewTax = document.getElementById('ddc-subview-taxonomy');
+                const viewProdi = document.getElementById('ddc-subview-prodi');
+
+                if (btnTax) btnTax.classList.toggle('active', subtab === 'taxonomy');
+                if (btnProdi) btnProdi.classList.toggle('active', subtab === 'prodi');
+                if (viewTax) viewTax.style.display = subtab === 'taxonomy' ? 'flex' : 'none';
+                if (viewProdi) viewProdi.style.display = subtab === 'prodi' ? 'flex' : 'none';
+            }
+
+            async function loadDdcMaster() {
+                try {
+                    const res = await adminFetch('/api/admin/ddc');
+                    const data = await res.json();
+                    if (!data.ok) {
+                        showToast(data.error || 'Gagal memuat master DDC.');
+                        return;
+                    }
+                    ddcMasterData = data;
+
+                    // Metrics
+                    const classesCount = Object.keys(data.classes || {}).length;
+                    const sectionsCount = data.total_sections || Object.keys(data.sections || {}).length;
+                    const classifiedCount = data.total_classified || 0;
+
+                    const mClasses = document.getElementById('ddc-metric-classes');
+                    const mSections = document.getElementById('ddc-metric-sections');
+                    const mBooks = document.getElementById('ddc-metric-books');
+
+                    if (mClasses) mClasses.textContent = classesCount;
+                    if (mSections) mSections.textContent = sectionsCount.toLocaleString('id-ID');
+                    if (mBooks) mBooks.textContent = classifiedCount.toLocaleString('id-ID');
+
+                    // Render 10 Main Classes
+                    renderDdcClasses(data.classes, data.class_counts);
+
+                    // Prepare Sections List
+                    const counts = data.section_counts || {};
+                    ddcSectionsList = Object.entries(data.sections || {}).map(([code, label]) => {
+                        return {
+                            code,
+                            label,
+                            classCode: code.charAt(0),
+                            count: counts[code] || 0
+                        };
+                    }).sort((a, b) => a.code.localeCompare(b.code));
+
+                    // Populate Select in Prodi Modal
+                    const pickSel = document.getElementById('prodi-pick-ddc-select');
+                    if (pickSel) {
+                        pickSel.innerHTML = '<option value="">-- Pilih kelas DDC --</option>' +
+                            ddcSectionsList.map(s => `<option value="${s.code}">${s.code} - ${esc(s.label)} (${s.count} buku)</option>`).join('');
+                    }
+
+                    filterDdcSectionsTable();
+                } catch (e) {
+                    console.error('Error loadDdcMaster:', e);
+                }
+            }
+
+            // ── DDC SVG Icons Helper ──
+            const DDC_SVG_ICONS = {
+                'monitor': '<rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line>',
+                'lightbulb': '<path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"></path>',
+                'bookmark': '<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>',
+                'users': '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
+                'message-square': '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>',
+                'compass': '<circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>',
+                'cpu': '<rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line>',
+                'palette': '<circle cx="13.5" cy="6.5" r=".5"></circle><circle cx="17.5" cy="10.5" r=".5"></circle><circle cx="8.5" cy="7.5" r=".5"></circle><circle cx="6.5" cy="12.5" r=".5"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path>',
+                'book-open': '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>',
+                'globe': '<circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>',
+                'default': '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>'
+            };
+
+            const CODE_TO_ICON_MAP = {
+                '0': 'monitor',
+                '1': 'lightbulb',
+                '2': 'bookmark',
+                '3': 'users',
+                '4': 'message-square',
+                '5': 'compass',
+                '6': 'cpu',
+                '7': 'palette',
+                '8': 'book-open',
+                '9': 'globe'
+            };
+
+            function getDdcSvgIcon(key, size = 18, extraStyle = '') {
+                let iconKey = String(key || '').toLowerCase().trim();
+                if (CODE_TO_ICON_MAP[iconKey]) {
+                    iconKey = CODE_TO_ICON_MAP[iconKey];
+                }
+                const inner = DDC_SVG_ICONS[iconKey] || DDC_SVG_ICONS['default'];
+                return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; ${extraStyle}">${inner}</svg>`;
+            }
+
+            function renderDdcClasses(classes, classCounts) {
+                const container = document.getElementById('ddc-classes-grid');
+                if (!container || !classes) return;
+
+                const sortedKeys = Object.keys(classes).sort();
+                container.innerHTML = sortedKeys.map(code => {
+                    const item = classes[code];
+                    const count = (classCounts && classCounts[code]) ? classCounts[code] : 0;
+                    const iconSvg = getDdcSvgIcon(item.icon || code, 18, 'color:var(--text-secondary);');
+                    return `
+                        <div style="background:var(--bg-surface); border:1px solid var(--border-main); border-radius:var(--radius-md); padding:1.05rem; display:flex; flex-direction:column; justify-content:space-between; position:relative; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
+                            <div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+                                    <div style="display:flex; align-items:center; gap:0.55rem;">
+                                        <div style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:var(--radius-sm); background:var(--bg-active); border:1px solid var(--border-subtle);">${iconSvg}</div>
+                                        <span style="font-family:var(--font-mono); font-weight:700; font-size:1.05rem; color:var(--text-main);">${code}00</span>
+                                    </div>
+                                    <span class="badge badge-neutral" style="font-size:0.72rem; font-weight:500;">${count.toLocaleString('id-ID')} buku</span>
+                                </div>
+                                <h4 style="font-size:0.86rem; font-weight:600; color:var(--text-main); margin:0 0 0.25rem 0; line-height:1.35;">${esc(item.label)}</h4>
+                                <div style="font-size:0.75rem; color:var(--text-muted); line-height:1.25; margin-bottom:0.85rem;">${esc(item.label_en || '')}</div>
+                            </div>
+                            <div style="display:flex; justify-content:flex-end; border-top:1px solid var(--border-subtle); padding-top:0.6rem;">
+                                <button type="button" class="btn btn-xs" onclick="openEditDdcClassModal('${code}')" style="font-size:0.72rem; padding:0.25rem 0.6rem; display:inline-flex; align-items:center; gap:0.35rem;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                    <span>Edit Kelas</span>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function filterDdcSectionsTable() {
+                const q = (document.getElementById('ddc-section-search')?.value || '').toLowerCase().trim();
+                const clsFilter = document.getElementById('ddc-class-filter')?.value || 'all';
+
+                ddcFilteredSections = ddcSectionsList.filter(s => {
+                    const matchCls = (clsFilter === 'all') || (s.classCode === clsFilter);
+                    const matchQuery = !q || s.code.includes(q) || s.label.toLowerCase().includes(q);
+                    return matchCls && matchQuery;
+                });
+
+                ddcCurrentPage = 1;
+                renderDdcSectionsTable();
+            }
+
+            function renderDdcSectionsTable() {
+                const tbody = document.getElementById('ddc-sections-tbody');
+                const countInfo = document.getElementById('ddc-sections-count-info');
+                const pageBtns = document.getElementById('ddc-sections-page-btns');
+                if (!tbody) return;
+
+                if (ddcFilteredSections.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:2rem; color:var(--text-muted);">Tidak ada kelas DDC yang cocok dengan filter pencarian.</td></tr>';
+                    if (countInfo) countInfo.textContent = '0 dari 0 kelas';
+                    if (pageBtns) pageBtns.innerHTML = '';
+                    return;
+                }
+
+                const totalPages = Math.ceil(ddcFilteredSections.length / DDC_SECTIONS_PER_PAGE);
+                if (ddcCurrentPage > totalPages) ddcCurrentPage = totalPages;
+                if (ddcCurrentPage < 1) ddcCurrentPage = 1;
+
+                const startIdx = (ddcCurrentPage - 1) * DDC_SECTIONS_PER_PAGE;
+                const endIdx = startIdx + DDC_SECTIONS_PER_PAGE;
+                const pageItems = ddcFilteredSections.slice(startIdx, endIdx);
+
+                const classesMap = ddcMasterData ? ddcMasterData.classes || {} : {};
+
+                tbody.innerHTML = pageItems.map(item => {
+                    const clsInfo = classesMap[item.classCode] || {};
+                    const clsColor = clsInfo.color || '#38bdf8';
+                    const iconSvg = getDdcSvgIcon(clsInfo.icon || item.classCode, 13, `color:${clsColor}; margin-right:3px;`);
+                    return `
+                        <tr>
+                            <td><span style="font-family:var(--font-mono); font-weight:700; color:${clsColor};">${item.code}</span></td>
+                            <td>
+                                <span style="font-size:0.75rem; color:var(--text-secondary); display:inline-flex; align-items:center;">
+                                    ${iconSvg}
+                                    <span>${item.classCode}00</span>
+                                </span>
+                            </td>
+                            <td><strong style="color:var(--text-main); font-size:0.83rem;">${esc(item.label)}</strong></td>
+                            <td style="text-align:right;"><span class="badge badge-neutral">${item.count.toLocaleString('id-ID')}</span></td>
+                            <td style="text-align:center;">
+                                <div style="display:inline-flex; gap:0.3rem;">
+                                    <button type="button" class="btn btn-xs" onclick="openEditDdcSectionModal('${item.code}')" title="Edit kelas" style="padding:0.25rem 0.5rem; font-size:0.72rem; display:inline-flex; align-items:center; gap:0.25rem;">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                        <span>Edit</span>
+                                    </button>
+                                    <button type="button" class="btn btn-xs" onclick="deleteDdcSection('${item.code}')" title="Hapus kelas" style="padding:0.25rem 0.5rem; font-size:0.72rem; color:#dc2626; border-color:#fca5a5; background:rgba(239,68,68,0.05); display:inline-flex; align-items:center; gap:0.25rem;">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                        <span>Hapus</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                if (countInfo) {
+                    countInfo.textContent = `Menampilkan ${startIdx + 1}–${Math.min(endIdx, ddcFilteredSections.length)} dari ${ddcFilteredSections.length.toLocaleString('id-ID')} kelas`;
+                }
+
+                if (pageBtns) {
+                    let btns = '';
+                    if (ddcCurrentPage > 1) {
+                        btns += `<button type="button" class="btn btn-xs" onclick="changeDdcSectionsPage(${ddcCurrentPage - 1})">‹ Prev</button>`;
+                    }
+                    btns += `<span style="padding:0.25rem 0.6rem; font-weight:600;">Halaman ${ddcCurrentPage} / ${totalPages}</span>`;
+                    if (ddcCurrentPage < totalPages) {
+                        btns += `<button type="button" class="btn btn-xs" onclick="changeDdcSectionsPage(${ddcCurrentPage + 1})">Next ›</button>`;
+                    }
+                    pageBtns.innerHTML = btns;
+                }
+            }
+
+            function changeDdcSectionsPage(p) {
+                ddcCurrentPage = p;
+                renderDdcSectionsTable();
+            }
+
+            function openEditDdcClassModal(code) {
+                if (!ddcMasterData || !ddcMasterData.classes || !ddcMasterData.classes[code]) return;
+                const c = ddcMasterData.classes[code];
+                document.getElementById('ddc-class-code').value = code;
+                document.getElementById('ddc-class-code-display').value = `${code}00 — ${c.label}`;
+                document.getElementById('ddc-class-label').value = c.label || '';
+                document.getElementById('ddc-class-label-en').value = c.label_en || '';
+                document.getElementById('ddc-class-icon').value = c.icon || CODE_TO_ICON_MAP[code] || 'monitor';
+                document.getElementById('ddc-class-modal').style.display = 'flex';
+            }
+
+            function closeDdcClassModal() {
+                document.getElementById('ddc-class-modal').style.display = 'none';
+            }
+
+            async function saveDdcClass() {
+                const code = document.getElementById('ddc-class-code').value;
+                const label = document.getElementById('ddc-class-label').value.trim();
+                const label_en = document.getElementById('ddc-class-label-en').value.trim();
+                const icon = document.getElementById('ddc-class-icon').value.trim();
+
+                try {
+                    const res = await adminFetch('/api/admin/ddc/class', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code, label, label_en, icon })
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        showToast(`Kelas ${code}00 berhasil disimpan.`);
+                        closeDdcClassModal();
+                        loadDdcMaster();
+                    } else {
+                        showToast(data.error || 'Gagal menyimpan kelas DDC.');
+                    }
+                } catch (e) {
+                    showToast('Terjadi kesalahan saat menyimpan kelas.');
+                }
+            }
+
+            function openAddDdcSectionModal() {
+                document.getElementById('ddc-section-mode').value = 'add';
+                document.getElementById('ddc-section-modal-title').textContent = 'Tambah Kelas DDC Baru';
+                document.getElementById('ddc-section-code').value = '';
+                document.getElementById('ddc-section-code').readOnly = false;
+                document.getElementById('ddc-section-code').style.background = 'var(--bg-surface)';
+                document.getElementById('ddc-section-label').value = '';
+                document.getElementById('ddc-section-modal').style.display = 'flex';
+                document.getElementById('ddc-section-code').focus();
+            }
+
+            function openEditDdcSectionModal(code) {
+                const sec = ddcSectionsList.find(s => s.code === code);
+                if (!sec) return;
+                document.getElementById('ddc-section-mode').value = 'edit';
+                document.getElementById('ddc-section-modal-title').textContent = `Edit Kelas DDC ${code}`;
+                document.getElementById('ddc-section-code').value = code;
+                document.getElementById('ddc-section-code').readOnly = true;
+                document.getElementById('ddc-section-code').style.background = 'var(--bg-muted)';
+                document.getElementById('ddc-section-label').value = sec.label;
+                document.getElementById('ddc-section-modal').style.display = 'flex';
+                document.getElementById('ddc-section-label').focus();
+            }
+
+            function closeDdcSectionModal() {
+                document.getElementById('ddc-section-modal').style.display = 'none';
+            }
+
+            async function saveDdcSection() {
+                const code = document.getElementById('ddc-section-code').value.trim();
+                const label = document.getElementById('ddc-section-label').value.trim();
+
+                try {
+                    const res = await adminFetch('/api/admin/ddc/section', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code, label })
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        showToast(`kelas DDC ${code} berhasil disimpan.`);
+                        closeDdcSectionModal();
+                        loadDdcMaster();
+                    } else {
+                        showToast(data.error || 'Gagal menyimpan kelas DDC.');
+                    }
+                } catch (e) {
+                    showToast('Terjadi kesalahan saat menyimpan kelas.');
+                }
+            }
+
+            function deleteDdcSection(code) {
+                const sec = ddcSectionsList.find(s => s.code === code);
+                const label = sec ? sec.label : code;
+                if (!confirm(`Hapus kelas DDC ${code} (${label}) dari daftar master?`)) return;
+
+                adminFetch(`/api/admin/ddc/section/${encodeURIComponent(code)}`, { method: 'DELETE' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.ok) {
+                            showToast(`kelas ${code} berhasil dihapus.`);
+                            loadDdcMaster();
+                        } else {
+                            showToast(data.error || 'Gagal menghapus kelas.');
+                        }
+                    })
+                    .catch(() => showToast('Terjadi kesalahan saat menghapus kelas.'));
+            }
+
+            async function applyDdcToCatalog() {
+                const btn = document.getElementById('btn-apply-ddc');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg><span>Menerapkan ke Katalog...</span>';
+                }
+                try {
+                    const res = await adminFetch('/api/admin/ddc/apply', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.ok) {
+                        showToast('Master DDC berhasil diterapkan ke katalog publik (ddc_tree.json terupdate)!', 4500);
+                    } else {
+                        showToast(data.error || 'Gagal menerapkan ke katalog.');
+                    }
+                } catch (e) {
+                    showToast('Terjadi kesalahan saat sinkronisasi katalog.');
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Terapkan ke Katalog Web</span>';
+                    }
+                }
+            }
+
+            function exportDdcMasterJson() {
+                if (!ddcMasterData) return;
+                const blob = new Blob([JSON.stringify(ddcMasterData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ddc_master_${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            // ── PRODI RULES CONTROLLER ──
+
+            async function loadProdiRules() {
+                try {
+                    const res = await adminFetch('/api/admin/prodi');
+                    const data = await res.json();
+                    if (!data.ok) {
+                        showToast(data.error || 'Gagal memuat aturan prodi.');
+                        return;
+                    }
+                    prodiRulesList = data.prodi || [];
+
+                    // Populate Fakultas Filter
+                    const fakFilter = document.getElementById('prodi-fakultas-filter');
+                    if (fakFilter && data.fakultas_list) {
+                        fakFilter.innerHTML = '<option value="all">Semua Fakultas</option>' +
+                            data.fakultas_list.map(f => `<option value="${f}">${f}</option>`).join('');
+                    }
+
+                    renderProdiRulesTable();
+                } catch (e) {
+                    console.error('Error loadProdiRules:', e);
+                }
+            }
+
+            function filterProdiRulesTable() {
+                renderProdiRulesTable();
+            }
+
+            function renderProdiRulesTable() {
+                const tbody = document.getElementById('prodi-rules-tbody');
+                if (!tbody) return;
+
+                const q = (document.getElementById('prodi-search-input')?.value || '').toLowerCase().trim();
+                const fak = document.getElementById('prodi-fakultas-filter')?.value || 'all';
+
+                const filtered = prodiRulesList.filter(p => {
+                    const matchFak = (fak === 'all') || (p.fakultas === fak);
+                    const matchQ = !q || p.code.toLowerCase().includes(q) || p.label.toLowerCase().includes(q);
+                    return matchFak && matchQ;
+                });
+
+                if (filtered.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">Tidak ada program studi yang cocok.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = filtered.map(item => {
+                    const rules = item.rules || [];
+                    const maxDisplay = 7;
+                    const displayedRules = rules.slice(0, maxDisplay);
+                    const remaining = rules.length - maxDisplay;
+
+                    const badgesHtml = rules.length === 0 ?
+                        '<span style="color:var(--text-muted); font-size:0.75rem; font-style:italic;">Belum diatur</span>' :
+                        displayedRules.map(r => `<span style="display:inline-block; font-family:var(--font-mono); font-size:0.72rem; padding:0.15rem 0.4rem; border-radius:4px; background:rgba(37,99,235,0.08); color:#1d4ed8; margin:0.1rem;">${esc(r)}</span>`).join('') +
+                        (remaining > 0 ? `<span style="font-size:0.72rem; color:var(--text-muted); margin-left:0.3rem;">+${remaining} lagi</span>` : '');
+
+                    return `
+                        <tr>
+                            <td><span style="font-family:var(--font-mono); font-weight:700; color:var(--accent);">${item.code}</span></td>
+                            <td><strong style="color:var(--text-main); font-size:0.83rem;">${esc(item.label)}</strong></td>
+                            <td><span class="badge badge-neutral" style="font-size:0.75rem;">${esc(item.fakultas_label || item.fakultas)}</span></td>
+                            <td><div style="display:flex; flex-wrap:wrap; gap:0.2rem; align-items:center;">${badgesHtml}</div></td>
+                            <td style="text-align:right;"><span class="badge badge-neutral">${item.count.toLocaleString('id-ID')} buku</span></td>
+                            <td style="text-align:center;">
+                                <div style="display:inline-flex; align-items:center; gap:0.35rem;">
+                                    <button type="button" class="btn btn-xs" onclick="openEditProdiRulesModal('${item.code}')" style="font-size:0.72rem; padding:0.25rem 0.55rem; display:inline-flex; align-items:center; gap:0.3rem;" title="Edit prodi, fakultas, dan aturan DDC">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                                        <span>Edit & Atur Rule</span>
+                                    </button>
+                                    <button type="button" class="btn btn-xs" onclick="deleteProdi('${item.code}', '${esc(item.label)}')" style="font-size:0.72rem; padding:0.25rem 0.5rem; color:#dc2626; border-color:#fca5a5; background:rgba(239,68,68,0.05); display:inline-flex; align-items:center; gap:0.25rem;" title="Hapus program studi ini">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                        <span>Hapus</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            const KNOWN_FAKULTAS_LABELS = {
+                'FAI': 'Fak. Agama Islam',
+                'FEB': 'Fak. Ekonomi & Bisnis',
+                'FF': 'Fak. Farmasi',
+                'FGY': 'Fak. Geografi',
+                'FHIP': 'Fak. Hukum & Ilmu Politik',
+                'FIK': 'Fak. Ilmu Kesehatan',
+                'FK': 'Fak. Kedokteran',
+                'FKG': 'Fak. Kedokteran Gigi',
+                'FKI': 'Fak. Komunikasi & Informatika',
+                'FKIP': 'Fak. Keguruan & Ilmu Pendidikan',
+                'FP': 'Fak. Psikologi',
+                'FT': 'Fak. Teknik',
+                'PASCA': 'Sekolah Pascasarjana'
+            };
+
+            function syncProdiRulesFakultasSuggestion(val) {
+                const code = (val || '').trim().toUpperCase();
+                const target = document.getElementById('prodi-rules-fakultas-label');
+                if (!target) return;
+                if (KNOWN_FAKULTAS_LABELS[code] && (!target.value || target.value === val)) {
+                    target.value = KNOWN_FAKULTAS_LABELS[code];
+                }
+            }
+
+            function populateProdiDdcSelect() {
+                const sel = document.getElementById('prodi-pick-ddc-select');
+                if (!sel || sel.children.length > 1) return;
+
+                let html = '<option value="">-- Pilih Cepat Kelas / Rentang Populer --</option>';
+
+                html += '<optgroup label="Rentang DDC Populer">';
+                html += '<option value="610-618">610-618 — Ilmu Kedokteran, Kesehatan & Terapi</option>';
+                html += '<option value="370-379">370-379 — Pendidikan, Pengajaran & Kurikulum</option>';
+                html += '<option value="330-339">330-339 — Ilmu Ekonomi, Moneter & Perbankan</option>';
+                html += '<option value="340-349">340-349 — Hukum, Peradilan & Tata Negara</option>';
+                html += '<option value="510-519">510-519 — Matematika, Aljabar & Statistika</option>';
+                html += '<option value="530-539">530-539 — Fisika, Mekanika & Kelistrikan</option>';
+                html += '<option value="540-549">540-549 — Kimia & Struktur Senyawa</option>';
+                html += '<option value="570-579">570-579 — Biologi & Ilmu Hayati</option>';
+                html += '<option value="620-629">620-629 — Rekayasa, Teknik Sipil, Mesin & Elektro</option>';
+                html += '<option value="650-659">650-659 — Manajemen, Akuntansi & Bisnis</option>';
+                html += '<option value="380-389">380-389 — Perdagangan, Komunikasi & Transportasi</option>';
+                html += '<option value="350-354">350-354 — Administrasi Publik & Pemerintahan</option>';
+                html += '</optgroup>';
+
+                html += '<optgroup label="10 Kelas Utama DDC (000–900)">';
+                html += '<option value="000*">000* — Komputer, Informasi & Referensi Umum</option>';
+                html += '<option value="100*">100* — Filsafat & Psikologi</option>';
+                html += '<option value="200*">200* — Agama (Umum)</option>';
+                html += '<option value="297*">297* — Agama Islam & Syariah</option>';
+                html += '<option value="300*">300* — Ilmu-ilmu Sosial</option>';
+                html += '<option value="400*">400* — Bahasa & Linguistik</option>';
+                html += '<option value="500*">500* — Sains Alam & Matematika</option>';
+                html += '<option value="600*">600* — Teknologi & Ilmu Terapan</option>';
+                html += '<option value="700*">700* — Kesenian & Rekreasi</option>';
+                html += '<option value="800*">800* — Sastra & Retorika</option>';
+                html += '<option value="900*">900* — Sejarah & Geografi</option>';
+                html += '</optgroup>';
+
+                sel.innerHTML = html;
+            }
+
+            function openEditProdiRulesModal(code) {
+                const item = prodiRulesList.find(p => p.code === code);
+                if (!item) return;
+
+                activeEditingProdiCode = code;
+                activeProdiRulesTags = [...(item.rules || [])];
+
+                document.getElementById('prodi-rules-code').value = code;
+                document.getElementById('prodi-rules-modal-title').textContent = `Edit Program Studi: ${item.code}`;
+                document.getElementById('prodi-rules-modal-subtitle').textContent = `Kode: ${item.code} | Saat ini ${item.count.toLocaleString('id-ID')} buku cocok.`;
+
+                // Set prodi metadata fields
+                const labelInp = document.getElementById('prodi-rules-label');
+                const fakInp = document.getElementById('prodi-rules-fakultas');
+                const fakLabelInp = document.getElementById('prodi-rules-fakultas-label');
+                if (labelInp) labelInp.value = item.label || '';
+                if (fakInp) fakInp.value = item.fakultas || '';
+                if (fakLabelInp) fakLabelInp.value = item.fakultas_label || item.fakultas || '';
+
+                populateProdiDdcSelect();
+                renderProdiRulesTags();
+                document.getElementById('prodi-rules-modal').style.display = 'flex';
+                if (labelInp) labelInp.focus();
+            }
+
+            function closeProdiRulesModal() {
+                document.getElementById('prodi-rules-modal').style.display = 'none';
+                activeEditingProdiCode = null;
+                activeProdiRulesTags = [];
+            }
+
+            function renderProdiRulesTags() {
+                const container = document.getElementById('prodi-rules-tags-container');
+                const countEl = document.getElementById('prodi-rules-tag-count');
+                if (!container) return;
+
+                if (activeProdiRulesTags.length === 0) {
+                    container.innerHTML = '<span style="color:var(--text-muted); font-size:0.78rem; font-style:italic;">Belum ada aturan DDC. Tambahkan kode atau rentang DDC di bawah.</span>';
+                    if (countEl) countEl.textContent = '0 aturan aktif';
+                    return;
+                }
+
+                container.innerHTML = activeProdiRulesTags.map(rule => {
+                    const isRange = rule.includes('-');
+                    const badgeBg = isRange ? '#fef3c7' : '#eff6ff';
+                    const badgeColor = isRange ? '#92400e' : '#1d4ed8';
+                    const badgeBorder = isRange ? '#fde68a' : '#bfdbfe';
+                    const labelPrefix = isRange ? '<span style="font-size:0.68rem; font-weight:700; opacity:0.8; margin-right:3px;">RENTANG:</span>' : '';
+
+                    return `
+                        <span style="display:inline-flex; align-items:center; gap:0.35rem; background:${badgeBg}; color:${badgeColor}; border:1px solid ${badgeBorder}; padding:0.2rem 0.55rem; border-radius:16px; font-family:var(--font-mono); font-size:0.78rem; font-weight:600;">
+                            <span>${labelPrefix}${esc(rule)}</span>
+                            <button type="button" onclick="removeProdiRuleTag('${rule}')" style="background:none; border:none; color:#dc2626; cursor:pointer; font-weight:700; line-height:1; font-size:0.85rem; padding:0 2px; display:inline-flex; align-items:center; opacity:0.85;" title="Hapus aturan ${esc(rule)}">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </span>
+                    `;
+                }).join('');
+
+                if (countEl) countEl.textContent = `${activeProdiRulesTags.length} aturan aktif`;
+            }
+
+            function addProdiRuleFromInput() {
+                const inp = document.getElementById('prodi-add-rule-input');
+                if (!inp) return;
+                const val = inp.value.trim();
+                if (val) {
+                    const parts = val.split(',').map(s => s.trim()).filter(Boolean);
+                    for (const p of parts) {
+                        addProdiRuleTag(p);
+                    }
+                    inp.value = '';
+                }
+            }
+
+            function addProdiRuleFromSelect() {
+                const sel = document.getElementById('prodi-pick-ddc-select');
+                if (!sel) return;
+                const val = sel.value;
+                if (val) {
+                    addProdiRuleTag(val);
+                }
+            }
+
+            function addProdiRuleTag(rule) {
+                let cleaned = String(rule).trim().replace(/\s*(?:-|–|—|\.{2})\s*/g, '-');
+                if (!cleaned) return;
+                if (!activeProdiRulesTags.includes(cleaned)) {
+                    activeProdiRulesTags.push(cleaned);
+                    renderProdiRulesTags();
+                }
+            }
+
+            function removeProdiRuleTag(rule) {
+                activeProdiRulesTags = activeProdiRulesTags.filter(r => r !== rule);
+                renderProdiRulesTags();
+            }
+
+            function clearAllProdiRulesTags() {
+                if (!activeProdiRulesTags.length) return;
+                if (confirm('Apakah Anda yakin ingin mengosongkan semua aturan DDC untuk program studi ini?')) {
+                    activeProdiRulesTags = [];
+                    renderProdiRulesTags();
+                }
+            }
+
+            function deleteCurrentProdiFromModal() {
+                if (!activeEditingProdiCode) return;
+                const item = prodiRulesList.find(p => p.code === activeEditingProdiCode);
+                const label = item ? item.label : activeEditingProdiCode;
+                const code = activeEditingProdiCode;
+                closeProdiRulesModal();
+                deleteProdi(code, label);
+            }
+
+            async function saveProdiRules() {
+                if (!activeEditingProdiCode) return;
+                const saveBtn = document.getElementById('prodi-rules-save-btn');
+                const label = (document.getElementById('prodi-rules-label')?.value || '').trim();
+                const fakultas = (document.getElementById('prodi-rules-fakultas')?.value || '').trim().toUpperCase();
+                const fakultas_label = (document.getElementById('prodi-rules-fakultas-label')?.value || '').trim() || fakultas;
+
+                if (!label || !fakultas) {
+                    showToast('Nama Program Studi dan Singkatan Fakultas wajib diisi!');
+                    return;
+                }
+
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = 'Menyimpan...';
+                }
+                try {
+                    const res = await adminFetch('/api/admin/prodi/rules', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            code: activeEditingProdiCode,
+                            label,
+                            fakultas,
+                            fakultas_label,
+                            rules: activeProdiRulesTags
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        showToast(`Data Program Studi ${activeEditingProdiCode} (${label}) berhasil disimpan.`);
+                        closeProdiRulesModal();
+                        loadProdiRules();
+                    } else {
+                        showToast(data.error || 'Gagal menyimpan perubahan.');
+                    }
+                } catch (e) {
+                    showToast('Terjadi kesalahan saat menyimpan data prodi.');
+                } finally {
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Simpan Perubahan';
+                    }
+                }
+            }
+
+            async function applyProdiRulesToCatalog() {
+                const btn = document.getElementById('btn-apply-prodi');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg><span>Memproses & Re-indeks Koleksi Prodi...</span>';
+                }
+                try {
+                    const res = await adminFetch('/api/admin/prodi/apply', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.ok) {
+                        showToast(`${data.message} (${data.total_books_scanned.toLocaleString('id-ID')} buku dipindai)`, 5000);
+                        loadProdiRules();
+                    } else {
+                        showToast(data.error || 'Gagal menerapkan aturan DDC prodi.');
+                    }
+                } catch (e) {
+                    showToast('Terjadi kesalahan saat menerapkan aturan prodi.');
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Terapkan Aturan DDC Prodi</span>';
+                    }
+                }
+            }
+
+            function openAddProdiModal() {
+                document.getElementById('prodi-new-code').value = '';
+                document.getElementById('prodi-new-label').value = '';
+                document.getElementById('prodi-new-fakultas').value = '';
+                document.getElementById('prodi-new-fakultas-label').value = '';
+                document.getElementById('prodi-new-rules').value = '';
+                document.getElementById('prodi-create-modal').style.display = 'flex';
+                document.getElementById('prodi-new-code').focus();
+            }
+
+            function closeAddProdiModal() {
+                document.getElementById('prodi-create-modal').style.display = 'none';
+            }
+
+            async function saveNewProdi() {
+                const code = document.getElementById('prodi-new-code').value.trim().toUpperCase();
+                const label = document.getElementById('prodi-new-label').value.trim();
+                const fakultas = document.getElementById('prodi-new-fakultas').value.trim().toUpperCase();
+                const fakultas_label = document.getElementById('prodi-new-fakultas-label').value.trim() || fakultas;
+                const rulesStr = document.getElementById('prodi-new-rules').value.trim();
+
+                if (!code || !label || !fakultas) {
+                    showToast('Kode, Nama Prodi, dan Fakultas wajib diisi!');
+                    return;
+                }
+
+                const rules = rulesStr ? rulesStr.split(',').map(r => r.trim().replace(/\s*(?:-|–|—|\.{2})\s*/g, '-')).filter(Boolean) : [];
+
+                const btn = document.getElementById('btn-save-new-prodi');
+                if (btn) btn.disabled = true;
+
+                try {
+                    const res = await adminFetch('/api/admin/prodi', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code, label, fakultas, fakultas_label, rules })
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        showToast(`Program Studi ${code} berhasil disimpan! Klik 'Terapkan Aturan DDC Prodi' untuk sinkronisasi ke katalog.`, 4500);
+                        closeAddProdiModal();
+                        loadProdiRules();
+                    } else {
+                        showToast(data.error || 'Gagal menyimpan program studi.');
+                    }
+                } catch (e) {
+                    showToast('Terjadi kesalahan saat menyimpan program studi.');
+                } finally {
+                    if (btn) btn.disabled = false;
+                }
+            }
+
+            async function deleteProdi(code, label) {
+                if (!confirm(`Apakah Anda yakin ingin menghapus program studi ${code} (${label})?`)) return;
+                try {
+                    const res = await adminFetch(`/api/admin/prodi/${encodeURIComponent(code)}`, {
+                        method: 'DELETE'
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        showToast(`Program studi ${code} berhasil dihapus.`);
+                        loadProdiRules();
+                    } else {
+                        showToast(data.error || 'Gagal menghapus program studi.');
+                    }
+                } catch (e) {
+                    showToast('Terjadi kesalahan saat menghapus program studi.');
                 }
             }
 

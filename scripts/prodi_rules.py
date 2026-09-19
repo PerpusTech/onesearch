@@ -14,12 +14,7 @@ PRODI_RULES = {
     'FAI-HES': [
         '001.4', '001.42', '005*', '100*', '101*',
         '200.1', '297*',
-        '330', '330.015195', '330.09', '330.1', '330.21',
-        '332.1', '332.04', '332.3',
-        '338.04', '338.6', '339*', '34*',
-        '364.168', '492.7*',
-        '519.5072', '523.7', '529.03', '529',
-        '657', '658.5', '658.8',
+        '330*', '332*', '34*', '657*',
     ],
 
     'FAI-HES-S2': [   # S2 Hukum Ekonomi Syariah
@@ -414,26 +409,80 @@ PRODI_ALIAS = {
 }
 
 
+import re
+
+def _parse_range_str(rule_str: str):
+    """Cek apakah string rule berbentuk rentang (misal '610-618', '610–618', '610 - 618', '610..618').
+    Kembalikan (lo, hi) jika ya, atau None jika bukan.
+    """
+    s = str(rule_str).strip()
+    m = re.match(r'^(\d+(?:\.\d+)?)\s*(?:-|–|—|\.{2})\s*(\d+(?:\.\d+)?)$', s)
+    if m:
+        return m.group(1), m.group(2)
+    return None
+
+
+def _check_range(ddc: str, lo: str, hi: str) -> bool:
+    """Evaluasi apakah DDC berada dalam rentang [lo, hi].
+    Bila batas atas hi berupa bilangan bulat (misal '618'), seluruh subkelas '618.*' tercakup.
+    """
+    if not ddc:
+        return False
+    m_ddc = re.search(r'(\d+(?:\.\d+)?)', ddc)
+    if not m_ddc:
+        return False
+    ddc_clean = m_ddc.group(1)
+    try:
+        val = float(ddc_clean)
+        lo_val = float(lo)
+        hi_val = float(hi)
+        if '.' not in hi:
+            hi_upper_bound = hi_val + 1.0
+            return (lo_val <= val < hi_upper_bound) or ddc_clean.startswith(hi) or ddc_clean.startswith(lo)
+        else:
+            return (lo_val <= val <= hi_val) or ddc_clean.startswith(hi) or ddc_clean.startswith(lo)
+    except (ValueError, TypeError):
+        return (lo <= ddc_clean <= hi) or ddc_clean.startswith(lo) or ddc_clean.startswith(hi)
+
+
 # ─── Helper: match satu DDC terhadap satu rule ───────────────────────────────
 def _ddc_matches_rule(ddc: str, rule) -> bool:
     """Cek apakah ddc cocok dengan satu rule.
     
     Rule bisa berupa:
-      - str tanpa '*' : prefix match (ddc harus ber-awalan rule atau sama persis)
-      - str + '*'     : wildcard prefix (sama dengan di atas, strip '*' dulu)
-      - list [a, b]   : range inklusif via versi-compare sederhana
+      - str rentang   : '610-618', '610–618', '610..618' (inklusif rentang)
+      - list [a, b]   : range inklusif (mis. ['610', '618'])
+      - str tanpa '*' : prefix match (mis. '657' -> cocok '657', '657.1', dll.)
+      - str + '*'     : wildcard prefix (mis. '297*' -> cocok '297', '297.1', dll.)
     """
     if not ddc:
         return False
 
-    if isinstance(rule, list) and len(rule) == 2:
-        # Range: '100' <= ddc <= '200'  (string compare cukup karena sudah zero-padded)
-        lo, hi = str(rule[0]).rstrip('*'), str(rule[1]).rstrip('*')
-        return lo <= ddc <= hi or ddc.startswith(lo) or ddc.startswith(hi)
+    # 1. Format array range: ['610', '618']
+    if isinstance(rule, (list, tuple)) and len(rule) == 2:
+        lo, hi = str(rule[0]).rstrip('*').strip(), str(rule[1]).rstrip('*').strip()
+        return _check_range(ddc, lo, hi)
 
-    rule_str = str(rule).rstrip('*')
-    # Prefix match: '657' cocok dengan '657', '657.1', '657.123', dll.
-    return ddc == rule_str or ddc.startswith(rule_str + '.') or ddc.startswith(rule_str)
+    rule_str = str(rule).strip()
+
+    # 2. Format string rentang: '610-618', '610–618', '610 - 618', '610..618'
+    range_parts = _parse_range_str(rule_str)
+    if range_parts:
+        return _check_range(ddc, range_parts[0], range_parts[1])
+
+    # 3. Format prefix atau exact match
+    rule_clean = rule_str.rstrip('*')
+    m_ddc = re.search(r'(\d+(?:\.\d+)?)', ddc)
+    ddc_num = m_ddc.group(1) if m_ddc else ddc
+
+    return (
+        ddc == rule_clean or
+        ddc_num == rule_clean or
+        ddc.startswith(rule_clean + '.') or
+        ddc.startswith(rule_clean) or
+        ddc_num.startswith(rule_clean + '.') or
+        ddc_num.startswith(rule_clean)
+    )
 
 
 def match_prodi(ddc: str, rules: list) -> bool:
@@ -444,12 +493,116 @@ def match_prodi(ddc: str, rules: list) -> bool:
     return False
 
 
+# ─── High Performance Precompiled Matching ──────────────────────────────────
+_DDC_NUM_RE = re.compile(r'(\d+(?:\.\d+)?)')
+
+def compile_prodi_rule(rule):
+    """Pre-compiles a single rule into an optimized tuple for high-speed matching."""
+    if isinstance(rule, (list, tuple)) and len(rule) == 2:
+        lo, hi = str(rule[0]).rstrip('*').strip(), str(rule[1]).rstrip('*').strip()
+        try:
+            lo_val = float(lo)
+            hi_val = float(hi)
+            hi_bound = hi_val + 1.0 if '.' not in hi else hi_val
+            is_inclusive = '.' in hi
+            return ('range_num', lo_val, hi_bound, is_inclusive, lo, hi)
+        except (ValueError, TypeError):
+            return ('range_str', lo, hi)
+
+    rule_str = str(rule).strip()
+    range_parts = _parse_range_str(rule_str)
+    if range_parts:
+        lo, hi = range_parts[0], range_parts[1]
+        try:
+            lo_val = float(lo)
+            hi_val = float(hi)
+            hi_bound = hi_val + 1.0 if '.' not in hi else hi_val
+            is_inclusive = '.' in hi
+            return ('range_num', lo_val, hi_bound, is_inclusive, lo, hi)
+        except (ValueError, TypeError):
+            return ('range_str', lo, hi)
+
+    clean = rule_str.rstrip('*')
+    return ('prefix', clean)
+
+
+def compile_rules_map(rules_map: dict) -> dict:
+    """Pre-compiles all prodi rules into a structured dict for fast loop execution."""
+    return {kode: [compile_prodi_rule(r) for r in rules] for kode, rules in rules_map.items()}
+
+
+def check_compiled_rule(ddc: str, ddc_clean: str, ddc_val, compiled_rule) -> bool:
+    """Check if single compiled rule matches."""
+    rtype = compiled_rule[0]
+    if rtype == 'range_num':
+        _, lo_val, hi_bound, is_inclusive, lo, hi = compiled_rule
+        if ddc_val is not None:
+            if is_inclusive:
+                if (lo_val <= ddc_val <= hi_bound) or ddc_clean.startswith(hi) or ddc_clean.startswith(lo):
+                    return True
+            else:
+                if (lo_val <= ddc_val < hi_bound) or ddc_clean.startswith(hi) or ddc_clean.startswith(lo):
+                    return True
+        else:
+            if (lo <= ddc_clean <= hi) or ddc_clean.startswith(lo) or ddc_clean.startswith(hi):
+                return True
+    elif rtype == 'range_str':
+        _, lo, hi = compiled_rule
+        if (lo <= ddc_clean <= hi) or ddc_clean.startswith(lo) or ddc_clean.startswith(hi):
+            return True
+    elif rtype == 'prefix':
+        clean = compiled_rule[1]
+        if (ddc == clean or ddc_clean == clean or
+            ddc.startswith(clean + '.') or ddc.startswith(clean) or
+            ddc_clean.startswith(clean + '.') or ddc_clean.startswith(clean)):
+            return True
+    return False
+
+
+def match_compiled_rules(ddc: str, ddc_clean: str, ddc_val, compiled_rules: list) -> bool:
+    for crule in compiled_rules:
+        if check_compiled_rule(ddc, ddc_clean, ddc_val, crule):
+            return True
+    return False
+
+
+def extract_ddc_num(ddc: str):
+    """Extract clean ddc string and float value once for fast batch processing."""
+    if not ddc:
+        return '', None
+    m = _DDC_NUM_RE.search(ddc)
+    clean = m.group(1) if m else ddc
+    try:
+        val = float(clean)
+    except (ValueError, TypeError):
+        val = None
+    return clean, val
+
+
+_COMPILED_RULES_CACHE = None
+
+def get_compiled_rules():
+    global _COMPILED_RULES_CACHE
+    if _COMPILED_RULES_CACHE is None:
+        _COMPILED_RULES_CACHE = compile_rules_map(PRODI_RULES)
+    return _COMPILED_RULES_CACHE
+
+
+def invalidate_compiled_rules():
+    global _COMPILED_RULES_CACHE
+    _COMPILED_RULES_CACHE = None
+
+
 def get_prodi_for_ddc(ddc: str) -> list:
-    """Kembalikan list kode prodi yang relevan untuk DDC tertentu."""
+    """Kembalikan list kode prodi yang relevan untuk DDC tertentu (berkecepatan tinggi)."""
     if not ddc:
         return []
+    compiled = get_compiled_rules()
+    ddc_clean, ddc_val = extract_ddc_num(ddc)
     result = []
-    for kode, rules in PRODI_RULES.items():
-        if match_prodi(ddc, rules):
+    for kode, crules in compiled.items():
+        if match_compiled_rules(ddc, ddc_clean, ddc_val, crules):
             result.append(kode)
     return result
+
+

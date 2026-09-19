@@ -60,7 +60,7 @@ Dokumen ini ditujukan bagi pengembang dan administrator teknis untuk memahami st
 | **`scripts/preprocess.py`** | Jantung pemrosesan data: membersihkan string judul/pengarang, normalisasi nomor panggil DDC, pemetaan Program Studi UMS, membuang field kosong, menghasilkan `books.json`, serta otomatis mengompresi arsip `.gz` untuk Nginx. |
 | **`scripts/scheduler.py`** | Worker latar belakang yang menjalankan pembaruan panen inkremental terjadwal (misal tiap jam 02:00 pagi) dan mencatat log status ke `data/scheduler_state.json`. |
 | **`scripts/prodi_rules.py`** | Aturan klasifikasi DDC ke Program Studi dan Fakultas di Universitas Muhammadiyah Surakarta. |
-| **`scripts/ddc_sections.py`** | Kamus pembagian 10 kelas utama, 100 divisi, dan ribuan seksi Dewey Decimal Classification (DDC) bahasa Indonesia & Inggris. |
+| **`scripts/ddc_sections.py`** | Kamus pembagian 10 kelas utama, 100 divisi, dan ribuan kelas Dewey Decimal Classification (DDC) bahasa Indonesia & Inggris. |
 | **`scripts/rebuild.py`** | Skrip pemintas untuk memproses ulang data hasil panen mentah di `output/` menjadi dataset siap saji di `data/`. |
 
 ---
@@ -87,7 +87,7 @@ Dokumen ini ditujukan bagi pengembang dan administrator teknis untuk memahami st
 *Catatan: Direktori `data/` diabaikan oleh Git via `.gitignore` agar repositori tetap ringan.*
 
 * **`data/books.json` & `.gz`**: Dataset bibliografi lengkap (~136k judul).
-* **`data/ddc_tree.json` & `.gz`**: Struktur pohon taksonomi DDC beserta jumlah bukunya.
+* **`data/ddc_tree.json` & `.gz`**: Struktur pohon Kelas beserta jumlah bukunya.
 * **`data/prodi_index.json` & `.gz`**: Indeks pemetaan ID buku ke kode prodi.
 * **`data/stats.json`**: Ringkasan statistik agregat (total buku, penerbit, tahun tertua/terbaru, sebaran sumber).
 * **`data/subscribed_journals.json`**: Database jurnal internasional resmi yang dilanggan UMS.

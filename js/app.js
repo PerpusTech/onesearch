@@ -889,6 +889,7 @@ const app = {
     switchBrowseMode(mode) {
         this.browseMode = mode;
         this._applyBrowseMode();
+        if (typeof this.clearBrowseSearch === 'function') this.clearBrowseSearch();
         if (mode === 'ddc') {
             this.ddcLevel = null;
             this.renderBrowse();
@@ -1495,7 +1496,7 @@ const app = {
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                                     E-Book Langganan
                                 </span>
-                                ${hasPdf ? `<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600; font-size:0.68rem; padding:1px 6px;">📄 PDF ${this.esc(it.pdf_size || '')}</span>` : ''}
+                                ${hasPdf ? `<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600; font-size:0.68rem; padding:1px 6px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:3px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>PDF ${this.esc(it.pdf_size || '')}</span>` : ''}
                             </div>
                             ${accessBadge}
                         </div>
@@ -1591,7 +1592,7 @@ const app = {
                             E-Book Langganan Resmi UMS
                         </span>
                         <span class="chip" style="background:var(--bg-3); font-weight:600;">${this.esc(accessType.toUpperCase())}</span>
-                        ${hasPdf ? `<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;">📄 PDF ${this.esc(item.pdf_size || 'Tersedia')}</span>` : ''}
+                        ${hasPdf ? `<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>PDF ${this.esc(item.pdf_size || 'Tersedia')}</span>` : ''}
                     </div>
                     <h2 class="detail-title" style="margin-top:0.25rem;">${this.esc(item.title)}</h2>
                     <p class="detail-author" style="margin-top:0.25rem;">${this.esc(authorStr)}</p>
@@ -1602,7 +1603,7 @@ const app = {
                 <div><div class="d-label">Penerbit</div><div class="d-val">${this.esc(pubStr)}</div></div>
                 ${yearStr ? `<div><div class="d-label">Tahun Terbit</div><div class="d-val">${yearStr}</div></div>` : ''}
                 <div><div class="d-label">ISBN</div><div class="d-val">${this.esc(isbnStr)}</div></div>
-                <div><div class="d-label">Format / Tipe</div><div class="d-val">Buku Elektronik (E-Book) ${hasPdf ? `<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600; margin-left:4px;">📄 PDF ${this.esc(item.pdf_size || '')}</span>` : ''}</div></div>
+                <div><div class="d-label">Format / Tipe</div><div class="d-val">Buku Elektronik (E-Book) ${hasPdf ? `<span class="chip" style="background:rgba(16, 185, 129, 0.12); color:#059669; font-weight:600; margin-left:4px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:3px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>PDF ${this.esc(item.pdf_size || '')}</span>` : ''}</div></div>
                 ${item.subject ? `<div><div class="d-label">Subjek / Bidang Ilmu</div><div class="d-val">${this.esc(item.subject)}</div></div>` : ''}
                 <div><div class="d-label">Akses Kampus</div><div class="d-val">${this.esc(accessType === 'ezproxy' ? 'EZProxy SSO (Luar Jaringan Kampus)' : (accessType === 'open' ? 'Open Access' : 'IP Kampus / Eduroam UMS'))}</div></div>
             </div>
@@ -2560,6 +2561,30 @@ const app = {
     },
 
     // ──── Home: DDC Shelves ────
+    getDdcSvg(key, size = 18) {
+        const svgMap = {
+            'monitor': '<rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line>',
+            'lightbulb': '<path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"></path>',
+            'bookmark': '<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>',
+            'users': '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
+            'message-square': '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>',
+            'compass': '<circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>',
+            'cpu': '<rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line>',
+            'palette': '<circle cx="13.5" cy="6.5" r=".5"></circle><circle cx="17.5" cy="10.5" r=".5"></circle><circle cx="8.5" cy="7.5" r=".5"></circle><circle cx="6.5" cy="12.5" r=".5"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path>',
+            'book-open': '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>',
+            'globe': '<circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>',
+            'default': '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>'
+        };
+        const codeMap = {
+            '0': 'monitor', '1': 'lightbulb', '2': 'bookmark', '3': 'users', '4': 'message-square',
+            '5': 'compass', '6': 'cpu', '7': 'palette', '8': 'book-open', '9': 'globe'
+        };
+        let k = String(key || '').toLowerCase().trim();
+        if (codeMap[k]) k = codeMap[k];
+        const inner = svgMap[k] || svgMap['default'];
+        return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;">${inner}</svg>`;
+    },
+
     renderShelves() {
         const el = document.getElementById('ddc-shelves');
         if (!el) return;
@@ -2568,16 +2593,14 @@ const app = {
         el.innerHTML = Object.entries(this.ddcTree)
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([cls, info]) => {
-                const c = this.COLORS[cls];
-                const pct = Math.round((info.count / max) * 100);
                 return `
-                <div class="shelf" style="--shelf-color:${c}" onclick="app.showBrowse('${cls}')">
+                <div class="shelf" onclick="app.showBrowse('${cls}')">
                     <div class="shelf-head">
-                        <span class="shelf-code" style="background:${c}18;color:${c}">${cls}00</span>
+                        <span class="shelf-code">${cls}00</span>
+                        <span class="shelf-icon">${this.getDdcSvg(info.icon || cls, 18)}</span>
                     </div>
                     <div class="shelf-name">${this.ddcLbl(info)}</div>
                     <div class="shelf-count">${this.fmt(info.count)} ${this.t('books_unit')}</div>
-                    <div class="shelf-bar"><div class="shelf-bar-fill" style="width:${pct}%;background:${c}"></div></div>
                 </div>`;
             }).join('');
     },
@@ -3252,7 +3275,7 @@ const app = {
                     <!-- Reset Filters Button -->
                     ${hasActiveFilters ? `
                         <button type="button" class="fed-filter-reset-btn" onclick="app.resetFedFilters()" title="Reset semua filter">
-                            ✕ Reset Filter
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:3px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>Reset Filter
                         </button>
                     ` : ''}
                 </div>
@@ -3404,7 +3427,7 @@ const app = {
                     <div class="empty-state-title">Tidak Ada Artikel yang Cocok</div>
                     <div class="empty-state-desc">Tidak ada artikel pada halaman ini yang sesuai dengan filter yang dipilih. Coba hilangkan centang Open Access, ubah pilihan tipe/tahun, atau beralih ke tab <strong>Semua Jurnal</strong>.</div>
                     <div class="empty-state-actions">
-                        <button type="button" class="btn btn-brand" onclick="app.resetFedFilters(); app.setFedSubscriptionMode('all');">✕ Reset Filter</button>
+                        <button type="button" class="btn btn-brand" onclick="app.resetFedFilters(); app.setFedSubscriptionMode('all');"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>Reset Filter</button>
                     </div>
                 </div>
             `;
@@ -4395,7 +4418,7 @@ const app = {
                             ${abstractStr ? `<div class="fed-card-snippet">${this.hl(abstractStr, q)}</div>` : ''}
                         </div>
                         <div class="fed-card-footer">
-                            <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.75rem; font-weight:600" onclick="app.showArticleDetail(${this.idAttr(rawId)})">📋 Detail & Sitasi</button>
+                            <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.75rem; font-weight:600" onclick="app.showArticleDetail(${this.idAttr(rawId)})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>Detail & Sitasi</button>
                             ${isSubscribed && subUrl ? `<a href="${this.safeUrl(subUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-subscribed-campus" style="padding:2px 8px; font-size:.72rem;">Akses Kampus UMS ↗</a>` : ''}
                             <a href="${this.safeUrl(doiUrl)}" target="_blank" rel="noopener noreferrer" class="fed-card-doi-link">${doiBtnLabel}</a>
                             <button type="button" class="btn btn-ghost" style="padding:2px 8px; font-size:.72rem" onclick="app.shareArticleById(${this.idAttr(rawId)})">Share</button>
@@ -4502,7 +4525,7 @@ const app = {
                             <div class="empty-state-title">Tidak Ada Hasil yang Cocok</div>
                             <div class="empty-state-desc">Kombinasi filter yang Anda pilih tidak menghasilkan koleksi apapun dari ${this.fmt(this.baseResults.length)} hasil awal.</div>
                             <div class="empty-state-actions">
-                                <button type="button" class="btn btn-brand" onclick="app.clearFilters()">✕ Hapus Semua Filter</button>
+                                <button type="button" class="btn btn-brand" onclick="app.clearFilters()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>Hapus Semua Filter</button>
                             </div>
                         </div>
                     </div>
@@ -4757,7 +4780,10 @@ const app = {
             content.innerHTML = Object.entries(this.ddcTree).sort(([a], [b]) => a.localeCompare(b))
                 .map(([cls, info]) => `
                 <div class="browse-row" onclick="app.showBrowse('${cls}')">
-                    <div class="browse-code" style="color:${this.COLORS[cls]}">${cls}00</div>
+                    <div class="browse-code" style="display:flex; align-items:center; gap:6px;">
+                        ${this.getDdcSvg(info.icon || cls, 16)}
+                        <span>${cls}00</span>
+                    </div>
                     <div class="browse-info">
                         <div class="browse-label">${this.ddcLbl(info)}</div>
                         <div class="browse-cnt">${this.fmt(info.count)} ${this.t('results_found').toLowerCase()}</div>
@@ -4771,7 +4797,7 @@ const app = {
             content.innerHTML = Object.entries(cls.divisions).sort(([a], [b]) => a.localeCompare(b))
                 .map(([code, div]) => `
                 <div class="browse-row" onclick="app.showBrowse('${code}')">
-                    <div class="browse-code" style="color:${this.COLORS[lvl]}">${code}</div>
+                    <div class="browse-code">${code}</div>
                     <div class="browse-info">
                         <div class="browse-label">${div.label}</div>
                         <div class="browse-cnt">${this.fmt(div.count)} ${this.t('results_found').toLowerCase()} · ${Object.keys(div.sections).length} ${this.t('categories')}</div>
@@ -4788,7 +4814,7 @@ const app = {
             if (secs.length) {
                 content.innerHTML = secs.map(([code, sec]) => `
                 <div class="browse-row" onclick="app.browseBooks('${code}')">
-                    <div class="browse-code" style="color:${this.COLORS[ck]}">${code}</div>
+                    <div class="browse-code">${code}</div>
                     <div class="browse-info">
                         <div class="browse-label">${sec.label}</div>
                         <div class="browse-cnt">${this.fmt(sec.count)} ${this.t('books_unit')}</div>
@@ -4814,21 +4840,152 @@ const app = {
         crumbs.innerHTML = bc;
         this.ddcBooks = this.books.filter(b => b.ddc && b.ddc.startsWith(prefix));
         this.ddcBooks.sort((a, b) => (a.ddc || '').localeCompare(b.ddc || '') || (a.t || '').localeCompare(b.t || ''));
+        this.activeDdcFiltered = null;
         this.ddcPage = 0;
+        this.clearBrowseSearch();
         content.style.display = 'none'; booksEl.style.display = 'grid';
-        const show = this.ddcBooks.slice(0, this.perPage);
-        booksEl.innerHTML = `<div style="grid-column:1/-1;color:var(--ink-2);font-size:.82rem;margin-bottom:.25rem">
-            ${this.fmt(this.ddcBooks.length)} ${this.t('results_found').toLowerCase()}</div>` + show.map(b => this.bookCard(b)).join('');
-        document.getElementById('browse-more').style.display = this.perPage < this.ddcBooks.length ? 'block' : 'none';
+        this._renderDDCBooksSlice();
     },
+
+    _renderDDCBooksSlice() {
+        const booksEl = document.getElementById('browse-books');
+        const list = this.activeDdcFiltered !== null ? this.activeDdcFiltered : (this.ddcBooks || []);
+        const end = (this.ddcPage + 1) * this.perPage;
+        const show = list.slice(0, end);
+
+        if (list.length === 0) {
+            booksEl.innerHTML = `
+                <div style="grid-column:1/-1;">
+                    <div class="empty-state">
+                        <div class="empty-state-icon-wrap">
+                            ${this.getEmptyStateSvg ? this.getEmptyStateSvg('search') : ''}
+                        </div>
+                        <div class="empty-state-title">Tidak Ada Buku Ditemukan</div>
+                        <div class="empty-state-desc">Tidak ada koleksi buku yang sesuai dengan kata kunci pencarian Anda pada kategori ini.</div>
+                    </div>
+                </div>`;
+        } else {
+            const countLabel = this.activeDdcFiltered !== null ?
+                `${this.fmt(list.length)} buku sesuai pencarian (dari total ${this.fmt(this.ddcBooks.length)})` :
+                `${this.fmt(list.length)} ${this.t('results_found').toLowerCase()}`;
+            booksEl.innerHTML = `<div style="grid-column:1/-1;color:var(--ink-2);font-size:.82rem;margin-bottom:.25rem">
+                ${countLabel}</div>` + show.map(b => this.bookCard(b)).join('');
+        }
+        document.getElementById('browse-more').style.display = end < list.length ? 'block' : 'none';
+    },
+
     loadMoreDDC() {
         this.ddcPage++;
-        const booksEl = document.getElementById('browse-books');
-        const end = (this.ddcPage + 1) * this.perPage;
-        const show = this.ddcBooks.slice(0, end);
-        booksEl.innerHTML = `<div style="grid-column:1/-1;color:var(--ink-2);font-size:.82rem;margin-bottom:.25rem">
-            ${this.fmt(this.ddcBooks.length)} ${this.t('results_found').toLowerCase()}</div>` + show.map(b => this.bookCard(b)).join('');
-        document.getElementById('browse-more').style.display = end < this.ddcBooks.length ? 'block' : 'none';
+        this._renderDDCBooksSlice();
+    },
+
+    handleBrowseSearch(query) {
+        const val = (query || '').trim();
+        const clearBtn = document.getElementById('browse-search-clear');
+        const badge = document.getElementById('browse-search-count-badge');
+        if (clearBtn) clearBtn.style.display = val ? 'block' : 'none';
+
+        const isDdcBooksVisible = document.getElementById('browse-books') && document.getElementById('browse-books').style.display === 'grid';
+        const isProdiBooksVisible = document.getElementById('prodi-books-panel') && document.getElementById('prodi-books-panel').style.display === 'block';
+
+        if (isDdcBooksVisible) {
+            if (!val) {
+                this.activeDdcFiltered = null;
+                if (badge) badge.style.display = 'none';
+            } else {
+                const qTokens = val.toLowerCase().split(/\s+/).filter(Boolean);
+                this.activeDdcFiltered = (this.ddcBooks || []).filter(b => {
+                    const text = `${b.t || ''} ${b.a || ''} ${b.ddc || ''} ${b.call || ''} ${(b.sub || []).join(' ')}`.toLowerCase();
+                    return qTokens.every(tok => text.includes(tok));
+                });
+                if (badge) {
+                    badge.textContent = `${this.fmt(this.activeDdcFiltered.length)} buku cocok`;
+                    badge.style.display = 'inline-block';
+                }
+            }
+            this.ddcPage = 0;
+            this._renderDDCBooksSlice();
+        } else if (isProdiBooksVisible) {
+            if (!val) {
+                this.activeProdiFiltered = null;
+                if (badge) badge.style.display = 'none';
+            } else {
+                const qTokens = val.toLowerCase().split(/\s+/).filter(Boolean);
+                this.activeProdiFiltered = (this.prodiBooks || []).filter(b => {
+                    const text = `${b.t || ''} ${b.a || ''} ${b.ddc || ''} ${b.call || ''} ${(b.sub || []).join(' ')}`.toLowerCase();
+                    return qTokens.every(tok => text.includes(tok));
+                });
+                if (badge) {
+                    badge.textContent = `${this.fmt(this.activeProdiFiltered.length)} buku cocok`;
+                    badge.style.display = 'inline-block';
+                }
+            }
+            this.prodiPage = 0;
+            this._renderProdiBooks();
+        } else {
+            const q = val.toLowerCase();
+            if (this.browseMode === 'prodi') {
+                const cards = document.querySelectorAll('#prodi-grid .prodi-card');
+                let matchCount = 0;
+                cards.forEach(card => {
+                    const txt = card.innerText.toLowerCase();
+                    const match = !q || txt.includes(q);
+                    card.style.display = match ? '' : 'none';
+                    if (match) matchCount++;
+                });
+                if (badge) {
+                    if (val) {
+                        badge.textContent = `${matchCount} prodi cocok`;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            } else {
+                const rows = document.querySelectorAll('#browse-content .browse-row');
+                let matchCount = 0;
+                rows.forEach(row => {
+                    const txt = row.innerText.toLowerCase();
+                    const match = !q || txt.includes(q);
+                    row.style.display = match ? 'flex' : 'none';
+                    if (match) matchCount++;
+                });
+                if (badge) {
+                    if (val) {
+                        badge.textContent = `${matchCount} kategori cocok`;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            }
+        }
+    },
+
+    clearBrowseSearch() {
+        const inp = document.getElementById('browse-search-input');
+        if (inp && inp.value) inp.value = '';
+        const clearBtn = document.getElementById('browse-search-clear');
+        if (clearBtn) clearBtn.style.display = 'none';
+        const badge = document.getElementById('browse-search-count-badge');
+        if (badge) badge.style.display = 'none';
+
+        this.activeDdcFiltered = null;
+        this.activeProdiFiltered = null;
+
+        const isDdcBooksVisible = document.getElementById('browse-books') && document.getElementById('browse-books').style.display === 'grid';
+        const isProdiBooksVisible = document.getElementById('prodi-books-panel') && document.getElementById('prodi-books-panel').style.display === 'block';
+
+        if (isDdcBooksVisible) {
+            this._renderDDCBooksSlice();
+        } else if (isProdiBooksVisible) {
+            this._renderProdiBooks();
+        } else {
+            const cards = document.querySelectorAll('#prodi-grid .prodi-card');
+            cards.forEach(c => c.style.display = '');
+            const rows = document.querySelectorAll('#browse-content .browse-row');
+            rows.forEach(r => r.style.display = 'flex');
+        }
     },
 
     // ──── Book Detail ────
@@ -4916,10 +5073,10 @@ const app = {
                         ${this.renderCiteGroups(book)}
                         <div style="margin-top:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
                             <button type="button" class="btn btn-ghost" onclick="app.downloadCitation(app.searchEngine.getById('${book.id}') || ${JSON.stringify(book).replace(/"/g, '&quot;')}, 'ris')" style="font-size:0.8rem; padding:0.35rem 0.8rem" title="Unduh file .RIS untuk Mendeley, Zotero, EndNote">
-                                📥 Unduh .RIS (Mendeley/Zotero)
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Unduh .RIS (Mendeley/Zotero)
                             </button>
                             <button type="button" class="btn btn-ghost" onclick="app.downloadCitation(app.searchEngine.getById('${book.id}') || ${JSON.stringify(book).replace(/"/g, '&quot;')}, 'bib')" style="font-size:0.8rem; padding:0.35rem 0.8rem" title="Unduh file .BIB untuk LaTeX/Overleaf">
-                                📥 Unduh .BIB (LaTeX)
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Unduh .BIB (LaTeX)
                             </button>
                         </div>
                     </div>
@@ -5218,7 +5375,7 @@ const app = {
             ${Object.entries(dd).sort(([a], [b]) => a.localeCompare(b)).map(([c, n]) => {
             const p = Math.round((n / maxD) * 100);
             return `<div class="bar-row"><span class="bar-label">${c}00 ${dNames[c] || ''}</span>
-                    <div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${this.COLORS[c]}"></div></div>
+                    <div class="bar-track"><div class="bar-fill" style="width:${p}%;background:var(--brand)"></div></div>
                     <span class="bar-val">${this.fmt(n)}</span></div>`;
         }).join('')}
         </div>
@@ -5284,15 +5441,16 @@ const app = {
         entries.sort(([, a], [, b]) => b.count - a.count);
 
         grid.innerHTML = entries.map(([kode, info]) => {
-            const c = this.FAK_COLORS[info.fakultas] || '#818cf8';
-            const pctMax = Math.max(...Object.values(this.prodiIndex).map(v => v.count)) || 1;
-            const pct = Math.round((info.count / pctMax) * 100);
             return `
-            <div class="prodi-card" style="--prodi-color:${c}" onclick="app.showProdiBooks('${kode}')">
-                <div class="prodi-fak-badge" style="background:${c}18;color:${c}">${info.fakultas}</div>
-                <div class="prodi-name">${this.esc(info.label_short || info.label)}</div>
-                <div class="prodi-count">${this.fmt(info.count)} ${this.t('prodi_books_count')}</div>
-                <div class="prodi-bar"><div class="prodi-bar-fill" style="width:${pct}%;background:${c}"></div></div>
+            <div class="prodi-card" onclick="app.showProdiBooks('${kode}')">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
+                    <span class="prodi-fak-badge">${this.esc(info.fakultas)}</span>
+                    <span class="prodi-count">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                        ${this.fmt(info.count)} ${this.t('prodi_books_count')}
+                    </span>
+                </div>
+                <div class="prodi-name">${this.esc(info.label || info.label_short)}</div>
             </div>`;
         }).join('');
     },
@@ -5320,7 +5478,9 @@ const app = {
             this.prodiBooks = this.books.filter(b => b.prodi && b.prodi.includes(kode));
         }
         this.prodiBooks.sort((a, b) => (a.ddc || '').localeCompare(b.ddc || '') || (a.t || '').localeCompare(b.t || ''));
+        this.activeProdiFiltered = null;
         this.prodiPage = 0;
+        this.clearBrowseSearch();
 
         title.textContent = `${info.label} — ${this.fmt(this.prodiBooks.length)} ${this.t('prodi_books_count')}`;
         grid.style.display = 'none';
@@ -5333,30 +5493,32 @@ const app = {
     _renderProdiBooks() {
         const booksGrid = document.getElementById('prodi-books-grid');
         const moreBtn = document.getElementById('prodi-books-more');
+        const list = this.activeProdiFiltered !== null ? this.activeProdiFiltered : (this.prodiBooks || []);
         const end = (this.prodiPage + 1) * this.perPage;
-        const show = this.prodiBooks.slice(0, end);
+        const show = list.slice(0, end);
 
-        if (show.length === 0) {
+        if (list.length === 0) {
             booksGrid.innerHTML = `
                 <div style="grid-column:1/-1;">
                     <div class="empty-state">
                         <div class="empty-state-icon-wrap">
                             ${this.getEmptyStateSvg('search')}
                         </div>
-                        <div class="empty-state-title">Belum Ada Koleksi untuk Prodi Ini</div>
-                        <div class="empty-state-desc">Koleksi buku atau tugas akhir untuk program studi ini belum tersedia di basis data.</div>
-                        <div class="empty-state-actions">
-                            <button type="button" class="btn btn-brand" onclick="app.closeProdiBooks()">Pilih Program Studi Lain</button>
-                        </div>
+                        <div class="empty-state-title">${this.activeProdiFiltered !== null ? 'Tidak Ada Buku Ditemukan' : 'Belum Ada Koleksi untuk Prodi Ini'}</div>
+                        <div class="empty-state-desc">${this.activeProdiFiltered !== null ? 'Tidak ada koleksi pada program studi ini yang cocok dengan pencarian Anda.' : 'Koleksi buku atau tugas akhir untuk program studi ini belum tersedia di basis data.'}</div>
+                        ${this.activeProdiFiltered === null ? '<div class="empty-state-actions"><button type="button" class="btn btn-brand" onclick="app.closeProdiBooks()">Pilih Program Studi Lain</button></div>' : ''}
                     </div>
                 </div>
             `;
         } else {
+            const countLabel = this.activeProdiFiltered !== null ?
+                `${this.fmt(list.length)} buku sesuai pencarian (dari total ${this.fmt(this.prodiBooks.length)})` :
+                `${this.fmt(list.length)} ${this.t('prodi_books_count')}`;
             booksGrid.innerHTML = `<div style="grid-column:1/-1;color:var(--ink-2);font-size:.82rem;margin-bottom:.25rem">
-                ${this.fmt(this.prodiBooks.length)} ${this.t('prodi_books_count')}</div>` +
+                ${countLabel}</div>` +
                 show.map(b => this.bookCard(b)).join('');
         }
-        moreBtn.style.display = end < this.prodiBooks.length ? 'block' : 'none';
+        moreBtn.style.display = end < list.length ? 'block' : 'none';
         window.scrollTo(0, 0);
     },
 
@@ -5366,6 +5528,7 @@ const app = {
     },
 
     closeProdiBooks() {
+        this.clearBrowseSearch();
         document.getElementById('prodi-books-panel').style.display = 'none';
         document.getElementById('prodi-grid').style.display = 'grid';
         document.getElementById('prodi-fak-filter').style.display = 'flex';
@@ -5381,16 +5544,16 @@ const app = {
         const q = this._currentSearchQuery || '';
         const titleHl = this.hl(b.t, q);
         const authorHl = b.a ? this.hl(b.a, q) : '';
-        return `<div class="bk-card" style="--shelf-color:${c}" data-bid="${safeId}" data-url="${safeUrl}" onclick="app._cardClick(this)">
+        return `<div class="bk-card" data-bid="${safeId}" data-url="${safeUrl}" onclick="app._cardClick(this)">
             <button id="bm-star-${safeId}" class="bk-star ${isBm ? 'active' : ''}" onclick="event.stopPropagation();app._bookmarkFromCard(this)" data-bid="${safeId}" title="${isBm ? this.t('btn_bookmarked') : this.t('btn_bookmark')}" style="color:${isBm ? 'var(--brand)' : 'var(--ink-3)'}">${this.starSvg(isBm)}</button>
             ${b.img ? `<div class="bk-cover" style="background-image:url('${b.img}')"></div>` : ''}
             <div class="bk-title">${titleHl}</div>
             ${authorHl ? `<div class="bk-author">${authorHl}</div>` : ''}
             <div class="bk-meta">
-                ${b.ddc ? `<span class="chip chip-ddc" style="background:${c}14;color:${c}">DDC ${b.ddc}</span>` : ''}
+                ${b.ddc ? `<span class="chip chip-ddc">DDC ${b.ddc}</span>` : ''}
                 ${b.yr ? `<span class="chip chip-year">${b.yr}</span>` : ''}
                 ${b.type ? `<span class="chip chip-type">${this.typeName(b.type)}</span>` : ''}
-                ${b.isSubscribed ? `<span class="chip chip-sub" style="background:rgba(217, 119, 6, 0.15); color:#b45309; font-weight:700;">★ Langganan Resmi</span>` : (b.src ? `<span class="chip chip-sub">${b.src}</span>` : '')}
+                ${b.isSubscribed ? `<span class="chip chip-sub" style="background:rgba(217, 119, 6, 0.15); color:#b45309; font-weight:700;"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px; margin-right:3px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Langganan Resmi</span>` : (b.src ? `<span class="chip chip-sub">${b.src}</span>` : '')}
             </div>
         </div>`;
     },
