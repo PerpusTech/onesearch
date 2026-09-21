@@ -1027,13 +1027,13 @@
                     <span>Widget Embed</span>
                 </button>
                 <button type="button" class="admin-tab-btn" id="tab-btn-analytics"
-                    onclick="switchAdminTab('analytics')" title="Analitik Pencarian">
+                    onclick="switchAdminTab('analytics')" title="Statistik & Analitik Pencarian">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="20" x2="18" y2="10"></line>
                         <line x1="12" y1="20" x2="12" y2="4"></line>
                         <line x1="6" y1="20" x2="6" y2="14"></line>
                     </svg>
-                    <span>Analitik</span>
+                    <span>Statistik & Analitik</span>
                 </button>
                 <button type="button" class="admin-tab-btn" id="tab-btn-ddc" onclick="switchAdminTab('ddc')"
                     title="Master Data DDC & Pemetaan Program Studi">
@@ -1191,6 +1191,60 @@
                             </div>
                         </div>
 
+                    </div>
+                </div>
+
+                <!-- Auto-Backup & Dataset Preservation Panel -->
+                <div>
+                    <div class="section-header">
+                        <span class="section-heading">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                <polyline points="7 3 7 8 15 8"></polyline>
+                            </svg>
+                            Cadangan Data Otomatis (Auto-Backup Sebelum Re-Harvest)
+                        </span>
+                        <button type="button" class="btn btn-primary btn-xs" id="btn-backup-manual" onclick="triggerManualBackup()">
+                            + Buat Backup Manual Sekarang
+                        </button>
+                    </div>
+
+                    <div style="background:var(--bg-surface); border:1px solid var(--border-main); border-radius:var(--radius-md); padding:0.85rem 1rem; margin-bottom:0.75rem; font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.4rem;">
+                            <span style="font-weight:600; color:var(--text-main); display:inline-flex; align-items:center; gap:0.4rem;">
+                                <span style="width:8px; height:8px; border-radius:50%; background:#10b981; display:inline-block;"></span>
+                                Auto-Backup Sebelum Harvest: Aktif
+                            </span>
+                            <span style="font-size:0.72rem; color:var(--text-muted);">
+                                Retensi: Menyimpan 5 arsip ZIP terkompresi terakhir secara otomatis
+                            </span>
+                        </div>
+                        Setiap kali proses harvest dipicu (inkremental harian maupun full sync), dataset katalog (<code style="font-family:var(--font-mono); font-size:0.73rem;">books.json</code>, indeks subjek, prodi, dan statistik) otomatis dicadangkan terlebih dahulu. Jika terjadi anomali dari server sumber, Anda dapat memulihkan (restore) dataset secara instan.
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Waktu Pencadangan</th>
+                                    <th>Nama Arsip (.zip)</th>
+                                    <th>Pemicu</th>
+                                    <th>Ukuran</th>
+                                    <th>Total Rekord</th>
+                                    <th style="text-align:right;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="backups-tbody">
+                                <tr>
+                                    <td colspan="6"
+                                        style="text-align:center; padding:1.25rem; color:var(--text-muted);">
+                                        Memuat daftar cadangan data...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -1952,7 +2006,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
                     <div>
                         <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0 0 0.25rem 0;">
-                            Laporan Tren Kata Kunci & Usulan Pengadaan Buku</h2>
+                            Statistik & Laporan Tren Pencarian Sivitas Akademika</h2>
                         <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Merekam kata kunci pencarian
                             sivitas akademika secara anonim untuk evaluasi kurikulum & pengadaan koleksi pustaka UMS.
                         </p>
@@ -1989,22 +2043,21 @@
                     <div class="card">
                         <div class="card-label">Total Pencarian Anonim</div>
                         <div class="card-value" id="metric-analytics-total">0</div>
-                        <div class="card-sub">Akumulasi pencarian katalog</div>
+                        <div class="card-sub">Akumulasi pencarian sivitas</div>
                     </div>
                     <div class="card">
-                        <div class="card-label">Pencarian Tanpa Hasil (Zero-Result)</div>
-                        <div class="card-value" id="metric-analytics-zero" style="color:var(--color-danger, #ef4444);">0
-                        </div>
+                        <div class="card-label">Pencarian Tanpa Hasil</div>
+                        <div class="card-value" id="metric-analytics-zero" style="color:var(--color-danger, #ef4444);">0</div>
                         <div class="card-sub">Koleksi belum ada di UMS</div>
                     </div>
                     <div class="card">
-                        <div class="card-label">Tingkat Pencarian Tanpa Hasil</div>
+                        <div class="card-label">Rasio Tanpa Hasil</div>
                         <div class="card-value" id="metric-analytics-zero-pct">0%</div>
-                        <div class="card-sub">Rasio dari total pencarian</div>
+                        <div class="card-sub">Persentase dari total pencarian</div>
                     </div>
                     <div class="card">
                         <div class="card-label">Pembaruan Terakhir</div>
-                        <div class="card-value" id="metric-analytics-last" style="font-size:0.95rem;">-</div>
+                        <div class="card-value" id="metric-analytics-last" style="font-size:1.05rem;">-</div>
                         <div class="card-sub">Waktu log pencarian terbaru</div>
                     </div>
                 </div>
@@ -2272,15 +2325,22 @@
 
                         <!-- Prodi Toolbar Filter -->
                         <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
-                            <div style="flex:1; min-width:240px;">
+                            <div style="flex:1; min-width:200px;">
                                 <input type="text" id="prodi-search-input" class="input"
                                     placeholder="Cari nama program studi atau kode..." oninput="filterProdiRulesTable()"
                                     style="font-size:0.82rem; padding:0.45rem 0.75rem;">
                             </div>
-                            <div style="width:220px;">
-                                <select id="prodi-fakultas-filter" class="select" onchange="filterProdiRulesTable()"
+                            <div style="width:200px;">
+                                <select id="prodi-fakultas-filter" class="select" onchange="onFakultasFilterChange(this.value)"
                                     style="width:100%; font-size:0.82rem;">
                                     <option value="all">Semua Fakultas</option>
+                                    <!-- Filled dynamically -->
+                                </select>
+                            </div>
+                            <div style="width:260px;">
+                                <select id="prodi-select-filter" class="select" onchange="onProdiSelectFilterChange(this.value)"
+                                    style="width:100%; font-size:0.82rem;">
+                                    <option value="all">Semua Program Studi</option>
                                     <!-- Filled dynamically -->
                                 </select>
                             </div>
@@ -2990,12 +3050,33 @@
                 <div style="display:flex; flex-direction:column; gap:0.85rem; margin-bottom:1.15rem; padding-bottom:1rem; border-bottom:1px solid var(--border-main);">
                     <div class="form-group">
                         <label class="form-label" for="prodi-rules-label">Nama Program Studi (Lengkap dengan Jenjang) *:</label>
-                        <input type="text" id="prodi-rules-label" class="input" placeholder="Contoh: Teknik Informatika (S1)" required>
+                        <input type="text" id="prodi-rules-label" class="input" list="prodi-rules-label-datalist" placeholder="Contoh: Teknik Informatika (S1)" required>
+                        <datalist id="prodi-rules-label-datalist"></datalist>
                     </div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                         <div class="form-group">
                             <label class="form-label" for="prodi-rules-fakultas">Singkatan Fakultas *:</label>
-                            <input type="text" id="prodi-rules-fakultas" class="input" list="prodi-fakultas-datalist" placeholder="Contoh: FT, FAI, FEB" required style="text-transform:uppercase;" oninput="syncProdiRulesFakultasSuggestion(this.value)">
+                            <select id="prodi-rules-fakultas" class="select" required onchange="onProdiFakultasChange('edit', this.value)">
+                                <option value="">-- Pilih Fakultas --</option>
+                                <option value="FAI">FAI — Fak. Agama Islam</option>
+                                <option value="FEB">FEB — Fak. Ekonomi Bisnis</option>
+                                <option value="FF">FF — Fak. Farmasi</option>
+                                <option value="FG">FG — Fak. Geografi</option>
+                                <option value="FH">FH — Fak. Hukum</option>
+                                <option value="FHIP">FHIP — Fak. Hukum & Ilmu Politik</option>
+                                <option value="FIK">FIK — Fak. Ilmu Kesehatan</option>
+                                <option value="FK">FK — Fak. Kedokteran</option>
+                                <option value="FKG">FKG — Fak. Kedokteran Gigi</option>
+                                <option value="FKI">FKI — Fak. Komunikasi & Informatika</option>
+                                <option value="FKIP">FKIP — Fak. Keguruan & Ilmu Pendidikan</option>
+                                <option value="FP">FP — Fak. Psikologi</option>
+                                <option value="FT">FT — Fak. Teknik</option>
+                                <option value="PASCA">PASCA — Sekolah Pascasarjana</option>
+                                <option value="__CUSTOM__">+ Kustom / Singkatan Lainnya...</option>
+                            </select>
+                            <div id="prodi-rules-fakultas-custom-wrap" style="display:none; margin-top:0.4rem;">
+                                <input type="text" id="prodi-rules-fakultas-custom" class="input" placeholder="Ketik singkatan fakultas (misal: FPSI)" style="text-transform:uppercase;">
+                            </div>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="prodi-rules-fakultas-label">Nama Lengkap Fakultas:</label>
@@ -3003,22 +3084,6 @@
                         </div>
                     </div>
                 </div>
-
-                <datalist id="prodi-fakultas-datalist">
-                    <option value="FAI">Fak. Agama Islam</option>
-                    <option value="FEB">Fak. Ekonomi & Bisnis</option>
-                    <option value="FF">Fak. Farmasi</option>
-                    <option value="FGY">Fak. Geografi</option>
-                    <option value="FHIP">Fak. Hukum & Ilmu Politik</option>
-                    <option value="FIK">Fak. Ilmu Kesehatan</option>
-                    <option value="FK">Fak. Kedokteran</option>
-                    <option value="FKG">Fak. Kedokteran Gigi</option>
-                    <option value="FKI">Fak. Komunikasi & Informatika</option>
-                    <option value="FKIP">Fak. Keguruan & Ilmu Pendidikan</option>
-                    <option value="FP">Fak. Psikologi</option>
-                    <option value="FT">Fak. Teknik</option>
-                    <option value="PASCA">Sekolah Pascasarjana</option>
-                </datalist>
 
                 <!-- Rule Tags Box -->
                 <div class="form-group">
@@ -3086,19 +3151,50 @@
 
                 <form onsubmit="event.preventDefault(); saveNewProdi();">
                     <div style="display:flex; flex-direction:column; gap:0.85rem;">
+                        <div class="form-group" style="background:rgba(37,99,235,0.05); border:1px solid rgba(37,99,235,0.2); padding:0.65rem 0.75rem; border-radius:var(--radius-sm);">
+                            <label class="form-label" for="prodi-new-preset-select" style="color:var(--accent); font-weight:600; font-size:0.8rem; margin-bottom:0.35rem;">
+                                Pilih Cepat dari Master Prodi UMS:
+                            </label>
+                            <select id="prodi-new-preset-select" class="select" onchange="onSelectProdiPreset(this.value)" style="width:100%; font-size:0.82rem;">
+                                <option value="">-- Pilih Referensi Prodi UMS atau Ketik Manual di Bawah --</option>
+                            </select>
+                            <small style="color:var(--text-muted); font-size:0.7rem; display:block; margin-top:0.3rem;">
+                                Otomatis mengisi kode, nama prodi, fakultas, dan aturan DDC standar.
+                            </small>
+                        </div>
                         <div class="form-group">
-                            <label class="form-label" for="prodi-new-code">Kode Program Studi:</label>
+                            <label class="form-label" for="prodi-new-code">Kode Program Studi *:</label>
                             <input type="text" id="prodi-new-code" class="input" placeholder="Misal: FT-INFOS2 atau FAI-HES-S3" required style="font-family:var(--font-mono); text-transform:uppercase;">
                             <small style="color:var(--text-muted); font-size:0.72rem;">Gunakan format kode unik tanpa spasi.</small>
                         </div>
                         <div class="form-group">
-                            <label class="form-label" for="prodi-new-label">Nama Program Studi (Lengkap dengan Jenjang):</label>
+                            <label class="form-label" for="prodi-new-label">Nama Program Studi (Lengkap dengan Jenjang) *:</label>
                             <input type="text" id="prodi-new-label" class="input" placeholder="Misal: Magister Teknik Informatika (S2)" required>
                         </div>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                             <div class="form-group">
-                                <label class="form-label" for="prodi-new-fakultas">Singkatan Fakultas:</label>
-                                <input type="text" id="prodi-new-fakultas" class="input" placeholder="Misal: FT, FAI, FEB" required style="text-transform:uppercase;">
+                                <label class="form-label" for="prodi-new-fakultas">Singkatan Fakultas *:</label>
+                                <select id="prodi-new-fakultas" class="select" required onchange="onProdiFakultasChange('new', this.value)">
+                                    <option value="">-- Pilih Fakultas --</option>
+                                    <option value="FAI">FAI — Fak. Agama Islam</option>
+                                    <option value="FEB">FEB — Fak. Ekonomi Bisnis</option>
+                                    <option value="FF">FF — Fak. Farmasi</option>
+                                    <option value="FG">FG — Fak. Geografi</option>
+                                    <option value="FH">FH — Fak. Hukum</option>
+                                    <option value="FHIP">FHIP — Fak. Hukum & Ilmu Politik</option>
+                                    <option value="FIK">FIK — Fak. Ilmu Kesehatan</option>
+                                    <option value="FK">FK — Fak. Kedokteran</option>
+                                    <option value="FKG">FKG — Fak. Kedokteran Gigi</option>
+                                    <option value="FKI">FKI — Fak. Komunikasi & Informatika</option>
+                                    <option value="FKIP">FKIP — Fak. Keguruan & Ilmu Pendidikan</option>
+                                    <option value="FP">FP — Fak. Psikologi</option>
+                                    <option value="FT">FT — Fak. Teknik</option>
+                                    <option value="PASCA">PASCA — Sekolah Pascasarjana</option>
+                                    <option value="__CUSTOM__">+ Kustom / Singkatan Lainnya...</option>
+                                </select>
+                                <div id="prodi-new-fakultas-custom-wrap" style="display:none; margin-top:0.4rem;">
+                                    <input type="text" id="prodi-new-fakultas-custom" class="input" placeholder="Ketik singkatan fakultas (misal: FPSI)" style="text-transform:uppercase;">
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label class="form-label" for="prodi-new-fakultas-label">Nama Lengkap Fakultas:</label>
@@ -3371,7 +3467,7 @@
                     pageDesc.textContent = 'Kustomisasi dan salin kode kotak pencarian UMS Library OneSearch untuk dipasang di website WordPress, portal fakultas, atau blog.';
                     initEmbedGenerator();
                 } else if (tab === 'analytics') {
-                    pageTitle.textContent = 'Analisis Tren Pencarian & Usulan Pengadaan';
+                    pageTitle.textContent = 'Statistik & Analisis Tren Pencarian';
                     pageDesc.textContent = 'Wawasan kata kunci pencarian sivitas akademika dan daftar buku yang belum tersedia (zero-result) untuk prioritas belanja pustaka.';
                     loadSearchAnalytics();
                 } else if (tab === 'ddc') {
@@ -3578,6 +3674,7 @@
                     }
 
                     loadInstitutions();
+                    loadBackups();
                     loadLogContent();
                     if (currentAdminTab === 'international') {
                         loadInternationalConfig();
@@ -3668,6 +3765,141 @@
                     document.getElementById('metric-file-size').textContent = `${files.books_size_mb} MB`;
                     document.getElementById('metric-file-mod').textContent = `Update: ${formatRelative(files.books_modified)}`;
                 }
+            }
+
+            // ── Dataset Backups Management ──
+            async function loadBackups() {
+                if (!adminKey) return;
+                try {
+                    const res = await adminFetch('/api/admin/backups');
+                    if (res.ok) {
+                        const data = await res.json();
+                        renderBackupsTable(data.backups || []);
+                    }
+                } catch (e) {
+                    if (e.message !== 'Unauthorized') console.error('Error loadBackups:', e);
+                }
+            }
+
+            function renderBackupsTable(backups) {
+                const tbody = document.getElementById('backups-tbody');
+                if (!tbody) return;
+
+                if (!backups || backups.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1.25rem; color:var(--text-muted);">Belum ada arsip cadangan dataset tersimpan di backups/.</td></tr>';
+                    return;
+                }
+
+                const reasonMap = {
+                    'pre_harvest_incremental': 'Pre-Harvest Inkremental',
+                    'pre_harvest_full': 'Pre-Harvest Full Sync',
+                    'pre_harvest': 'Pre-Harvest Otomatis',
+                    'manual_admin_ui': 'Cadangan Manual Admin',
+                    'manual_cli': 'Cadangan CLI Manual',
+                    'test_initial': 'Inisialisasi Sistem'
+                };
+
+                tbody.innerHTML = backups.map(b => {
+                    const dt = b.timestamp ? new Date(b.timestamp) : new Date(b.modified);
+                    const dateFormatted = !isNaN(dt) ? dt.toLocaleString('id-ID', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', second: '2-digit'
+                    }) + ' WIB' : b.timestamp;
+
+                    const reasonText = reasonMap[b.reason] || b.reason || 'Cadangan';
+                    const recordsCount = (b.records || 0).toLocaleString('id-ID');
+                    const downloadUrl = `/api/admin/backups/download?file=${encodeURIComponent(b.filename)}&key=${encodeURIComponent(adminKey)}`;
+
+                    return `
+                    <tr>
+                        <td>
+                            <div style="font-weight:600; font-size:0.8rem;">${esc(dateFormatted)}</div>
+                            <div style="font-size:0.7rem; color:var(--text-muted);">Pemicu: ${esc(b.created_by || 'Sistem')}</div>
+                        </td>
+                        <td>
+                            <span class="code-tag" style="font-size:0.75rem;">${esc(b.filename)}</span>
+                        </td>
+                        <td>
+                            <span style="font-size:0.75rem; padding:0.2rem 0.5rem; border-radius:4px; background:var(--bg-muted); border:1px solid var(--border-main);">${esc(reasonText)}</span>
+                        </td>
+                        <td>
+                            <span style="font-size:0.78rem; font-weight:500;">${b.size_mb} MB</span>
+                        </td>
+                        <td>
+                            <span style="font-size:0.78rem; font-weight:600; color:var(--text-main);">${recordsCount} buku</span>
+                        </td>
+                        <td style="text-align:right;">
+                            <a href="${downloadUrl}" class="btn btn-xs" title="Unduh arsip ZIP cadangan" download>
+                                Unduh
+                            </a>
+                            <button type="button" class="btn btn-destructive btn-xs" onclick="confirmRestoreBackup('${esc(b.filename)}', ${b.records || 0}, '${esc(dateFormatted)}')" title="Pulihkan data katalog dari file ini">
+                                Pulihkan
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            }
+
+            async function triggerManualBackup() {
+                const isAuthed = await checkAuth();
+                if (!isAuthed) return;
+
+                const btn = document.getElementById('btn-backup-manual');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Membuat Cadangan...';
+                }
+
+                try {
+                    showToast('Sedang membuat arsip cadangan dataset...');
+                    const res = await adminFetch('/api/admin/backups/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ reason: 'manual_admin_ui' })
+                    });
+                    const resData = await res.json();
+                    if (res.ok) {
+                        showToast(resData.message || 'Cadangan dataset berhasil dibuat.');
+                        loadBackups();
+                    } else {
+                        showToast(`Gagal: ${resData.error || 'Gagal membuat cadangan'}`);
+                    }
+                } catch (e) {
+                    if (e.message !== 'Unauthorized') showToast(`Error: ${e.message}`);
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = '+ Buat Backup Manual Sekarang';
+                    }
+                }
+            }
+
+            function confirmRestoreBackup(filename, records, dateFormatted) {
+                openConfirmModal(
+                    'Konfirmasi Pemulihan Dataset Katalog',
+                    `Apakah Anda yakin ingin memulihkan seluruh dataset dari cadangan "${filename}" (${dateFormatted})?\n\nPerhatian: Dataset aktif saat ini (books.json, indeks prodi, subjek, dan statistik) akan ditimpa dengan data cadangan ini (${(records || 0).toLocaleString('id-ID')} rekord).`,
+                    'Pulihkan Dataset Sekarang',
+                    true,
+                    async () => {
+                        try {
+                            showToast('Sedang memulihkan dataset dari cadangan...');
+                            const res = await adminFetch('/api/admin/backups/restore', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ filename })
+                            });
+                            const resData = await res.json();
+                            if (res.ok) {
+                                showToast(resData.message || 'Dataset berhasil dipulihkan.');
+                                refreshDashboard(true);
+                            } else {
+                                showToast(`Gagal: ${resData.error || 'Gagal memulihkan dataset'}`);
+                            }
+                        } catch (e) {
+                            if (e.message !== 'Unauthorized') showToast(`Error: ${e.message}`);
+                        }
+                    }
+                );
             }
 
             // ── Institutions Management ──
@@ -5112,14 +5344,21 @@
                         if (!data.top_queries || data.top_queries.length === 0) {
                             topTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">Belum ada data pencarian tercatat.</td></tr>';
                         } else {
-                            topTbody.innerHTML = data.top_queries.map((item, idx) => `
+                            topTbody.innerHTML = data.top_queries.map((item, idx) => {
+                                const rankColor = idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : idx === 2 ? '#b45309' : 'var(--text-muted)';
+                                return `
                                 <tr>
-                                    <td style="width:45px; text-align:center; font-weight:600; color:var(--text-muted);">${idx + 1}</td>
-                                    <td><strong style="color:var(--text-main); font-size:0.85rem;">${esc(item.query)}</strong></td>
-                                    <td style="text-align:right;"><span class="badge badge-neutral" style="font-weight:600;">${item.count}x</span></td>
-                                    <td style="text-align:right; font-size:0.75rem; color:var(--text-muted);">${esc(item.last) || '-'}</td>
-                                </tr>
-                            `).join('');
+                                    <td style="width:45px; text-align:center; font-weight:700; color:${rankColor};">${idx + 1}</td>
+                                    <td>
+                                        <a href="/?q=${encodeURIComponent(item.query)}" target="_blank" title="Uji pencarian di katalog publik" style="color:var(--text-main); text-decoration:none; font-weight:600; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.35rem;">
+                                            <span>${esc(item.query)}</span>
+                                            <span style="font-size:0.65rem; color:var(--text-muted); opacity:0.7;">↗</span>
+                                        </a>
+                                    </td>
+                                    <td style="text-align:right;"><span class="badge badge-neutral" style="font-weight:700;">${item.count.toLocaleString('id-ID')}x</span></td>
+                                    <td style="text-align:right; font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono, monospace);">${esc(item.last) || '-'}</td>
+                                </tr>`;
+                            }).join('');
                         }
                     }
 
@@ -5129,14 +5368,21 @@
                         if (!data.zero_result_queries || data.zero_result_queries.length === 0) {
                             zeroTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.5rem;">Belum ada kata kunci tanpa hasil tercatat.</td></tr>';
                         } else {
-                            zeroTbody.innerHTML = data.zero_result_queries.map((item, idx) => `
+                            zeroTbody.innerHTML = data.zero_result_queries.map((item, idx) => {
+                                const rankColor = idx === 0 ? '#ef4444' : idx < 3 ? '#f87171' : 'var(--text-muted)';
+                                return `
                                 <tr>
-                                    <td style="width:45px; text-align:center; font-weight:600; color:var(--text-muted);">${idx + 1}</td>
-                                    <td><strong style="color:var(--color-danger, #ef4444); font-size:0.85rem;">${esc(item.query)}</strong></td>
-                                    <td style="text-align:right;"><span class="badge badge-danger" style="font-weight:600;">${item.count}x</span></td>
-                                    <td style="text-align:right; font-size:0.75rem; color:var(--text-muted);">${esc(item.last) || '-'}</td>
-                                </tr>
-                            `).join('');
+                                    <td style="width:45px; text-align:center; font-weight:700; color:${rankColor};">${idx + 1}</td>
+                                    <td>
+                                        <a href="/?q=${encodeURIComponent(item.query)}" target="_blank" title="Uji pencarian di katalog publik" style="color:var(--color-danger, #ef4444); text-decoration:none; font-weight:600; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.35rem;">
+                                            <span>${esc(item.query)}</span>
+                                            <span style="font-size:0.65rem; color:var(--text-muted); opacity:0.7;">↗</span>
+                                        </a>
+                                    </td>
+                                    <td style="text-align:right;"><span class="badge badge-danger" style="font-weight:700;">${item.count.toLocaleString('id-ID')}x</span></td>
+                                    <td style="text-align:right; font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono, monospace);">${esc(item.last) || '-'}</td>
+                                </tr>`;
+                            }).join('');
                         }
                     }
                 } catch (e) {
@@ -5559,8 +5805,12 @@
                     const fakFilter = document.getElementById('prodi-fakultas-filter');
                     if (fakFilter && data.fakultas_list) {
                         fakFilter.innerHTML = '<option value="all">Semua Fakultas</option>' +
-                            data.fakultas_list.map(f => `<option value="${f}">${f}</option>`).join('');
+                            data.fakultas_list.map(f => `<option value="${f}">${f} — ${KNOWN_FAKULTAS_LABELS[f] || f}</option>`).join('');
                     }
+
+                    populateProdiSelectFilter('all');
+                    populateProdiLabelDatalist('all');
+                    populateProdiPresetSelect();
 
                     renderProdiRulesTable();
                 } catch (e) {
@@ -5572,17 +5822,55 @@
                 renderProdiRulesTable();
             }
 
+            function populateProdiSelectFilter(selectedFak = 'all') {
+                const sel = document.getElementById('prodi-select-filter');
+                if (!sel) return;
+
+                let list = prodiRulesList || [];
+                if (selectedFak && selectedFak !== 'all') {
+                    list = list.filter(p => p.fakultas === selectedFak);
+                }
+
+                let html = '<option value="all">Semua Program Studi (' + list.length + ')</option>';
+                for (const p of list) {
+                    html += `<option value="${p.code}">${esc(p.label)} [${p.code}]</option>`;
+                }
+                sel.innerHTML = html;
+            }
+
+            function onFakultasFilterChange(fak) {
+                populateProdiSelectFilter(fak);
+                const sel = document.getElementById('prodi-select-filter');
+                if (sel) sel.value = 'all';
+                renderProdiRulesTable();
+            }
+
+            function onProdiSelectFilterChange(code) {
+                if (code && code !== 'all') {
+                    const item = prodiRulesList.find(p => p.code === code);
+                    if (item && item.fakultas) {
+                        const fakFilter = document.getElementById('prodi-fakultas-filter');
+                        if (fakFilter && fakFilter.value !== item.fakultas && fakFilter.value !== 'all') {
+                            fakFilter.value = item.fakultas;
+                        }
+                    }
+                }
+                renderProdiRulesTable();
+            }
+
             function renderProdiRulesTable() {
                 const tbody = document.getElementById('prodi-rules-tbody');
                 if (!tbody) return;
 
                 const q = (document.getElementById('prodi-search-input')?.value || '').toLowerCase().trim();
                 const fak = document.getElementById('prodi-fakultas-filter')?.value || 'all';
+                const selectedProdi = document.getElementById('prodi-select-filter')?.value || 'all';
 
                 const filtered = prodiRulesList.filter(p => {
                     const matchFak = (fak === 'all') || (p.fakultas === fak);
+                    const matchProdi = (selectedProdi === 'all') || (p.code === selectedProdi);
                     const matchQ = !q || p.code.toLowerCase().includes(q) || p.label.toLowerCase().includes(q);
-                    return matchFak && matchQ;
+                    return matchFak && matchProdi && matchQ;
                 });
 
                 if (filtered.length === 0) {
@@ -5627,9 +5915,10 @@
 
             const KNOWN_FAKULTAS_LABELS = {
                 'FAI': 'Fak. Agama Islam',
-                'FEB': 'Fak. Ekonomi & Bisnis',
+                'FEB': 'Fak. Ekonomi Bisnis',
                 'FF': 'Fak. Farmasi',
-                'FGY': 'Fak. Geografi',
+                'FG': 'Fak. Geografi',
+                'FH': 'Fak. Hukum',
                 'FHIP': 'Fak. Hukum & Ilmu Politik',
                 'FIK': 'Fak. Ilmu Kesehatan',
                 'FK': 'Fak. Kedokteran',
@@ -5637,16 +5926,192 @@
                 'FKI': 'Fak. Komunikasi & Informatika',
                 'FKIP': 'Fak. Keguruan & Ilmu Pendidikan',
                 'FP': 'Fak. Psikologi',
+                'FPSI': 'Fak. Psikologi',
                 'FT': 'Fak. Teknik',
                 'PASCA': 'Sekolah Pascasarjana'
             };
 
-            function syncProdiRulesFakultasSuggestion(val) {
-                const code = (val || '').trim().toUpperCase();
-                const target = document.getElementById('prodi-rules-fakultas-label');
-                if (!target) return;
-                if (KNOWN_FAKULTAS_LABELS[code] && (!target.value || target.value === val)) {
-                    target.value = KNOWN_FAKULTAS_LABELS[code];
+            const UMS_MASTER_PRODI = [
+                // FAI
+                { code: 'FAI-HES', label: 'Hukum Ekonomi Syariah (S1)', fak: 'FAI', rules: '297*, 330*, 332*, 34*' },
+                { code: 'FAI-HES-S2', label: 'Hukum Ekonomi Syariah (S2)', fak: 'FAI', rules: '297*, 330*, 332*, 34*' },
+                { code: 'FAI-IQT', label: 'Ilmu Al-Quran & Tafsir (S1)', fak: 'FAI', rules: '297*, 297.12*, 297.13*, 492.7*' },
+                { code: 'FAI-PAI', label: 'Pendidikan Agama Islam (S1)', fak: 'FAI', rules: '297*, 370-379, 492.7*' },
+                { code: 'FAI-PAI-S2', label: 'Magister Pendidikan Agama Islam (S2)', fak: 'FAI', rules: '297*, 370-379' },
+                { code: 'FAI-PAI-S3', label: 'Doktor Pendidikan Agama Islam (S3)', fak: 'FAI', rules: '297*, 370-379' },
+
+                // FEB
+                { code: 'FEB-MJM', label: 'Manajemen (S1)', fak: 'FEB', rules: '330*, 658*, 659*' },
+                { code: 'FEB-MJM-S2', label: 'Magister Manajemen (S2)', fak: 'FEB', rules: '330*, 658*, 659*' },
+                { code: 'FEB-AKT', label: 'Akuntansi (S1)', fak: 'FEB', rules: '330*, 657*, 658*' },
+                { code: 'FEB-AKT-S2', label: 'Magister Akuntansi (S2)', fak: 'FEB', rules: '330*, 657*, 658*' },
+                { code: 'FEB-EP', label: 'Ekonomi Pembangunan (S1)', fak: 'FEB', rules: '330-339, 350-354' },
+                { code: 'FEB-BDG', label: 'Bisnis Digital (S1)', fak: 'FEB', rules: '004*, 330*, 380*, 658*' },
+                { code: 'FEB-IEP-S3', label: 'Doktor Ilmu Ekonomi (S3)', fak: 'FEB', rules: '330-339' },
+
+                // FF
+                { code: 'FF-FAR', label: 'Farmasi (S1)', fak: 'FF', rules: '540*, 570*, 615*' },
+                { code: 'FF-PFAR', label: 'Profesi Apoteker', fak: 'FF', rules: '615*, 610-618' },
+                { code: 'FF-FAR-S2', label: 'Magister Farmasi (S2)', fak: 'FF', rules: '540*, 615*' },
+
+                // FG
+                { code: 'FG-GEO', label: 'Geografi (S1)', fak: 'FG', rules: '526*, 550*, 910*' },
+                { code: 'FG-SIG', label: 'Sains Informasi Geografi (S1)', fak: 'FG', rules: '004*, 526*, 550*, 910*' },
+                { code: 'FG-GEO-S2', label: 'Magister Pengelolaan Lahan & Sumberdaya (S2)', fak: 'FG', rules: '333*, 550*, 910*' },
+
+                // FH / FHIP
+                { code: 'FH-HUKUM', label: 'Ilmu Hukum (S1)', fak: 'FH', rules: '340-349' },
+                { code: 'FH-HUKUM-S2', label: 'Magister Ilmu Hukum (S2)', fak: 'FH', rules: '340-349' },
+                { code: 'FH-HUKUM-S3', label: 'Doktor Ilmu Hukum (S3)', fak: 'FH', rules: '340-349' },
+                { code: 'FHIP-HI', label: 'Hubungan Internasional (S1)', fak: 'FHIP', rules: '320*, 327*, 341*' },
+                { code: 'FHIP-ADM', label: 'Administrasi Publik (S1)', fak: 'FHIP', rules: '350-354, 658*' },
+
+                // FIK
+                { code: 'FIK-FISIO', label: 'Fisioterapi (S1)', fak: 'FIK', rules: '610-618' },
+                { code: 'FIK-PFISIO', label: 'Profesi Fisioterapis', fak: 'FIK', rules: '610-618' },
+                { code: 'FIK-KEPER', label: 'Keperawatan (S1)', fak: 'FIK', rules: '610-618' },
+                { code: 'FIK-PNERS', label: 'Profesi Ners', fak: 'FIK', rules: '610-618' },
+                { code: 'FIK-KEPER-S2', label: 'Magister Keperawatan (S2)', fak: 'FIK', rules: '610-618' },
+                { code: 'FIK-GIZI', label: 'Ilmu Gizi (S1)', fak: 'FIK', rules: '612.3*, 613.2*, 641*' },
+                { code: 'FIK-KESMAS', label: 'Kesehatan Masyarakat (S1)', fak: 'FIK', rules: '362*, 613*, 614*' },
+
+                // FK
+                { code: 'FK-KED', label: 'Kedokteran (S1)', fak: 'FK', rules: '570*, 610-618' },
+                { code: 'FK-PDOKTER', label: 'Profesi Dokter', fak: 'FK', rules: '610-618' },
+                { code: 'FK-MARS', label: 'Magister Administrasi Rumah Sakit (S2)', fak: 'FK', rules: '362.1*, 610*, 658*' },
+
+                // FKG
+                { code: 'FKG-GIGI', label: 'Pendidikan Dokter Gigi (S1)', fak: 'FKG', rules: '611.31*, 617.6*' },
+                { code: 'FKG-PGIGI', label: 'Profesi Dokter Gigi', fak: 'FKG', rules: '617.6*' },
+
+                // FKI
+                { code: 'FKI-ILKOM', label: 'Ilmu Komunikasi (S1)', fak: 'FKI', rules: '302.2*, 384*, 659*' },
+                { code: 'FKI-ILKOM-S2', label: 'Magister Ilmu Komunikasi (S2)', fak: 'FKI', rules: '302.2*, 384*' },
+                { code: 'FKI-INFOR', label: 'Teknik Informatika (S1)', fak: 'FKI', rules: '004*, 005*, 006*, 510*' },
+                { code: 'FKI-INFOR-S2', label: 'Magister Informatika (S2)', fak: 'FKI', rules: '004*, 005*, 006*' },
+                { code: 'FKI-SI', label: 'Sistem Informasi (S1)', fak: 'FKI', rules: '004*, 005*, 658*' },
+
+                // FKIP
+                { code: 'FKIP-PAKT', label: 'Pendidikan Akuntansi (S1)', fak: 'FKIP', rules: '370-379, 657*' },
+                { code: 'FKIP-PPKN', label: 'Pend. Pancasila & Kewarganegaraan (S1)', fak: 'FKIP', rules: '320*, 340*, 370-379' },
+                { code: 'FKIP-PBSI', label: 'Pend. Bahasa & Sastra Indonesia (S1)', fak: 'FKIP', rules: '370-379, 410*, 810*' },
+                { code: 'FKIP-PBSI-S2', label: 'Magister Pend. Bahasa Indonesia (S2)', fak: 'FKIP', rules: '370-379, 410*, 810*' },
+                { code: 'FKIP-PBING', label: 'Pendidikan Bahasa Inggris (S1)', fak: 'FKIP', rules: '370-379, 420*, 820*' },
+                { code: 'FKIP-PBING-S2', label: 'Magister Pend. Bahasa Inggris (S2)', fak: 'FKIP', rules: '370-379, 420*, 820*' },
+                { code: 'FKIP-PMAT', label: 'Pendidikan Matematika (S1)', fak: 'FKIP', rules: '370-379, 510-519' },
+                { code: 'FKIP-PMAT-S2', label: 'Magister Pend. Matematika (S2)', fak: 'FKIP', rules: '370-379, 510-519' },
+                { code: 'FKIP-PBIO', label: 'Pendidikan Biologi (S1)', fak: 'FKIP', rules: '370-379, 570-579' },
+                { code: 'FKIP-PFIS', label: 'Pendidikan Fisika (S1)', fak: 'FKIP', rules: '370-379, 530-539' },
+                { code: 'FKIP-PGSD', label: 'Pend. Guru Sekolah Dasar (S1)', fak: 'FKIP', rules: '370-379' },
+                { code: 'FKIP-PGSD-S2', label: 'Magister Pendidikan Dasar (S2)', fak: 'FKIP', rules: '370-379' },
+                { code: 'FKIP-PAUD', label: 'Pend. Guru Pend. Anak Usia Dini (S1)', fak: 'FKIP', rules: '155.4*, 372.21*' },
+                { code: 'FKIP-BK', label: 'Bimbingan & Konseling (S1)', fak: 'FKIP', rules: '150*, 371.4*' },
+                { code: 'FKIP-PPG', label: 'Pendidikan Profesi Guru (PPG)', fak: 'FKIP', rules: '370-379' },
+                { code: 'FKIP-DIKDAS-S3', label: 'Doktor Pendidikan Dasar (S3)', fak: 'FKIP', rules: '370-379' },
+
+                // FP
+                { code: 'FP-PSI', label: 'Psikologi (S1)', fak: 'FP', rules: '150-159' },
+                { code: 'FP-MAPSI', label: 'Magister Sains Psikologi (S2)', fak: 'FP', rules: '150-159' },
+                { code: 'FP-MPSI', label: 'Magister Psikologi Profesi (S2)', fak: 'FP', rules: '150-159' },
+                { code: 'FP-PSI-S3', label: 'Doktor Psikologi (S3)', fak: 'FP', rules: '150-159' },
+
+                // FT
+                { code: 'FT-SIPIL', label: 'Teknik Sipil (S1)', fak: 'FT', rules: '624*, 625*, 690*' },
+                { code: 'FT-MESIN', label: 'Teknik Mesin (S1)', fak: 'FT', rules: '621*' },
+                { code: 'FT-ELEKTRO', label: 'Teknik Elektro (S1)', fak: 'FT', rules: '621.3*' },
+                { code: 'FT-KIMIA', label: 'Teknik Kimia (S1)', fak: 'FT', rules: '660*' },
+                { code: 'FT-INDUSTRI', label: 'Teknik Industri (S1)', fak: 'FT', rules: '658.5*, 670*' },
+                { code: 'FT-ARS', label: 'Arsitektur (S1)', fak: 'FT', rules: '710*, 720*' },
+                { code: 'FT-MESIN-S2', label: 'Magister Teknik Mesin (S2)', fak: 'FT', rules: '621*' },
+                { code: 'FT-SIPIL-S2', label: 'Magister Teknik Sipil (S2)', fak: 'FT', rules: '624*, 625*' },
+
+                // PASCA
+                { code: 'PASCA-PI-S3', label: 'Doktor Pendidikan Islam (S3)', fak: 'PASCA', rules: '297*, 370*' },
+                { code: 'PASCA-IL-S3', label: 'Doktor Ilmu Lingkungan (S3)', fak: 'PASCA', rules: '333.7*, 577*' }
+            ];
+
+            function populateProdiLabelDatalist(fak) {
+                const dl = document.getElementById('prodi-rules-label-datalist');
+                if (!dl) return;
+                let list = UMS_MASTER_PRODI;
+                if (fak && fak !== 'all' && fak !== '__CUSTOM__') {
+                    const matching = list.filter(p => p.fak === fak);
+                    if (matching.length > 0) list = matching;
+                }
+                dl.innerHTML = list.map(p => `<option value="${p.label}">${p.fak} — ${p.code}</option>`).join('');
+            }
+
+            function populateProdiPresetSelect(filterFak = '') {
+                const sel = document.getElementById('prodi-new-preset-select');
+                if (!sel) return;
+
+                const groups = {};
+                for (const p of UMS_MASTER_PRODI) {
+                    if (filterFak && filterFak !== '__CUSTOM__' && p.fak !== filterFak) continue;
+                    const fak = p.fak || 'LAINNYA';
+                    if (!groups[fak]) groups[fak] = [];
+                    groups[fak].push(p);
+                }
+
+                let html = '<option value="">-- Pilih Referensi Prodi UMS atau Ketik Manual di Bawah --</option>';
+                for (const [fak, prodis] of Object.entries(groups)) {
+                    const fakName = KNOWN_FAKULTAS_LABELS[fak] || fak;
+                    html += `<optgroup label="${fak} — ${fakName}">`;
+                    for (const p of prodis) {
+                        html += `<option value="${p.code}">${p.label} (${p.code})</option>`;
+                    }
+                    html += '</optgroup>';
+                }
+                sel.innerHTML = html;
+            }
+
+            function onSelectProdiPreset(code) {
+                if (!code) return;
+                const found = UMS_MASTER_PRODI.find(p => p.code === code);
+                if (!found) return;
+
+                const codeInp = document.getElementById('prodi-new-code');
+                const labelInp = document.getElementById('prodi-new-label');
+                const fakSel = document.getElementById('prodi-new-fakultas');
+                const fakLabelInp = document.getElementById('prodi-new-fakultas-label');
+                const rulesInp = document.getElementById('prodi-new-rules');
+
+                if (codeInp) codeInp.value = found.code;
+                if (labelInp) labelInp.value = found.label;
+                if (fakSel) {
+                    fakSel.value = found.fak;
+                    const customWrap = document.getElementById('prodi-new-fakultas-custom-wrap');
+                    if (customWrap) customWrap.style.display = 'none';
+                }
+                if (fakLabelInp) {
+                    fakLabelInp.value = KNOWN_FAKULTAS_LABELS[found.fak] || found.fak;
+                }
+                if (rulesInp && found.rules && !rulesInp.value) {
+                    rulesInp.value = found.rules;
+                }
+            }
+
+            function onProdiFakultasChange(mode, val) {
+                const isEdit = mode === 'edit';
+                const customWrap = document.getElementById(isEdit ? 'prodi-rules-fakultas-custom-wrap' : 'prodi-new-fakultas-custom-wrap');
+                const customInp = document.getElementById(isEdit ? 'prodi-rules-fakultas-custom' : 'prodi-new-fakultas-custom');
+                const labelInp = document.getElementById(isEdit ? 'prodi-rules-fakultas-label' : 'prodi-new-fakultas-label');
+
+                if (val === '__CUSTOM__') {
+                    if (customWrap) customWrap.style.display = 'block';
+                    if (customInp) customInp.focus();
+                } else {
+                    if (customWrap) customWrap.style.display = 'none';
+                    if (customInp) customInp.value = '';
+                    if (labelInp && val && KNOWN_FAKULTAS_LABELS[val]) {
+                        labelInp.value = KNOWN_FAKULTAS_LABELS[val];
+                    }
+                }
+
+                if (isEdit) {
+                    populateProdiLabelDatalist(val);
+                } else {
+                    populateProdiPresetSelect(val);
                 }
             }
 
@@ -5701,13 +6166,35 @@
 
                 // Set prodi metadata fields
                 const labelInp = document.getElementById('prodi-rules-label');
-                const fakInp = document.getElementById('prodi-rules-fakultas');
+                const fakSel = document.getElementById('prodi-rules-fakultas');
+                const fakCustomWrap = document.getElementById('prodi-rules-fakultas-custom-wrap');
+                const fakCustomInp = document.getElementById('prodi-rules-fakultas-custom');
                 const fakLabelInp = document.getElementById('prodi-rules-fakultas-label');
+
                 if (labelInp) labelInp.value = item.label || '';
-                if (fakInp) fakInp.value = item.fakultas || '';
-                if (fakLabelInp) fakLabelInp.value = item.fakultas_label || item.fakultas || '';
+                const itemFak = (item.fakultas || '').toUpperCase();
+                if (fakSel) {
+                    const hasOption = Array.from(fakSel.options).some(o => o.value === itemFak);
+                    if (hasOption) {
+                        fakSel.value = itemFak;
+                        if (fakCustomWrap) fakCustomWrap.style.display = 'none';
+                        if (fakCustomInp) fakCustomInp.value = '';
+                    } else if (itemFak) {
+                        fakSel.value = '__CUSTOM__';
+                        if (fakCustomWrap) fakCustomWrap.style.display = 'block';
+                        if (fakCustomInp) fakCustomInp.value = itemFak;
+                    } else {
+                        fakSel.value = '';
+                        if (fakCustomWrap) fakCustomWrap.style.display = 'none';
+                        if (fakCustomInp) fakCustomInp.value = '';
+                    }
+                }
+                if (fakLabelInp) {
+                    fakLabelInp.value = item.fakultas_label || KNOWN_FAKULTAS_LABELS[itemFak] || item.fakultas || '';
+                }
 
                 populateProdiDdcSelect();
+                populateProdiLabelDatalist(itemFak);
                 renderProdiRulesTags();
                 document.getElementById('prodi-rules-modal').style.display = 'flex';
                 if (labelInp) labelInp.focus();
@@ -5807,8 +6294,11 @@
                 if (!activeEditingProdiCode) return;
                 const saveBtn = document.getElementById('prodi-rules-save-btn');
                 const label = (document.getElementById('prodi-rules-label')?.value || '').trim();
-                const fakultas = (document.getElementById('prodi-rules-fakultas')?.value || '').trim().toUpperCase();
-                const fakultas_label = (document.getElementById('prodi-rules-fakultas-label')?.value || '').trim() || fakultas;
+                const fakSel = document.getElementById('prodi-rules-fakultas');
+                const fakVal = fakSel ? fakSel.value : '';
+                const customFakVal = document.getElementById('prodi-rules-fakultas-custom')?.value || '';
+                const fakultas = (fakVal === '__CUSTOM__' ? customFakVal : fakVal).trim().toUpperCase();
+                const fakultas_label = (document.getElementById('prodi-rules-fakultas-label')?.value || '').trim() || KNOWN_FAKULTAS_LABELS[fakultas] || fakultas;
 
                 if (!label || !fakultas) {
                     showToast('Nama Program Studi dan Singkatan Fakultas wajib diisi!');
@@ -5875,13 +6365,21 @@
             }
 
             function openAddProdiModal() {
+                const presetSel = document.getElementById('prodi-new-preset-select');
+                if (presetSel) presetSel.value = '';
                 document.getElementById('prodi-new-code').value = '';
                 document.getElementById('prodi-new-label').value = '';
-                document.getElementById('prodi-new-fakultas').value = '';
+                const fakSel = document.getElementById('prodi-new-fakultas');
+                if (fakSel) fakSel.value = '';
+                const customWrap = document.getElementById('prodi-new-fakultas-custom-wrap');
+                if (customWrap) customWrap.style.display = 'none';
+                const customInp = document.getElementById('prodi-new-fakultas-custom');
+                if (customInp) customInp.value = '';
                 document.getElementById('prodi-new-fakultas-label').value = '';
                 document.getElementById('prodi-new-rules').value = '';
+                populateProdiPresetSelect();
                 document.getElementById('prodi-create-modal').style.display = 'flex';
-                document.getElementById('prodi-new-code').focus();
+                if (presetSel) presetSel.focus();
             }
 
             function closeAddProdiModal() {
@@ -5891,8 +6389,11 @@
             async function saveNewProdi() {
                 const code = document.getElementById('prodi-new-code').value.trim().toUpperCase();
                 const label = document.getElementById('prodi-new-label').value.trim();
-                const fakultas = document.getElementById('prodi-new-fakultas').value.trim().toUpperCase();
-                const fakultas_label = document.getElementById('prodi-new-fakultas-label').value.trim() || fakultas;
+                const fakSel = document.getElementById('prodi-new-fakultas');
+                const fakVal = fakSel ? fakSel.value : '';
+                const customFakVal = document.getElementById('prodi-new-fakultas-custom')?.value || '';
+                const fakultas = (fakVal === '__CUSTOM__' ? customFakVal : fakVal).trim().toUpperCase();
+                const fakultas_label = document.getElementById('prodi-new-fakultas-label').value.trim() || KNOWN_FAKULTAS_LABELS[fakultas] || fakultas;
                 const rulesStr = document.getElementById('prodi-new-rules').value.trim();
 
                 if (!code || !label || !fakultas) {

@@ -1538,15 +1538,35 @@ img {
     font-weight: 700
 }
 
+.sort-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sort-lbl {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ink-3);
+    white-space: nowrap;
+}
+
 .sort-sel {
     font-size: .8rem;
     background: var(--bg-2);
     border: 1px solid var(--border);
     color: var(--ink);
-    padding: .35rem .6rem;
+    padding: .38rem .7rem;
     border-radius: var(--r-sm);
     font-family: var(--font);
     cursor: pointer;
+    transition: border-color 0.15s ease;
+}
+
+.sort-sel:hover,
+.sort-sel:focus {
+    border-color: var(--brand);
+    outline: none;
 }
 
 .bk-grid {
@@ -1789,10 +1809,10 @@ img {
     text-decoration: underline;
 }
 
-/* ---- Stats ---- */
+/* ---- Stats Dashboard Styles ---- */
 .stats-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: .75rem;
     margin-bottom: 1.5rem;
 }
@@ -1801,68 +1821,128 @@ img {
     background: var(--bg-2);
     border: 1px solid var(--border);
     border-radius: var(--r-md);
-    padding: 1.25rem;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
+    padding: 1rem 1.1rem;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: border-color 0.15s ease;
 }
 
-.st-card::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--brand);
-}
-
-.st-num {
-    font-size: 1.8rem;
-    font-weight: 800;
-    color: var(--brand);
-    letter-spacing: -.02em
+.st-card:hover {
+    border-color: var(--brand);
 }
 
 .st-lbl {
-    font-size: .75rem;
+    font-size: .72rem;
+    font-weight: 600;
     color: var(--ink-3);
-    margin-top: .15rem
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: .35rem;
 }
 
+.st-num {
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -.02em;
+    line-height: 1.2;
+}
+
+.st-sub {
+    font-size: 0.72rem;
+    color: var(--ink-3);
+    margin-top: 0.35rem;
+    line-height: 1.3;
+}
+
+/* Two-row grid: Row 1 has 2 boxes, Row 2 has 1 full-width box */
+.charts-grid,
 .charts-row {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-    gap: 1rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
 }
 
 .chart-box {
     background: var(--bg-2);
     border: 1px solid var(--border);
     border-radius: var(--r-md);
-    padding: 1.25rem;
+    padding: 1.25rem 1.35rem;
+}
+
+.chart-box-full {
+    grid-column: 1 / -1;
+}
+
+.chart-box-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid var(--border);
 }
 
 .chart-box h3 {
-    font-size: 1rem;
+    font-size: .88rem;
     font-weight: 700;
-    margin-bottom: 1rem
+    color: var(--ink);
+    margin: 0;
+}
+
+.chart-box-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--r-sm, 4px);
+    background: var(--bg-0);
+    color: var(--ink-2);
+    border: 1px solid var(--border);
+}
+
+/* Two columns list inside the full-width repository partner chart */
+.chart-bars-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.25rem 1.5rem;
+}
+
+@media (max-width: 900px) {
+    .charts-grid,
+    .charts-row,
+    .chart-bars-cols {
+        grid-template-columns: 1fr;
+    }
 }
 
 .bar-row {
     display: flex;
     align-items: center;
-    gap: .6rem;
-    margin-bottom: .65rem
+    gap: .75rem;
+    padding: 0.35rem 0.4rem;
+    border-radius: 4px;
+}
+
+.bar-row:hover {
+    background-color: var(--bg-0);
 }
 
 .bar-label {
-    font-size: .72rem;
+    font-size: .74rem;
+    font-weight: 500;
     color: var(--ink-2);
-    min-width: 120px;
+    flex: 0 0 150px;
+    max-width: 165px;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis
+    text-overflow: ellipsis;
+}
+
+.chart-box-full .bar-label {
+    flex: 0 0 180px;
+    max-width: 210px;
 }
 
 .bar-track {
@@ -1870,22 +1950,37 @@ img {
     height: 7px;
     background: var(--bg-0);
     border-radius: 4px;
-    overflow: hidden
+    overflow: hidden;
 }
 
 .bar-fill {
     height: 100%;
     border-radius: 4px;
-    transition: width .8s var(--ease)
+    background: var(--brand);
+    transition: width .6s ease;
+}
+
+.bar-val-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 80px;
+    justify-content: flex-end;
 }
 
 .bar-val {
-    font-size: .7rem;
-    color: var(--ink-3);
-    min-width: 40px;
-    text-align: right;
+    font-size: .74rem;
+    color: var(--ink);
     font-weight: 600;
-    font-family: var(--mono)
+    font-family: var(--mono);
+}
+
+.bar-pct {
+    font-size: .68rem;
+    color: var(--ink-3);
+    font-family: var(--mono);
+    min-width: 38px;
+    text-align: right;
 }
 
 /* ---- Modal ---- */

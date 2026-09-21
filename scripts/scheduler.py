@@ -110,12 +110,30 @@ def run_pipeline(mode='incremental', days=INCREMENTAL_DAYS, force=False):
         from_date = (start_time - timedelta(days=days)).strftime('%Y-%m-%d')
         cmd.extend(['--from', from_date])
 
+    # Auto-backup dataset sebelum re-harvest dijalankan
+    backup_msg = "Skipped"
+    try:
+        if SCRIPTS_DIR not in sys.path:
+            sys.path.insert(0, SCRIPTS_DIR)
+        from backup_manager import create_backup
+        b_ok, b_info = create_backup(reason=f"pre_harvest_{mode}", created_by="Scheduler Daemon")
+        if b_ok:
+            backup_msg = f"Berhasil diamankan: {b_info['filename']} ({b_info['size_mb']} MB, {b_info['records']:,} rekord)"
+            print(f"[Scheduler] [Auto-Backup] {backup_msg}")
+        else:
+            backup_msg = f"Peringatan: {b_info.get('error')}"
+            print(f"[Scheduler] [Auto-Backup] {backup_msg}", file=sys.stderr)
+    except Exception as e:
+        backup_msg = f"Peringatan: Exception {e}"
+        print(f"[Scheduler] [Auto-Backup] {backup_msg}", file=sys.stderr)
+
     try:
         with open(log_file, 'w', encoding='utf-8') as log_f:
             log_f.write(f"=== UMS OneSearch Automated Harvest Log ===\n")
             log_f.write(f"Mode: {mode}\n")
             log_f.write(f"Command: {' '.join(cmd)}\n")
             log_f.write(f"Started at: {start_time.isoformat()}\n")
+            log_f.write(f"Auto-Backup: {backup_msg}\n")
             log_f.write("=" * 45 + "\n\n")
             log_f.flush()
 

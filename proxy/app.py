@@ -3027,6 +3027,102 @@ def admin_stats():
     })
 
 
+# ── BACKUP DATASET APIS ──
+@app.route('/api/admin/backups', methods=['GET'])
+def admin_backups_list():
+    """List all available dataset backups in backups/."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    scripts_dir = os.path.join(BASE_DIR, 'scripts')
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    try:
+        from backup_manager import list_backups
+        backups = list_backups()
+        return jsonify({
+            "status": "SUCCESS",
+            "count": len(backups),
+            "backups": backups
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/admin/backups/create', methods=['POST'])
+def admin_backups_create():
+    """Create a manual dataset backup on-demand."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    data = request.get_json(silent=True) or {}
+    reason = data.get('reason', 'manual_admin_ui')
+
+    scripts_dir = os.path.join(BASE_DIR, 'scripts')
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    try:
+        from backup_manager import create_backup
+        ok, res = create_backup(reason=reason, created_by="Admin UI")
+        if ok:
+            return jsonify({
+                "status": "SUCCESS",
+                "message": f"Cadangan dataset berhasil dibuat: {res['filename']}",
+                "backup": res
+            })
+        else:
+            return jsonify({"status": "ERROR", "error": res.get('error', 'Gagal membuat cadangan')}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/admin/backups/restore', methods=['POST'])
+def admin_backups_restore():
+    """Restore dataset files from a chosen backup archive."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    data = request.get_json(silent=True) or {}
+    filename = data.get('filename')
+    if not filename:
+        return jsonify({"error": "Parameter filename wajib disertakan."}), 400
+
+    scripts_dir = os.path.join(BASE_DIR, 'scripts')
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    try:
+        from backup_manager import restore_backup
+        ok, res = restore_backup(filename)
+        if ok:
+            return jsonify({
+                "status": "SUCCESS",
+                "message": f"Dataset berhasil dipulihkan dari {res['filename']} ({res['count']} file).",
+                "result": res
+            })
+        else:
+            return jsonify({"status": "ERROR", "error": res.get('error', 'Gagal memulihkan cadangan')}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/admin/backups/download', methods=['GET'])
+def admin_backups_download():
+    """Download a backup zip file."""
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized. Invalid admin secret key."}), 401
+
+    filename = request.args.get('file')
+    if not filename:
+        return jsonify({"error": "Parameter file wajib disertakan."}), 400
+
+    clean_name = os.path.basename(filename)
+    backup_path = os.path.join(BASE_DIR, 'backups', clean_name)
+    if not os.path.exists(backup_path) or not clean_name.endswith('.zip'):
+        return jsonify({"error": "File cadangan tidak ditemukan."}), 404
+
+    return send_file(backup_path, as_attachment=True, download_name=clean_name)
+
+
 INSTITUTIONS_FILE = os.path.join(DATA_DIR, 'institutions.json')
 
 

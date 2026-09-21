@@ -87,6 +87,27 @@ class SearchEngine {
      * - Boolean operators: AND, OR, NOT / -term
      * - Prefix matching & DDC classification numbers
      */
+    /**
+     * Find candidate indices for a word across title, author, and subject inverted indexes
+     */
+    findCandidateIndicesForWord(word) {
+        const set = new Set();
+        const tMatches = this.titleIndex.get(word);
+        if (tMatches) for (let i = 0; i < tMatches.length; i++) set.add(tMatches[i]);
+        const aMatches = this.authorIndex.get(word);
+        if (aMatches) for (let i = 0; i < aMatches.length; i++) set.add(aMatches[i]);
+        const sMatches = this.subjectIndex.get(word);
+        if (sMatches) for (let i = 0; i < sMatches.length; i++) set.add(sMatches[i]);
+        return Array.from(set);
+    }
+
+    /**
+     * Search books by query string with support for:
+     * - High-Weighted exact phrases in quotes ("machine learning")
+     * - Automatic consecutive phrase boost for multi-word queries
+     * - Boolean operators: AND, OR, NOT / -term
+     * - Prefix matching & DDC classification numbers
+     */
     search(query, limit = 100) {
         if (!this.ready || !query.trim()) return [];
 
@@ -141,7 +162,7 @@ class SearchEngine {
         const words = [...mustWords, ...shouldWords];
         const scores = new Map(); // bookIndex -> score
 
-        // Check if query looks like a DDC number
+        // 3. DDC Match
         const ddcMatch = rawQuery.match(/^(\d{1,3}(\.\d+)?)/);
         if (ddcMatch) {
             const ddcQuery = ddcMatch[1];
@@ -151,26 +172,58 @@ class SearchEngine {
             }
         }
 
-        // If no standalone words, but has exact phrases: search by phrase substring
+        // 4. Inverted-Index Assisted Candidate Search for Quoted Phrases
         if (words.length === 0 && exactPhrases.length > 0) {
-            for (let i = 0; i < this.books.length; i++) {
-                const book = this.books[i];
+            // Find books matching all tokens of all exact phrases
+            let candidateIndices = null;
+
+            for (const ph of exactPhrases) {
+                const phTokens = this.tokenize(ph);
+                for (const pt of phTokens) {
+                    const ptCandidates = new Set(this.findCandidateIndicesForWord(pt));
+                    if (candidateIndices === null) {
+                        candidateIndices = ptCandidates;
+                    } else {
+                        candidateIndices = new Set([...candidateIndices].filter(idx => ptCandidates.has(idx)));
+                    }
+                }
+            }
+
+            const candidateList = candidateIndices ? Array.from(candidateIndices) : [];
+            for (const idx of candidateList) {
+                const book = this.books[idx];
                 const t = (book.t || '').toLowerCase();
                 const a = (book.a || '').toLowerCase();
                 const subStr = (book.sub || []).join(' ').toLowerCase();
-                const allText = `${t} ${a} ${subStr}`;
 
                 let allPhrasesMatch = true;
+                let phraseScore = 0;
+
                 for (const ph of exactPhrases) {
-                    if (!allText.includes(ph)) {
+                    const inTitle = t.includes(ph);
+                    const inSub = subStr.includes(ph);
+                    const inAuth = a.includes(ph);
+
+                    if (!inTitle && !inSub && !inAuth) {
                         allPhrasesMatch = false;
                         break;
                     }
+
+                    // High-weight scoring hierarchy
+                    if (t === ph) {
+                        phraseScore += 160; // Title is exact phrase
+                    } else if (t.startsWith(ph)) {
+                        phraseScore += 120; // Title starts with exact phrase
+                    } else if (inTitle) {
+                        phraseScore += 80;  // Title contains exact phrase
+                    }
+
+                    if (inSub) phraseScore += 45;
+                    if (inAuth) phraseScore += 35;
                 }
+
                 if (allPhrasesMatch) {
-                    let score = 25;
-                    if (exactPhrases.some(ph => t.includes(ph))) score += 20;
-                    scores.set(i, score);
+                    scores.set(idx, (scores.get(idx) || 0) + phraseScore + 25);
                 }
             }
         } else {
@@ -187,21 +240,68 @@ class SearchEngine {
                 });
             }
 
-            // Boost exact phrases if present
+            // 5. Evaluate Quoted Phrases (if present alongside tokens)
             if (exactPhrases.length > 0) {
-                for (const [idx, score] of scores) {
+                for (const [idx, score] of Array.from(scores.entries())) {
                     const book = this.books[idx];
-                    const fullTxt = `${book.t || ''} ${book.a || ''} ${(book.sub || []).join(' ')}`.toLowerCase();
+                    const t = (book.t || '').toLowerCase();
+                    const a = (book.a || '').toLowerCase();
+                    const subStr = (book.sub || []).join(' ').toLowerCase();
+
+                    let hasAllPhrases = true;
+                    let phraseBoost = 0;
+
                     for (const ph of exactPhrases) {
-                        if (fullTxt.includes(ph)) {
-                            scores.set(idx, score + 25);
+                        const inTitle = t.includes(ph);
+                        const inSub = subStr.includes(ph);
+                        const inAuth = a.includes(ph);
+
+                        if (!inTitle && !inSub && !inAuth) {
+                            hasAllPhrases = false;
+                            break;
                         }
+
+                        if (t === ph) phraseBoost += 160;
+                        else if (t.startsWith(ph)) phraseBoost += 120;
+                        else if (inTitle) phraseBoost += 80;
+                        if (inSub) phraseBoost += 45;
+                        if (inAuth) phraseBoost += 35;
+                    }
+
+                    if (hasAllPhrases) {
+                        scores.set(idx, score + phraseBoost);
+                    } else {
+                        // Strict filter: Quoted phrases are mandatory
+                        scores.delete(idx);
+                    }
+                }
+            } else if (words.length >= 2) {
+                // 6. Automatic High-Weight Consecutive Phrase Boost for multi-word queries (e.g. "hukum perdata")
+                const naturalPhrase = words.join(' ');
+                for (const [idx, score] of Array.from(scores.entries())) {
+                    const book = this.books[idx];
+                    const t = (book.t || '').toLowerCase();
+                    const subStr = (book.sub || []).join(' ').toLowerCase();
+
+                    let bonus = 0;
+                    if (t === naturalPhrase) {
+                        bonus += 140; // Title exactly equals full query
+                    } else if (t.startsWith(naturalPhrase)) {
+                        bonus += 90;  // Title starts with full query
+                    } else if (t.includes(naturalPhrase)) {
+                        bonus += 60;  // Title contains the full phrase consecutively
+                    } else if (subStr.includes(naturalPhrase)) {
+                        bonus += 35;  // Subject contains full phrase
+                    }
+
+                    if (bonus > 0) {
+                        scores.set(idx, score + bonus);
                     }
                 }
             }
         }
 
-        // Filter out NOT words
+        // 7. Filter out NOT words
         if (notWords.length > 0) {
             for (const [idx] of Array.from(scores.entries())) {
                 const book = this.books[idx];
@@ -210,6 +310,14 @@ class SearchEngine {
                     scores.delete(idx);
                 }
             }
+        }
+
+        // 8. Gentle Recency Bonus (+1 to +3 pts for modern editions)
+        for (const [idx, score] of scores) {
+            const yr = parseInt(this.books[idx]?.yr || 0, 10);
+            if (yr >= 2024) scores.set(idx, score + 3);
+            else if (yr >= 2020) scores.set(idx, score + 2);
+            else if (yr >= 2015) scores.set(idx, score + 1);
         }
 
         // Sort by score descending

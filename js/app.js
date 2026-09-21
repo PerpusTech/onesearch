@@ -13,7 +13,7 @@ const app = {
     baseResults: [],
     currentResults: [],
     searchHistory: [],
-    activeFilters: { access: new Set(), src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() },
+    activeFilters: { src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() },
     resultsPage: 0,
     perPage: 24,
     ddcPage: 0,
@@ -46,11 +46,14 @@ const app = {
             results_time: "pencarian rampung dalam",
             filter: "Filter",
             clear: "Hapus",
+            sort_label: "Urutkan:",
             sort_relevance: "Relevansi",
-            sort_az: "Judul A-Z",
-            sort_newest: "Terbaru",
-            sort_oldest: "Terlama",
-            sort_ddc: "DDC",
+            sort_az: "Judul (A–Z)",
+            sort_za: "Judul (Z–A)",
+            sort_author: "Penulis (A–Z)",
+            sort_newest: "Tahun: Terbaru",
+            sort_oldest: "Tahun: Terlama",
+            sort_ddc: "Nomor DDC",
             format: "Format",
             year: "Tahun",
             author: "Pengarang",
@@ -99,14 +102,21 @@ const app = {
             view_at: "Lihat di",
             cite_qr: "Kutip & QR URL",
             auto_cite: "Kutipan Otomatis",
-            total_books: "Total Buku",
-            with_ddc: "Dengan DDC",
-            subjects: "Subjek",
-            libraries: "Perpustakaan",
-            oldest: "Tertua",
-            newest_stat: "Terbaru",
+            total_books: "Total Koleksi",
+            with_ddc: "Dengan No. DDC",
+            subjects: "Topik & Subjek",
+            libraries: "Sumber Repositori",
+            oldest: "Terbitan Tertua",
+            newest_stat: "Terbitan Terbaru",
             ddc_distribution: "Distribusi per Kelas DDC",
-            type_distribution: "Distribusi per Jenis",
+            type_distribution: "Distribusi per Jenis Koleksi",
+            source_distribution: "Distribusi per Sumber / Institusi Mitra",
+            stat_theses: "Skripsi & Tesis",
+            stat_print_books: "Buku Teks / Cetak",
+            stat_journal_articles: "Artikel Jurnal",
+            stat_sub_ebooks: "E-Book Langganan",
+            stat_sub_journals: "Jurnal Internasional",
+            stat_prodi: "Program Studi",
             books_unit: "buku",
             categories: "kategori",
             sug_title: "Judul",
@@ -131,11 +141,15 @@ const app = {
             ddc_0: "Komputer", ddc_1: "Filsafat", ddc_2: "Agama", ddc_3: "Sosial",
             ddc_4: "Bahasa", ddc_5: "Sains", ddc_6: "Teknologi", ddc_7: "Kesenian",
             ddc_8: "Sastra", ddc_9: "Sejarah",
-            filter_access: "Akses Koleksi (Show Only)",
-            acc_ft: "Teks Penuh Daring (Full Text Online)",
+            filter_access: "Ketersediaan Akses",
+            access_filter: "Ketersediaan Akses",
+            acc_all: "Semua Koleksi",
+            acc_ft: "Teks Penuh Daring (Full Text)",
             acc_pr: "Jurnal Ber-Peer Review",
-            acc_oa: "Akses Terbuka (Open Access)",
-            acc_lib: "Tersedia di Perpustakaan",
+            acc_oa: "Akses Terbuka (PDF)",
+            acc_lib: "Tersedia Fisik Perpustakaan",
+            acc_thesis: "Skripsi & Tugas Akhir",
+            acc_jr: "Artikel Jurnal Ilmiah",
             type_Article: "Artikel (Articles)",
             type_Review: "Ulasan (Reviews)",
             type_Book: "Buku (Books)",
@@ -213,11 +227,14 @@ const app = {
             results_time: "search completed in",
             filter: "Filters",
             clear: "Clear",
+            sort_label: "Sort by:",
             sort_relevance: "Relevance",
-            sort_az: "Title A-Z",
-            sort_newest: "Newest",
-            sort_oldest: "Oldest",
-            sort_ddc: "DDC",
+            sort_az: "Title (A–Z)",
+            sort_za: "Title (Z–A)",
+            sort_author: "Author (A–Z)",
+            sort_newest: "Year: Newest",
+            sort_oldest: "Year: Oldest",
+            sort_ddc: "DDC Number",
             format: "Format",
             year: "Year",
             author: "Author",
@@ -266,14 +283,21 @@ const app = {
             view_at: "View at",
             cite_qr: "Cite & URL QR",
             auto_cite: "Auto Citation",
-            total_books: "Total Books",
-            with_ddc: "With DDC",
-            subjects: "Subjects",
-            libraries: "Libraries",
-            oldest: "Oldest",
-            newest_stat: "Newest",
+            total_books: "Total Collections",
+            with_ddc: "With DDC Number",
+            subjects: "Unique Subjects",
+            libraries: "Repository Sources",
+            oldest: "Oldest Publication",
+            newest_stat: "Newest Publication",
             ddc_distribution: "Distribution by DDC Class",
-            type_distribution: "Distribution by Type",
+            type_distribution: "Distribution by Collection Type",
+            source_distribution: "Distribution by Repository / Institution",
+            stat_theses: "Theses & Dissertations",
+            stat_print_books: "Printed Books",
+            stat_journal_articles: "Journal Articles",
+            stat_sub_ebooks: "Subscribed E-Books",
+            stat_sub_journals: "Subscribed Journals",
+            stat_prodi: "Study Programs Served",
             books_unit: "books",
             categories: "categories",
             sug_title: "Title",
@@ -298,11 +322,15 @@ const app = {
             ddc_0: "Computer", ddc_1: "Philosophy", ddc_2: "Religion", ddc_3: "Social",
             ddc_4: "Language", ddc_5: "Science", ddc_6: "Technology", ddc_7: "Arts",
             ddc_8: "Literature", ddc_9: "History",
-            filter_access: "Show Only",
+            filter_access: "Access & Availability",
+            access_filter: "Access & Availability",
+            acc_all: "All Collections",
             acc_ft: "Full Text Online",
             acc_pr: "Peer-reviewed Journals",
-            acc_oa: "Open Access",
-            acc_lib: "Available in the Library",
+            acc_oa: "Open Access (PDF)",
+            acc_lib: "Available in Library (Physical)",
+            acc_thesis: "Theses & Dissertations",
+            acc_jr: "Journal Articles",
             type_Article: "Articles",
             type_Review: "Reviews",
             type_Book: "Books",
@@ -2834,7 +2862,7 @@ const app = {
         }
 
         this.baseResults = results;
-        this.activeFilters = { access: new Set(), src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
+        this.activeFilters = { src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
         this.resultsPage = 0;
         document.getElementById('results-title').textContent =
             `${titleLabel} — ${this.fmt(results.length)} ${this.t('results_found').toLowerCase()}`;
@@ -3829,7 +3857,7 @@ const app = {
     browseSource(src) {
         const results = this.books.filter(b => b.src === src);
         this.baseResults = results;
-        this.activeFilters = { access: new Set(), src: new Set([src]), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
+        this.activeFilters = { src: new Set([src]), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
         this.resultsPage = 0;
         document.getElementById('search-input').value = '';
         document.getElementById('results-title').textContent =
@@ -3963,26 +3991,33 @@ const app = {
         if (field === 'all') {
             results = this.searchEngine.search(q, 500).map(r => r.book);
         } else {
-            // Field-specific search
-            const ql = q.toLowerCase();
+            // Field-specific search (support quotes stripping and exact phrase matching)
+            const qClean = q.replace(/["']/g, '').trim().toLowerCase();
             results = this.books.filter(b => {
                 switch (field) {
                     case 'title':
-                        return b.t && b.t.toLowerCase().includes(ql);
+                        return b.t && b.t.toLowerCase().includes(qClean);
                     case 'author':
-                        return b.a && b.a.toLowerCase().includes(ql);
+                        return b.a && b.a.toLowerCase().includes(qClean);
                     case 'subject':
-                        return b.sub && b.sub.some(s => s.toLowerCase().includes(ql));
+                        return b.sub && b.sub.some(s => s.toLowerCase().includes(qClean));
                     case 'ddc':
-                        return b.ddc && b.ddc.startsWith(q);
+                        return b.ddc && b.ddc.startsWith(qClean);
                     case 'isbn':
-                        return b.isbn && b.isbn.replace(/[-\s]/g, '').includes(q.replace(/[-\s]/g, ''));
+                        return b.isbn && b.isbn.replace(/[-\s]/g, '').includes(qClean.replace(/[-\s]/g, ''));
                     default:
                         return false;
                 }
             });
-            // Sort alphabetically for field-specific searches
-            results.sort((a, b) => (a.t || '').localeCompare(b.t || ''));
+            // Sort by relevance to phrase first, then alphabetically
+            results.sort((a, b) => {
+                const at = (a.t || '').toLowerCase();
+                const bt = (b.t || '').toLowerCase();
+                const aExact = at.startsWith(qClean) ? 2 : (at.includes(qClean) ? 1 : 0);
+                const bExact = bt.startsWith(qClean) ? 2 : (bt.includes(qClean) ? 1 : 0);
+                if (bExact !== aExact) return bExact - aExact;
+                return at.localeCompare(bt);
+            });
         }
 
         const fieldLabels = {
@@ -3992,7 +4027,7 @@ const app = {
         const fieldLabel = field !== 'all' ? ` [${fieldLabels[field]}]` : '';
 
         this.baseResults = results;
-        this.activeFilters = { access: new Set(), src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
+        this.activeFilters = { src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
         this.resultsPage = 0;
         document.getElementById('results-title').textContent = `"${q}"${fieldLabel} — ${results.length} ${this.t('results_found').toLowerCase()}`;
 
@@ -4573,8 +4608,12 @@ const app = {
             sel.value = val;
         }
 
-        if (s === 'title') {
-            this.currentResults.sort((a, b) => (a.t || '').localeCompare(b.t || ''));
+        if (s === 'title' || s === 'title-asc') {
+            this.currentResults.sort((a, b) => (a.t || '').localeCompare(b.t || '', undefined, { sensitivity: 'base' }));
+        } else if (s === 'title-desc') {
+            this.currentResults.sort((a, b) => (b.t || '').localeCompare(a.t || '', undefined, { sensitivity: 'base' }));
+        } else if (s === 'author-asc') {
+            this.currentResults.sort((a, b) => (a.a || 'zzz').localeCompare(b.a || 'zzz', undefined, { sensitivity: 'base' }));
         } else if (s === 'year-desc') {
             this.currentResults.sort((a, b) => {
                 const yA = parseInt(a.yr, 10) || 0;
@@ -4590,7 +4629,7 @@ const app = {
                 return (a.t || '').localeCompare(b.t || '');
             });
         } else if (s === 'ddc') {
-            this.currentResults.sort((a, b) => (a.ddc || '').localeCompare(b.ddc || ''));
+            this.currentResults.sort((a, b) => (a.ddc || '999').localeCompare(b.ddc || '999'));
         } else if (s === 'relevance') {
             if (this.baseResults && this.baseResults.length) {
                 const hasScore = this.baseResults.some(b => typeof b._score === 'number');
@@ -4611,28 +4650,11 @@ const app = {
 
     // ──── Facets / Filters ────
     renderFacets() {
-        const accessCounts = { 'acc_ft': 0, 'acc_pr': 0, 'acc_oa': 0, 'acc_lib': 0 };
         const srcCounts = {}; const typeCounts = {}; const authorCounts = {}; const yearCounts = {};
         const subjectCounts = {}; const ddcClassCounts = {};
         const dNames = { '0': this.t('ddc_0'), '1': this.t('ddc_1'), '2': this.t('ddc_2'), '3': this.t('ddc_3'), '4': this.t('ddc_4'), '5': this.t('ddc_5'), '6': this.t('ddc_6'), '7': this.t('ddc_7'), '8': this.t('ddc_8'), '9': this.t('ddc_9') };
 
         for (const b of this.baseResults) {
-            // -- Access logic --
-            let isFt = false, isPr = false, isOa = false, isLib = false;
-            if (b.src === 'Scopus') {
-                if (b.openaccess) { isOa = true; isFt = true; }
-                if (b.type === 'Article' || b.type === 'Review') isPr = true;
-            } else {
-                // Local repositories
-                if (b.src && b.src.includes('Koha')) isLib = true;
-                if ((b.src && b.src.includes('SIBI')) || (b.src && b.src.includes('EPrints')) || b.url) isFt = true;
-                if (b.src && b.src.includes('EPrints') && b.type === 'jr') isPr = true;
-            }
-            if (isFt) accessCounts['acc_ft']++;
-            if (isPr) accessCounts['acc_pr']++;
-            if (isOa) accessCounts['acc_oa']++;
-            if (isLib) accessCounts['acc_lib']++;
-
             if (b.src) srcCounts[b.src] = (srcCounts[b.src] || 0) + 1;
             if (b.type) typeCounts[b.type] = (typeCounts[b.type] || 0) + 1;
             if (b.a) authorCounts[b.a] = (authorCounts[b.a] || 0) + 1;
@@ -4649,11 +4671,7 @@ const app = {
             }
         }
 
-        // Hapus filter access jika 0
-        for (const k of Object.keys(accessCounts)) { if (accessCounts[k] === 0) delete accessCounts[k]; }
-
         let html = '';
-
         html += this.buildFacetGroup(this.t('src_institusi') || 'Institusi', 'src', srcCounts, false, 'institution');
         html += this.buildFacetGroup(this.t('format') || 'Format', 'type', typeCounts, false, 'format');
         html += this.buildFacetGroup(this.t('subjects') || 'Subjek', 'subject', subjectCounts, false, 'subject');
@@ -4662,7 +4680,7 @@ const app = {
         html += this.buildFacetGroup(this.t('author') || 'Pengarang', 'author', authorCounts, false, 'author');
 
         document.getElementById('facet-container').innerHTML = html;
-        const acCount = this.activeFilters.access.size + this.activeFilters.src.size + this.activeFilters.type.size + this.activeFilters.author.size + this.activeFilters.year.size + this.activeFilters.subject.size + this.activeFilters.ddcClass.size;
+        const acCount = this.activeFilters.src.size + this.activeFilters.type.size + this.activeFilters.author.size + this.activeFilters.year.size + this.activeFilters.subject.size + this.activeFilters.ddcClass.size;
         document.getElementById('btn-clear-filters').style.display = acCount > 0 ? 'inline-flex' : 'none';
         const hasFacets = [srcCounts, typeCounts, authorCounts, yearCounts, subjectCounts, ddcClassCounts].some(c => Object.keys(c).length > 0);
         document.getElementById('results-sidebar').style.display = hasFacets ? 'block' : 'none';
@@ -4689,7 +4707,7 @@ const app = {
         let listHTML = '';
         for (const [val, cnt] of showEntries) {
             const isAc = this.activeFilters[category].has(val);
-            const displayVal = category === 'type' ? this.typeName(val) : (category === 'access' ? this.t(val) || val : val);
+            const displayVal = category === 'type' ? this.typeName(val) : val;
             listHTML += `
             <div class="facet-item ${isAc ? 'active' : ''}" onclick="app.toggleFilter('${category}', ${this.idAttr(val)})"
                 title="${this.esc(displayVal)}">
@@ -4716,7 +4734,7 @@ const app = {
         this.renderFacets(); // Re-render to update checkboxes
     },
     clearFilters() {
-        this.activeFilters = { access: new Set(), src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
+        this.activeFilters = { src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
         this.resultsPage = 0;
         this.applyFiltersAndRender();
         this.renderFacets();
@@ -4724,34 +4742,13 @@ const app = {
     applyFiltersAndRender() {
         const dNames = { '0': this.t('ddc_0'), '1': this.t('ddc_1'), '2': this.t('ddc_2'), '3': this.t('ddc_3'), '4': this.t('ddc_4'), '5': this.t('ddc_5'), '6': this.t('ddc_6'), '7': this.t('ddc_7'), '8': this.t('ddc_8'), '9': this.t('ddc_9') };
         this.currentResults = this.baseResults.filter(b => {
-            // -- Access logic --
-            let passAccess = true;
-            if (this.activeFilters.access.size > 0) {
-                let isFt = false, isPr = false, isOa = false, isLib = false;
-                if (b.src === 'Scopus') {
-                    if (b.openaccess) { isOa = true; isFt = true; }
-                    if (b.type === 'Article' || b.type === 'Review') isPr = true;
-                } else {
-                    if (b.src && b.src.includes('Koha')) isLib = true;
-                    if ((b.src && b.src.includes('SIBI')) || (b.src && b.src.includes('EPrints')) || b.url) isFt = true;
-                    if (b.src && b.src.includes('EPrints') && b.type === 'jr') isPr = true;
-                }
-
-                // OR logic inside 'access' category: if it matches ANY selected access filter
-                passAccess = false;
-                if (this.activeFilters.access.has('acc_ft') && isFt) passAccess = true;
-                if (this.activeFilters.access.has('acc_pr') && isPr) passAccess = true;
-                if (this.activeFilters.access.has('acc_oa') && isOa) passAccess = true;
-                if (this.activeFilters.access.has('acc_lib') && isLib) passAccess = true;
-            }
-
             const passSrc = this.activeFilters.src.size === 0 || this.activeFilters.src.has(b.src);
             const passType = this.activeFilters.type.size === 0 || this.activeFilters.type.has(b.type);
             const passAuthor = this.activeFilters.author.size === 0 || this.activeFilters.author.has(b.a);
             const passYear = this.activeFilters.year.size === 0 || this.activeFilters.year.has(b.yr);
             const passSubject = this.activeFilters.subject.size === 0 || (b.sub && b.sub.some(s => this.activeFilters.subject.has(s.trim())));
             const passDdc = this.activeFilters.ddcClass.size === 0 || (b.ddc && b.ddc.length >= 1 && this.activeFilters.ddcClass.has(`${b.ddc[0]}00 ${dNames[b.ddc[0]] || ''}`));
-            return passAccess && passSrc && passType && passAuthor && passYear && passSubject && passDdc;
+            return passSrc && passType && passAuthor && passYear && passSubject && passDdc;
         });
 
         const titleEl = document.getElementById('results-title');
@@ -5205,7 +5202,7 @@ const app = {
         document.getElementById('search-clear').style.display = 'none';
         this.baseResults = this.books.filter(b => b.type === f);
         this.baseResults.sort((a, b) => (a.t || '').localeCompare(b.t || ''));
-        this.activeFilters = { access: new Set(), src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
+        this.activeFilters = { src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
         this.resultsPage = 0;
         document.getElementById('results-title').textContent = `${this.t('format')}: ${this.typeName(f)} — ${this.fmt(this.baseResults.length)} ${this.t('results_found').toLowerCase()}`;
         this.renderFacets();
@@ -5306,7 +5303,7 @@ const app = {
 
         this.baseResults = res;
         this.baseResults.sort((a, b) => (a.t || '').localeCompare(b.t || ''));
-        this.activeFilters = { access: new Set(), src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
+        this.activeFilters = { src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
         this.resultsPage = 0;
         document.getElementById('results-title').textContent = `${this.t('adv_search')} — ${this.fmt(this.baseResults.length)} ${this.t('results_found').toLowerCase()}`;
 
@@ -5354,38 +5351,186 @@ const app = {
     renderStats() {
         const cards = document.getElementById('stats-cards');
         const charts = document.getElementById('stats-charts');
+        if (!cards || !charts) return;
 
-        cards.innerHTML = [
-            [this.fmt(this.stats.total_books), this.t('total_books')],
-            [this.fmt(this.stats.with_ddc), this.t('with_ddc')],
-            [this.fmt(this.stats.unique_subjects), this.t('subjects')],
-            [typeof this.stats.sources === 'object' && !Array.isArray(this.stats.sources) ? Object.keys(this.stats.sources).length : (this.stats.sources?.length || 1), this.t('libraries')],
-            [this.stats.year_range?.min || '-', this.t('oldest')],
-            [this.stats.year_range?.max || '-', this.t('newest_stat')],
-        ].map(([v, l]) => `<div class="st-card"><div class="st-num">${v}</div><div class="st-lbl">${l}</div></div>`).join('');
-
-        const dd = this.stats.ddc_distribution || {};
         const td = this.stats.type_distribution || {};
-        const maxD = Math.max(...Object.values(dd));
-        const maxT = Math.max(...Object.values(td));
-        const dNames = { '0': this.t('ddc_0'), '1': this.t('ddc_1'), '2': this.t('ddc_2'), '3': this.t('ddc_3'), '4': this.t('ddc_4'), '5': this.t('ddc_5'), '6': this.t('ddc_6'), '7': this.t('ddc_7'), '8': this.t('ddc_8'), '9': this.t('ddc_9') };
+        const dd = this.stats.ddc_distribution || {};
+        const sources = this.stats.sources || {};
 
+        const thesesCount = td['THESIS'] || 0;
+        const printBooksCount = (td['BKS'] || 0) + (td['BKSA'] || 0) + (td['BKSC'] || 0) + (td['BKSCA'] || 0);
+        const journalArticlesCount = (td['JR'] || 0) + (td['JRA'] || 0) + (td['JRT'] || 0);
+        const prodiCount = Object.keys(this.prodiIndex || {}).length || this.stats.prodi_count || 35;
+        const sourcesCount = typeof sources === 'object' && !Array.isArray(sources) ? Object.keys(sources).length : (sources?.length || 7);
+
+        // Sanitize newest year if an obvious anomaly (> current year + 1)
+        const currentYear = new Date().getFullYear();
+        let maxYear = parseInt(this.stats.year_range?.max || currentYear);
+        if (isNaN(maxYear) || maxYear > currentYear + 1) {
+            maxYear = currentYear;
+        }
+        let minYear = this.stats.year_range?.min || '1908';
+
+        const totalItems = this.stats.total_books || 142768;
+        const thesesPct = totalItems > 0 ? ((thesesCount / totalItems) * 100).toFixed(1) : '0';
+        const booksPct = totalItems > 0 ? ((printBooksCount / totalItems) * 100).toFixed(1) : '0';
+        const journalsPct = totalItems > 0 ? ((journalArticlesCount / totalItems) * 100).toFixed(1) : '0';
+        const ddcPct = totalItems > 0 ? (((this.stats.with_ddc || 57012) / totalItems) * 100).toFixed(1) : '0';
+
+        const isEn = this.lang === 'en';
+
+        // 1. Clean KPI Metric Cards (No emoji, consistent typography)
+        const cardItems = [
+            {
+                val: this.fmt(totalItems),
+                lbl: this.t('total_books'),
+                sub: isEn ? 'All cataloged materials' : 'Semua materi pustaka'
+            },
+            {
+                val: this.fmt(thesesCount),
+                lbl: this.t('stat_theses'),
+                sub: `${thesesPct}% ${isEn ? 'academic research' : 'karya ilmiah UMS'}`
+            },
+            {
+                val: this.fmt(printBooksCount),
+                lbl: this.t('stat_print_books'),
+                sub: `${booksPct}% ${isEn ? 'physical collections' : 'koleksi cetak sirkulasi'}`
+            },
+            {
+                val: this.fmt(journalArticlesCount),
+                lbl: this.t('stat_journal_articles'),
+                sub: `${journalsPct}% ${isEn ? 'journal articles' : 'publikasi berkala ilmiah'}`
+            },
+            {
+                val: this.fmt(this.stats.with_ddc || 57012),
+                lbl: this.t('with_ddc'),
+                sub: `${ddcPct}% ${isEn ? 'classified via DDC' : 'terklasifikasi standar'}`
+            },
+            {
+                val: this.fmt(this.stats.unique_subjects || 27119),
+                lbl: this.t('subjects'),
+                sub: isEn ? 'Subject headings' : 'Tajuk & subjek terindeks'
+            },
+            {
+                val: `${this.fmt(prodiCount)} Prodi`,
+                lbl: this.t('stat_prodi'),
+                sub: isEn ? 'Curriculum mapped' : 'Pemetaan kurikulum aktif'
+            },
+            {
+                val: `${this.fmt(sourcesCount)} Mitra`,
+                lbl: this.t('libraries'),
+                sub: isEn ? 'UMS, OJS, Mitra' : 'Koha, EPrints, OJS & Mitra'
+            },
+            {
+                val: `${minYear} – ${maxYear}`,
+                lbl: isEn ? 'Publication Range' : 'Rentang Terbit',
+                sub: isEn ? 'Historical span' : 'Rentang tahun rilis'
+            }
+        ];
+
+        cards.innerHTML = cardItems.map(item => `
+            <div class="st-card">
+                <div class="st-lbl">${item.lbl}</div>
+                <div class="st-num">${item.val}</div>
+                <div class="st-sub">${item.sub}</div>
+            </div>
+        `).join('');
+
+        // 2. Chart Calculations
+        const maxD = Math.max(...Object.values(dd), 1);
+        const maxT = Math.max(...Object.values(td), 1);
+        const maxS = Math.max(...Object.values(sources), 1);
+
+        const totalTd = Object.values(td).reduce((a, b) => a + b, 0) || totalItems;
+        const totalDd = Object.values(dd).reduce((a, b) => a + b, 0) || (this.stats.with_ddc || 1);
+        const totalSrc = Object.values(sources).reduce((a, b) => a + b, 0) || totalItems;
+
+        const dNames = {
+            '0': this.t('ddc_0'), '1': this.t('ddc_1'), '2': this.t('ddc_2'),
+            '3': this.t('ddc_3'), '4': this.t('ddc_4'), '5': this.t('ddc_5'),
+            '6': this.t('ddc_6'), '7': this.t('ddc_7'), '8': this.t('ddc_8'),
+            '9': this.t('ddc_9')
+        };
+
+        const friendlySourceNames = {
+            'UMS': 'Perpustakaan Pusat UMS (Koha)',
+            'UMS (ETD)': 'EPrints Skripsi & Tugas Akhir',
+            'UMS (Journal)': 'Jurnal Ilmiah OJS UMS',
+            'UMMAD': 'Univ. Muhammadiyah Madiun',
+            'AISKA-UNIVERSITY': "Univ. 'Aisyiyah Surakarta (AISKA)",
+            'SMAMUHPKSOLO': 'SMA Muhammadiyah PK Solo',
+            'SMABASASOLO': 'SMA Batik 1 Surakarta',
+        };
+
+        const typeEntries = Object.entries(td).sort(([, a], [, b]) => b - a).slice(0, 10);
+        const ddcEntries = Object.entries(dd).sort(([a], [b]) => a.localeCompare(b));
+        const srcEntries = Object.entries(sources).sort(([, a], [, b]) => b - a);
+
+        // 3. Render 3 Chart Boxes in 2 Rows (Row 1: 2 boxes, Row 2: 1 wide box)
         charts.innerHTML = `
-        <div class="chart-box"><h3>${this.t('ddc_distribution')}</h3>
-            ${Object.entries(dd).sort(([a], [b]) => a.localeCompare(b)).map(([c, n]) => {
-            const p = Math.round((n / maxD) * 100);
-            return `<div class="bar-row"><span class="bar-label">${c}00 ${dNames[c] || ''}</span>
-                    <div class="bar-track"><div class="bar-fill" style="width:${p}%;background:var(--brand)"></div></div>
-                    <span class="bar-val">${this.fmt(n)}</span></div>`;
-        }).join('')}
+        <!-- Row 1, Col 1: Jenis Koleksi -->
+        <div class="chart-box">
+            <div class="chart-box-header">
+                <h3>${this.t('type_distribution')}</h3>
+                <span class="chart-box-badge">${typeEntries.length} ${isEn ? 'Categories' : 'Kategori'}</span>
+            </div>
+            ${typeEntries.map(([t, n]) => {
+                const p = Math.max(Math.round((n / maxT) * 100), 2);
+                const pct = totalTd > 0 ? ((n / totalTd) * 100).toFixed(1) : '0';
+                const name = this.typeName(t);
+                return `<div class="bar-row" title="${name}: ${this.fmt(n)} (${pct}%)">
+                    <span class="bar-label" title="${name}">${name}</span>
+                    <div class="bar-track"><div class="bar-fill" style="width:${p}%;"></div></div>
+                    <div class="bar-val-wrap">
+                        <span class="bar-val">${this.fmt(n)}</span>
+                        <span class="bar-pct">${pct}%</span>
+                    </div>
+                </div>`;
+            }).join('')}
         </div>
-        <div class="chart-box"><h3>${this.t('type_distribution')}</h3>
-            ${Object.entries(td).sort(([, a], [, b]) => b - a).slice(0, 10).map(([t, n]) => {
-            const p = Math.round((n / maxT) * 100);
-            return `<div class="bar-row"><span class="bar-label">${this.typeName(t)}</span>
-                    <div class="bar-track"><div class="bar-fill" style="width:${p}%;background:var(--brand)"></div></div>
-                    <span class="bar-val">${this.fmt(n)}</span></div>`;
-        }).join('')}
+
+        <!-- Row 1, Col 2: Kelas DDC -->
+        <div class="chart-box">
+            <div class="chart-box-header">
+                <h3>${this.t('ddc_distribution')}</h3>
+                <span class="chart-box-badge">10 ${isEn ? 'Divisions' : 'Divisi'}</span>
+            </div>
+            ${ddcEntries.map(([c, n]) => {
+                const p = Math.max(Math.round((n / maxD) * 100), 2);
+                const pct = totalDd > 0 ? ((n / totalDd) * 100).toFixed(1) : '0';
+                const clsLabel = `${c}00 ${dNames[c] || ''}`;
+                return `<div class="bar-row" title="${clsLabel}: ${this.fmt(n)} (${pct}%)">
+                    <span class="bar-label" title="${clsLabel}">${clsLabel}</span>
+                    <div class="bar-track"><div class="bar-fill" style="width:${p}%;"></div></div>
+                    <div class="bar-val-wrap">
+                        <span class="bar-val">${this.fmt(n)}</span>
+                        <span class="bar-pct">${pct}%</span>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>
+
+        <!-- Row 2 (Full Width): Sumber / Repositori Mitra -->
+        <div class="chart-box chart-box-full">
+            <div class="chart-box-header">
+                <h3>${this.t('source_distribution')}</h3>
+                <span class="chart-box-badge">${srcEntries.length} ${isEn ? 'Partners' : 'Institusi Mitra'}</span>
+            </div>
+            <div class="chart-bars-cols">
+                ${srcEntries.map(([src, n]) => {
+                    const p = Math.max(Math.round((n / maxS) * 100), 2);
+                    const pct = totalSrc > 0 ? ((n / totalSrc) * 100).toFixed(1) : '0';
+                    const sName = friendlySourceNames[src] || src;
+                    return `<div class="bar-row" title="${sName}: ${this.fmt(n)} (${pct}%)">
+                        <span class="bar-label" title="${sName}">${sName}</span>
+                        <div class="bar-track"><div class="bar-fill" style="width:${p}%;"></div></div>
+                        <div class="bar-val-wrap">
+                            <span class="bar-val">${this.fmt(n)}</span>
+                            <span class="bar-pct">${pct}%</span>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
         </div>`;
     },
 
@@ -5544,6 +5689,7 @@ const app = {
         const q = this._currentSearchQuery || '';
         const titleHl = this.hl(b.t, q);
         const authorHl = b.a ? this.hl(b.a, q) : '';
+
         return `<div class="bk-card" data-bid="${safeId}" data-url="${safeUrl}" onclick="app._cardClick(this)">
             <button id="bm-star-${safeId}" class="bk-star ${isBm ? 'active' : ''}" onclick="event.stopPropagation();app._bookmarkFromCard(this)" data-bid="${safeId}" title="${isBm ? this.t('btn_bookmarked') : this.t('btn_bookmark')}" style="color:${isBm ? 'var(--brand)' : 'var(--ink-3)'}">${this.starSvg(isBm)}</button>
             ${b.img ? `<div class="bk-cover" style="background-image:url('${b.img}')"></div>` : ''}

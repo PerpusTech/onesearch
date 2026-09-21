@@ -206,6 +206,8 @@ Contoh:
                         help='Jalankan rebuild setelah harvest')
     parser.add_argument('--rebuild-only', action='store_true',
                         help='Rebuild saja tanpa harvest')
+    parser.add_argument('--no-backup', action='store_true',
+                        help='Lewati auto-backup sebelum harvest')
 
     args = parser.parse_args()
 
@@ -237,6 +239,22 @@ Contoh:
         print("\n  ⚠️  Tidak ada institusi yang cocok dengan filter.")
         print("  Gunakan --list untuk melihat daftar ID yang tersedia.")
         return
+
+    # Auto-backup dataset sebelum harvest dijalankan
+    if not args.no_backup:
+        print(f"\n  💾 Menyiapkan auto-backup dataset sebelum harvest...")
+        try:
+            if SCRIPTS_DIR not in sys.path:
+                sys.path.insert(0, SCRIPTS_DIR)
+            from backup_manager import create_backup
+            reason = "pre_harvest_incremental" if args.from_date else "pre_harvest_full"
+            b_ok, b_info = create_backup(reason=reason, created_by="Batch Harvester CLI")
+            if b_ok:
+                print(f"  ✅ Backup diamankan: {b_info['filename']} ({b_info['size_mb']} MB, {b_info['records']:,} rekord)")
+            else:
+                print(f"  ⚠️  Auto-backup gagal: {b_info.get('error')}")
+        except Exception as e:
+            print(f"  ⚠️  Gagal memproses auto-backup: {e}")
 
     print(f"\n  📋 Akan harvest {len(targets)} institusi:")
     for inst in targets:

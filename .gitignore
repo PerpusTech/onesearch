@@ -3,8 +3,9 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Output harvest (terlalu besar untuk git)
+# Output harvest & backups (terlalu besar untuk git)
 output/
+backups/
 
 # Data processed (bisa di-rebuild)
 data/

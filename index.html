@@ -244,13 +244,18 @@
                         <div class="results-main">
                             <div class="results-bar">
                                 <h2 id="results-title"></h2>
-                                <select class="sort-sel" id="sort-sel" onchange="app.changeSort(this.value)">
-                                    <option value="relevance" data-i18n="sort_relevance">Relevansi</option>
-                                    <option value="title" data-i18n="sort_az">Judul A-Z</option>
-                                    <option value="year-desc" data-i18n="sort_newest">Terbaru</option>
-                                    <option value="year-asc" data-i18n="sort_oldest">Terlama</option>
-                                    <option value="ddc" data-i18n="sort_ddc">DDC</option>
-                                </select>
+                                <div class="sort-wrap">
+                                    <label for="sort-sel" class="sort-lbl" data-i18n="sort_label">Urutkan:</label>
+                                    <select class="sort-sel" id="sort-sel" onchange="app.changeSort(this.value)">
+                                        <option value="relevance" data-i18n="sort_relevance">Relevansi</option>
+                                        <option value="year-desc" data-i18n="sort_newest">Tahun: Terbaru</option>
+                                        <option value="year-asc" data-i18n="sort_oldest">Tahun: Terlama</option>
+                                        <option value="title-asc" data-i18n="sort_az">Judul (A–Z)</option>
+                                        <option value="title-desc" data-i18n="sort_za">Judul (Z–A)</option>
+                                        <option value="author-asc" data-i18n="sort_author">Penulis (A–Z)</option>
+                                        <option value="ddc" data-i18n="sort_ddc">Nomor DDC</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="bk-grid" id="results-grid"></div>
                             <div class="load-more-wrap" id="more-wrap" style="display:none">
@@ -667,10 +672,10 @@
             <div class="wrap">
                 <div class="page-top">
                     <h1 data-i18n="stats_collection">Statistik Koleksi</h1>
-                    <p data-i18n="stats_subtitle">Ringkasan data perpustakaan</p>
+                    <p data-i18n="stats_subtitle">Ringkasan data perpustakaan dan sebaran materi katalog</p>
                 </div>
                 <div class="stats-cards" id="stats-cards"></div>
-                <div class="charts-row" id="stats-charts"></div>
+                <div class="charts-grid" id="stats-charts"></div>
             </div>
         </section>
 
