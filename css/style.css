@@ -1569,10 +1569,19 @@ img {
     outline: none;
 }
 
-.bk-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: .85rem;
+/* Kolom hasil pencarian 1 kolom penuh (full width) */
+.bk-grid,
+#results-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: .75rem !important;
+    width: 100% !important;
+}
+
+#results-subscribed-highlight,
+.results-subscribed-highlight {
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
 }
 
 .bk-card {
@@ -1620,6 +1629,17 @@ img {
 .bk-author {
     font-size: .8rem;
     color: var(--ink-2)
+}
+
+.bk-desc {
+    font-size: .8rem;
+    color: var(--ink-3);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .bk-meta {

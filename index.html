@@ -23,7 +23,7 @@
         rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
 
-    <link rel="stylesheet" href="css/style.css?v=99">
+    <link rel="stylesheet" href="css/style.css?v=120">
 </head>
 
 <body>
@@ -257,6 +257,9 @@
                                     </select>
                                 </div>
                             </div>
+                            <!-- Sorotan Jurnal & E-Book Langganan Resmi UMS Terkait (Baris Paling Atas) -->
+                            <div id="results-subscribed-highlight" class="fed-subscribed-highlights-row" style="display:none; margin-bottom:1.25rem;"></div>
+
                             <div class="bk-grid" id="results-grid"></div>
                             <div class="load-more-wrap" id="more-wrap" style="display:none">
                                 <button class="btn btn-ghost" onclick="app.loadMore()" data-i18n="load_more">Muat Lebih
@@ -286,12 +289,12 @@
                 <!-- Browse Mode Switcher Tabs -->
                 <div class="browse-tabs-bar"
                     style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:2px solid var(--border); padding-bottom:0.5rem;">
-                    <button type="button" id="tab-browse-ddc" class="btn btn-brand" onclick="app.setBrowseMode('ddc')"
+                    <button type="button" id="tab-browse-ddc" class="btn btn-brand" onclick="app.switchBrowseMode('ddc')"
                         style="font-size:0.85rem; padding:0.4rem 1rem;">
                         Dewey Decimal (DDC)
                     </button>
                     <button type="button" id="tab-browse-prodi" class="btn btn-ghost"
-                        onclick="app.setBrowseMode('prodi')" style="font-size:0.85rem; padding:0.4rem 1rem;">
+                        onclick="app.switchBrowseMode('prodi')" style="font-size:0.85rem; padding:0.4rem 1rem;">
                         Program Studi & Fakultas
                     </button>
                 </div>
@@ -751,14 +754,14 @@
             </svg>
         </button>
     </div>
-    <script src="js/search.js?v=18"></script>
+    <script src="js/search.js?v=115"></script>
     <script src="js/recommender.js?v=17"></script>
-    <script src="js/app.js?v=112"></script>
+    <script src="js/app.js?v=120"></script>
     <script>
         // Registrasi Service Worker PWA (Offline Support & Shell Caching)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=112').then(reg => {
+                navigator.serviceWorker.register('/sw.js?v=120').then(reg => {
                     console.log('BookFinder Service Worker terdaftar:', reg.scope);
                 }).catch(err => {
                     console.warn('Gagal mendaftarkan Service Worker:', err);

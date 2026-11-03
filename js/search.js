@@ -312,12 +312,16 @@ class SearchEngine {
             }
         }
 
-        // 8. Gentle Recency Bonus (+1 to +3 pts for modern editions)
+        // 8. Gentle Recency & Institutional Subscribed Priority Bonus (+100 pts)
         for (const [idx, score] of scores) {
-            const yr = parseInt(this.books[idx]?.yr || 0, 10);
-            if (yr >= 2024) scores.set(idx, score + 3);
-            else if (yr >= 2020) scores.set(idx, score + 2);
-            else if (yr >= 2015) scores.set(idx, score + 1);
+            const b = this.books[idx];
+            let bonus = 0;
+            const yr = parseInt(b?.yr || 0, 10);
+            if (yr >= 2024) bonus += 3;
+            else if (yr >= 2020) bonus += 2;
+            else if (yr >= 2015) bonus += 1;
+            if (b?.isSubscribed) bonus += 100;
+            if (bonus) scores.set(idx, score + bonus);
         }
 
         // Sort by score descending

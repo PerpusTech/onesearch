@@ -681,7 +681,7 @@ const app = {
             this.bookmarks = new Set(JSON.parse(localStorage.getItem('bf-bookmarks') || '[]'));
             this.bookmarksData = JSON.parse(localStorage.getItem('bf-bookmarks-data') || '{}');
             this.renderShelves();
-            this.renderInstitutionPicker();
+            this.renderFederatedSourcesGrid();
             this.listen();
             this._updateBmBadge();
             bar.style.width = '100%';
@@ -910,9 +910,6 @@ const app = {
         this.browseMode = 'prodi';
         this._applyBrowseMode();
         this.renderProdi();
-    },
-    setBrowseMode(mode) {
-        this.switchBrowseMode(mode);
     },
     switchBrowseMode(mode) {
         this.browseMode = mode;
@@ -2633,6 +2630,20 @@ const app = {
             }).join('');
     },
 
+    isKohaBook(b) {
+        if (!b || b.isSubscribed) return false;
+        const id = String(b.id || '').toLowerCase();
+        if (id.startsWith('sub-jrn') || id.startsWith('sub-ebk')) return false;
+        const s = (b.src || '').toLowerCase();
+        if (s.includes('langganan') || s.includes('jurnal')) return false;
+        const u = (b.url || '').toLowerCase();
+        const t = (b.type || '').toUpperCase();
+        const isJournal = s.includes('journal') || u.includes('journal') || id.startsWith('ojs') || t === 'JR' || t === 'ARTICLE' || t === 'JRT';
+        const isEtd = s.includes('etd') || s.includes('eprints') || u.includes('eprints') || t === 'THESIS';
+        const isSibi = s.includes('sibi') || u.includes('sibi');
+        return !isJournal && !isEtd && !isSibi;
+    },
+
     // ──── Federated Discovery / Multi-Source Tabs ────
     _activeFedSource: null,
     _fedCurrentPage: 1,
@@ -2816,6 +2827,8 @@ const app = {
 
         // 3. Local UMS Collections & SIBI (Metode Sebelumnya: Katalog + Filter Facets + Book Grid)
         document.getElementById('fed-results-wrap').style.display = 'none';
+        const topSubEl = document.getElementById('results-subscribed-highlight');
+        if (topSubEl) { topSubEl.innerHTML = ''; topSubEl.style.display = 'none'; }
 
         if (q) {
             // User has a search term typed in
@@ -2828,16 +2841,7 @@ const app = {
         let titleLabel = srcObj.name;
 
         if (srcObj.type === 'local_koha') {
-            results = this.books.filter(b => {
-                const s = (b.src || '').toLowerCase();
-                const u = (b.url || '').toLowerCase();
-                const t = (b.type || '').toUpperCase();
-                const id = String(b.id || '').toLowerCase();
-                const isJournal = s.includes('journal') || u.includes('journal') || id.startsWith('ojs') || t === 'JR' || t === 'ARTICLE';
-                const isEtd = s.includes('etd') || s.includes('eprints') || u.includes('eprints') || t === 'THESIS';
-                const isSibi = s.includes('sibi') || u.includes('sibi');
-                return !isJournal && !isEtd && !isSibi;
-            });
+            results = this.books.filter(b => this.isKohaBook(b));
             titleLabel = 'Katalog Buku (Koha UMS & Mitra)';
         } else if (srcObj.type === 'local_etd') {
             results = this.books.filter(b => {
@@ -2864,6 +2868,7 @@ const app = {
         this.baseResults = results;
         this.activeFilters = { src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
         this.resultsPage = 0;
+        this._resultsTitleBase = titleLabel;
         document.getElementById('results-title').textContent =
             `${titleLabel} — ${this.fmt(results.length)} ${this.t('results_found').toLowerCase()}`;
         this.renderFacets();
@@ -3120,10 +3125,15 @@ const app = {
         pagTop.innerHTML = '';
         pagBottom.innerHTML = '';
 
+        if (this._fedPageAbortController) this._fedPageAbortController.abort();
+        this._fedPageAbortController = new AbortController();
+        const signal = this._fedPageAbortController.signal;
+
         const url = `/api/federated?source=${encodeURIComponent(srcObj.remoteKey)}&q=${encodeURIComponent(query)}&page=${page}&rows=15`;
-        fetch(url)
+        fetch(url, { signal })
             .then(res => res.json())
             .then(data => {
+                if (signal.aborted) return;
                 if (data.error) {
                     headerEl.innerHTML = `
                         <div class="fed-header-title">
@@ -3188,6 +3198,7 @@ const app = {
                 pagBottom.innerHTML = pagHtml;
             })
             .catch(err => {
+                if (err.name === 'AbortError') return;
                 headerEl.innerHTML = `<div class="fed-header-count" style="color:var(--rose)">Terjadi kesalahan koneksi: ${this.esc(err.message)}</div>`;
                 listEl.innerHTML = `<div style="text-align:center; padding:2rem 1rem; color:var(--ink-3);"><p>Silakan coba kembali.</p></div>`;
                 if (filterBarEl) filterBarEl.style.display = 'none';
@@ -3629,10 +3640,16 @@ const app = {
         pagTop.innerHTML = '';
         pagBottom.innerHTML = '';
 
+        if (this._fedPageAbortController) this._fedPageAbortController.abort();
+        this._fedPageAbortController = new AbortController();
+        const signal = this._fedPageAbortController.signal;
+
         const url = `/api/international/ebooks/search?q=${encodeURIComponent(query)}&page=${page}&rows=12`;
         try {
-            const res = await fetch(url);
+            const res = await fetch(url, { signal });
+            if (signal.aborted) return;
             const data = await res.json();
+            if (signal.aborted) return;
 
             if (!data.ok || data.error) {
                 const errMsg = (data.error && data.error.message) ? data.error.message : (data.error || 'Layanan tidak merespons');
@@ -3809,6 +3826,7 @@ const app = {
             pagBottom.innerHTML = pagHtml;
 
         } catch (err) {
+            if (err.name === 'AbortError') return;
             headerEl.innerHTML = `<div class="fed-header-count" style="color:var(--rose)">Kesalahan jaringan: ${this.esc(err.message)}</div>`;
             listEl.innerHTML = `<div style="text-align:center; padding:2rem 1rem; color:var(--ink-3);"><p>Tidak dapat tersambung ke server proxy.</p></div>`;
         }
@@ -3845,27 +3863,6 @@ const app = {
         } else {
             alert('Sitasi:\n' + citation);
         }
-    },
-
-    // ──── Institution Picker (Legacy / Compact) ────
-    _activeSource: null,
-
-    renderInstitutionPicker() {
-        this.renderFederatedSourcesGrid();
-    },
-
-    browseSource(src) {
-        const results = this.books.filter(b => b.src === src);
-        this.baseResults = results;
-        this.activeFilters = { src: new Set([src]), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
-        this.resultsPage = 0;
-        document.getElementById('search-input').value = '';
-        document.getElementById('results-title').textContent =
-            `${src} — ${this.fmt(results.length)} ${this.t('results_found').toLowerCase()}`;
-        this.renderFacets();
-        this.applyFiltersAndRender();
-        document.getElementById('results-wrap').style.display = 'block';
-        document.getElementById('results-wrap').scrollIntoView({ behavior: 'smooth' });
     },
 
     // ──── Search ────
@@ -3989,7 +3986,11 @@ const app = {
         let results;
 
         if (field === 'all') {
-            results = this.searchEngine.search(q, 500).map(r => r.book);
+            results = this.searchEngine.search(q, 500).map(r => {
+                const b = r.book;
+                b._score = r.score;
+                return b;
+            });
         } else {
             // Field-specific search (support quotes stripping and exact phrase matching)
             const qClean = q.replace(/["']/g, '').trim().toLowerCase();
@@ -4026,10 +4027,35 @@ const app = {
         };
         const fieldLabel = field !== 'all' ? ` [${fieldLabels[field]}]` : '';
 
+        if (this._activeFedSource === 'koha') {
+            results = results.filter(b => this.isKohaBook(b));
+        }
+
+        // Render Subscribed Journals & E-Books Highlight at the TOP
+        const topHighlightEl = document.getElementById('results-subscribed-highlight');
+        if (topHighlightEl) {
+            if (this._activeFedSource === 'koha') {
+                topHighlightEl.innerHTML = '';
+                topHighlightEl.style.display = 'none';
+            } else {
+                const matchedSubJournals = this.findMatchingSubscribedJournals(q);
+                const matchedSubEBooks = this.findMatchingSubscribedEBooks(q);
+                const matchedHtml = this.buildSubscribedHighlightsHtml(matchedSubJournals, matchedSubEBooks, q);
+                if (matchedHtml && matchedHtml.trim().length > 0) {
+                    topHighlightEl.innerHTML = matchedHtml;
+                    topHighlightEl.style.display = 'grid';
+                } else {
+                    topHighlightEl.innerHTML = '';
+                    topHighlightEl.style.display = 'none';
+                }
+            }
+        }
+
         this.baseResults = results;
         this.activeFilters = { src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
         this.resultsPage = 0;
-        document.getElementById('results-title').textContent = `"${q}"${fieldLabel} — ${results.length} ${this.t('results_found').toLowerCase()}`;
+        this._resultsTitleBase = `"${q}"${fieldLabel}`;
+        document.getElementById('results-title').textContent = `"${q}"${fieldLabel} — ${this.fmt(results.length)} ${this.t('results_found').toLowerCase()}`;
 
         // Show result wrapper & scroll immediately, then show skeleton
         document.getElementById('results-wrap').style.display = 'block';
@@ -4159,6 +4185,11 @@ const app = {
             await this.getSubscribedEBooksList();
         }
 
+        // Abort previous in-flight federated insights
+        if (this._fedInsightAbortController) this._fedInsightAbortController.abort();
+        this._fedInsightAbortController = new AbortController();
+        const signal = this._fedInsightAbortController.signal;
+
         // Validate query hasn't changed during async fetch
         const curInpCheck = (document.getElementById('search-input') || {}).value || '';
         if (curInpCheck.trim().toLowerCase() !== q.toLowerCase()) return;
@@ -4175,26 +4206,14 @@ const app = {
 
         // When Master Switch is disabled OR all individual international providers are off:
         if (!isMasterEnabled || (activeProviders.length === 0 && !isIntlEbooksActive)) {
-            if (hasSubHighlights) {
-                container.style.display = 'block';
-                container.innerHTML = `
-                    ${localCount === 0 ? `
-                        <div class="zero-local-alert">
-                            <div>Koleksi katalog lokal belum tersedia untuk kata kunci ini. Ditemukan akses resmi institusi UMS terkait:</div>
-                        </div>` : ''}
-                    ${matchedJournalsBannerHtml}
-                `;
-            } else {
-                container.style.display = 'none';
-                container.innerHTML = '';
-            }
+            container.style.display = 'none';
+            container.innerHTML = '';
             return;
         }
 
-        // When Master Switch & at least one provider is enabled, render loading state (including subscribed highlights immediately if matched!)
+        // When Master Switch & at least one provider is enabled, render loading state
         container.style.display = 'block';
         container.innerHTML = `
-            ${matchedJournalsBannerHtml}
             <div class="fed-insights-header">
                 <div class="fed-insights-title-group">
                     <h3>Literatur Ilmiah & E-Book Internasional Terkait "${this.esc(q)}"</h3>
@@ -4213,28 +4232,22 @@ const app = {
         `;
 
         const queryTerm = encodeURIComponent(q);
-        const reqScopus = activeProviders.includes('scopus') ? fetch(`/api/federated?source=scopus&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null) : Promise.resolve(null);
-        const reqSemantic = activeProviders.includes('semanticscholar') ? fetch(`/api/federated?source=semanticscholar&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null) : Promise.resolve(null);
-        const reqLens = activeProviders.includes('lens') ? fetch(`/api/federated?source=lens&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null) : Promise.resolve(null);
-        const reqOpenAlex = activeProviders.includes('openalex') ? fetch(`/api/federated?source=openalex&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null) : Promise.resolve(null);
-        const reqCrossref = activeProviders.includes('crossref') ? fetch(`/api/federated?source=crossref&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null) : Promise.resolve(null);
-        const reqSpringer = activeProviders.includes('springer') ? fetch(`/api/federated?source=springer&q=${queryTerm}&rows=3`).then(r => r.json()).catch(() => null) : Promise.resolve(null);
-        const reqIntlEbooks = isIntlEbooksActive
-            ? fetch(`/api/international/ebooks/search?q=${queryTerm}&page=1&rows=3`).then(r => r.json()).catch(() => null)
-            : Promise.resolve(null);
+        const providers = ['scopus', 'semanticscholar', 'lens', 'openalex', 'crossref', 'springer'];
+        const reqs = providers.map(p => activeProviders.includes(p)
+            ? fetch(`/api/federated?source=${p}&q=${queryTerm}&rows=3`, { signal }).then(r => r.json()).catch(() => null)
+            : Promise.resolve(null));
+        reqs.push(isIntlEbooksActive
+            ? fetch(`/api/international/ebooks/search?q=${queryTerm}&page=1&rows=3`, { signal }).then(r => r.json()).catch(() => null)
+            : Promise.resolve(null));
 
-        Promise.allSettled([reqScopus, reqSemantic, reqLens, reqOpenAlex, reqCrossref, reqSpringer, reqIntlEbooks]).then(results => {
+        Promise.allSettled(reqs).then(results => {
+            if (signal.aborted) return;
             // Check if current search input still matches query
             const curInp = (document.getElementById('search-input') || {}).value || '';
             if (curInp.trim().toLowerCase() !== q.toLowerCase()) return;
 
-            const scopusData = (results[0].status === 'fulfilled' && results[0].value) ? results[0].value : {};
-            const semanticData = (results[1].status === 'fulfilled' && results[1].value) ? results[1].value : {};
-            const lensData = (results[2].status === 'fulfilled' && results[2].value) ? results[2].value : {};
-            const openalexData = (results[3].status === 'fulfilled' && results[3].value) ? results[3].value : {};
-            const crossrefData = (results[4].status === 'fulfilled' && results[4].value) ? results[4].value : {};
-            const springerData = (results[5].status === 'fulfilled' && results[5].value) ? results[5].value : {};
-            const intlEbooksData = (results[6].status === 'fulfilled' && results[6].value) ? results[6].value : {};
+            const [scopusData, semanticData, lensData, openalexData, crossrefData, springerData, intlEbooksData] =
+                results.map(r => (r.status === 'fulfilled' && r.value) ? r.value : {});
 
             const scopusTotal = scopusData.total || 0;
             const semanticTotal = semanticData.total || 0;
@@ -4481,45 +4494,9 @@ const app = {
     },
     // ──── Empty State SVG Illustrations ────
     getEmptyStateSvg(type) {
-        if (type === 'search') {
-            return `
-            <svg class="empty-state-svg" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="60" cy="60" r="50" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" stroke-opacity="0.3"/>
-                <path d="M35 75C35 68.3726 40.3726 63 47 63H73C79.6274 63 85 68.3726 85 75V78H35V75Z" fill="var(--bg-3)" stroke="currentColor" stroke-width="2"/>
-                <rect x="38" y="42" width="44" height="26" rx="4" fill="var(--bg-2)" stroke="currentColor" stroke-width="2"/>
-                <line x1="46" y1="50" x2="66" y2="50" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.6"/>
-                <line x1="46" y1="56" x2="74" y2="56" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.4"/>
-                <circle cx="68" cy="46" r="18" fill="var(--bg-1)" stroke="var(--brand)" stroke-width="2.5"/>
-                <circle cx="68" cy="46" r="11" fill="none" stroke="var(--brand)" stroke-width="1.5" stroke-dasharray="2 2"/>
-                <line x1="81" y1="59" x2="94" y2="72" stroke="var(--brand)" stroke-width="3.5" stroke-linecap="round"/>
-                <circle cx="34" cy="40" r="2" fill="var(--brand)"/>
-                <circle cx="88" cy="30" r="3" fill="var(--amber)"/>
-                <circle cx="28" cy="66" r="2.5" fill="var(--teal)"/>
-            </svg>`;
-        } else if (type === 'filter') {
-            return `
-            <svg class="empty-state-svg" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="60" cy="60" r="50" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" stroke-opacity="0.3"/>
-                <path d="M34 38H86L68 60V82L52 74V60L34 38Z" fill="var(--bg-2)" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                <line x1="42" y1="46" x2="78" y2="46" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.4"/>
-                <circle cx="78" cy="74" r="14" fill="var(--bg-1)" stroke="var(--rose)" stroke-width="2.5"/>
-                <line x1="72" y1="68" x2="84" y2="80" stroke="var(--rose)" stroke-width="2.5" stroke-linecap="round"/>
-                <line x1="84" y1="68" x2="72" y2="80" stroke="var(--rose)" stroke-width="2.5" stroke-linecap="round"/>
-            </svg>`;
-        } else if (type === 'bookmarks') {
-            return `
-            <svg class="empty-state-svg" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="60" cy="60" r="50" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" stroke-opacity="0.3"/>
-                <rect x="36" y="32" width="48" height="60" rx="6" fill="var(--bg-2)" stroke="currentColor" stroke-width="2"/>
-                <path d="M52 32V62L62 54L72 62V32H52Z" fill="var(--amber)" fill-opacity="0.2" stroke="var(--amber)" stroke-width="2" stroke-linejoin="round"/>
-                <polygon points="62,40 64,45 69,45 65,48 67,53 62,50 57,53 59,48 55,45 60,45" fill="var(--amber)"/>
-                <line x1="44" y1="74" x2="76" y2="74" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.4"/>
-                <line x1="44" y1="80" x2="68" y2="80" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.3"/>
-                <circle cx="90" cy="42" r="2.5" fill="var(--brand)"/>
-                <circle cx="30" cy="54" r="2" fill="var(--purple)"/>
-            </svg>`;
-        }
-        return '';
+        if (type === 'filter') return '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
+        if (type === 'bookmarks') return '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+        return '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
     },
 
     // ──── Skeleton Loading ────
@@ -4632,20 +4609,22 @@ const app = {
             this.currentResults.sort((a, b) => (a.ddc || '999').localeCompare(b.ddc || '999'));
         } else if (s === 'relevance') {
             if (this.baseResults && this.baseResults.length) {
-                const hasScore = this.baseResults.some(b => typeof b._score === 'number');
-                if (hasScore) {
-                    this.currentResults.sort((a, b) => (b._score || 0) - (a._score || 0));
-                } else {
-                    const orderMap = new Map(this.baseResults.map((b, idx) => [b.id, idx]));
-                    this.currentResults.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
-                }
+                const orderMap = new Map(this.baseResults.map((b, idx) => [b.id, idx]));
+                this.currentResults.sort((a, b) => {
+                    const subA = a.isSubscribed ? 1 : 0;
+                    const subB = b.isSubscribed ? 1 : 0;
+                    if (subB !== subA) return subB - subA; // Always prioritize subscribed journals & ebooks on top
+                    const hasScoreA = typeof a._score === 'number';
+                    const hasScoreB = typeof b._score === 'number';
+                    if (hasScoreA && hasScoreB && b._score !== a._score) {
+                        return b._score - a._score;
+                    }
+                    return (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0);
+                });
             }
         }
         this.resultsPage = 0;
         this.renderResults();
-    },
-    sortResults() {
-        this.changeSort();
     },
 
     // ──── Facets / Filters ────
@@ -4752,8 +4731,10 @@ const app = {
         });
 
         const titleEl = document.getElementById('results-title');
-        const queryText = titleEl.textContent.split(' — ')[0];
-        titleEl.textContent = `${queryText} — ${this.fmt(this.currentResults.length)} ${this.t('results_found').toLowerCase()}`;
+        if (titleEl) {
+            const baseTitle = this._resultsTitleBase || titleEl.textContent.replace(/\s*—\s*[\d.,\s]+[^\—]*$/, '');
+            titleEl.textContent = `${baseTitle} — ${this.fmt(this.currentResults.length)} ${this.t('results_found').toLowerCase()}`;
+        }
 
         const sel = document.getElementById('sort-sel');
         if (sel && sel.value && sel.value !== 'relevance') {
@@ -5204,7 +5185,8 @@ const app = {
         this.baseResults.sort((a, b) => (a.t || '').localeCompare(b.t || ''));
         this.activeFilters = { src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
         this.resultsPage = 0;
-        document.getElementById('results-title').textContent = `${this.t('format')}: ${this.typeName(f)} — ${this.fmt(this.baseResults.length)} ${this.t('results_found').toLowerCase()}`;
+        this._resultsTitleBase = `${this.t('format')}: ${this.typeName(f)}`;
+        document.getElementById('results-title').textContent = `${this._resultsTitleBase} — ${this.fmt(this.baseResults.length)} ${this.t('results_found').toLowerCase()}`;
         this.renderFacets();
         this.applyFiltersAndRender();
         document.getElementById('results-wrap').style.display = 'block';
@@ -5305,6 +5287,7 @@ const app = {
         this.baseResults.sort((a, b) => (a.t || '').localeCompare(b.t || ''));
         this.activeFilters = { src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
         this.resultsPage = 0;
+        this._resultsTitleBase = this.t('adv_search');
         document.getElementById('results-title').textContent = `${this.t('adv_search')} — ${this.fmt(this.baseResults.length)} ${this.t('results_found').toLowerCase()}`;
 
         this.renderFacets();
@@ -5689,12 +5672,17 @@ const app = {
         const q = this._currentSearchQuery || '';
         const titleHl = this.hl(b.t, q);
         const authorHl = b.a ? this.hl(b.a, q) : '';
+        const descText = b.desc 
+            || (b.sub && b.sub.length ? ('Topik: ' + b.sub.slice(0, 3).join(', ') + (b.pub ? ' • Penerbit: ' + b.pub : '')) : '')
+            || (b.pub ? 'Penerbit: ' + b.pub : '')
+            || (b.isbn ? 'Koleksi buku fisik ' + (b.src || 'Perpustakaan') + ' (ISBN: ' + b.isbn + ')' : (b.src ? 'Koleksi ' + b.src : ''));
 
         return `<div class="bk-card" data-bid="${safeId}" data-url="${safeUrl}" onclick="app._cardClick(this)">
             <button id="bm-star-${safeId}" class="bk-star ${isBm ? 'active' : ''}" onclick="event.stopPropagation();app._bookmarkFromCard(this)" data-bid="${safeId}" title="${isBm ? this.t('btn_bookmarked') : this.t('btn_bookmark')}" style="color:${isBm ? 'var(--brand)' : 'var(--ink-3)'}">${this.starSvg(isBm)}</button>
             ${b.img ? `<div class="bk-cover" style="background-image:url('${b.img}')"></div>` : ''}
             <div class="bk-title">${titleHl}</div>
             ${authorHl ? `<div class="bk-author">${authorHl}</div>` : ''}
+            ${descText ? `<div class="bk-desc">${this.hl(descText.slice(0, 240), q)}</div>` : ''}
             <div class="bk-meta">
                 ${b.ddc ? `<span class="chip chip-ddc">DDC ${b.ddc}</span>` : ''}
                 ${b.yr ? `<span class="chip chip-year">${b.yr}</span>` : ''}
@@ -5783,13 +5771,19 @@ const app = {
             return;
         }
 
+        if (this._topicsAbortController) this._topicsAbortController.abort();
+        this._topicsAbortController = new AbortController();
+        const signal = this._topicsAbortController.signal;
+
         try {
-            const resp = await fetch(`/api/topics?q=${encodeURIComponent(query.trim())}`);
+            const resp = await fetch(`/api/topics?q=${encodeURIComponent(query.trim())}`, { signal });
+            if (signal.aborted) return;
             if (!resp.ok) {
                 wrap.style.display = 'none';
                 return;
             }
             const data = await resp.json();
+            if (signal.aborted) return;
             const topics = data.topics || [];
             if (topics.length === 0) {
                 wrap.style.display = 'none';
@@ -5815,6 +5809,7 @@ const app = {
                 </div>
             `;
         } catch (e) {
+            if (e.name === 'AbortError') return;
             wrap.style.display = 'none';
         }
     },

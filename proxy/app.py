@@ -11,8 +11,6 @@ import socket
 import ipaddress
 from urllib.parse import urlparse
 import requests
-from urllib3.util import Retry
-from requests.adapters import HTTPAdapter
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import hmac
@@ -29,24 +27,8 @@ SEMANTIC_SCHOLAR_API_KEY = os.environ.get('SEMANTIC_SCHOLAR_API_KEY', '').strip(
 LENS_API_KEY = os.environ.get('LENS_API_KEY', '').strip('"\'')
 
 
-# ── RESILIENT HTTP SESSION WITH AUTO-RETRY ──
-def _init_resilient_session():
-    """Create a persistent requests session with connection pooling and fast-fail retry."""
-    session = requests.Session()
-    retries = Retry(
-        total=1,
-        connect=1,
-        read=0,
-        redirect=2,
-        status=0,
-        raise_on_status=False
-    )
-    adapter = HTTPAdapter(max_retries=retries, pool_connections=30, pool_maxsize=60)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
-    return session
-
-HTTP_SESSION = _init_resilient_session()
+# ── HTTP SESSION ──
+HTTP_SESSION = requests.Session()
 
 # ── PATHS & GLOBAL DIRECTORIES ──
 ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'ums-onesearch-secret-key').strip('"\'')
@@ -86,63 +68,7 @@ DEFAULT_INTERNATIONAL_CONFIG = {
     "filter_subscribed_only_default": False
 }
 
-INITIAL_SUBSCRIBED_JOURNALS = [
-    {
-        "id": "JRN-001",
-        "title": "Nature Machine Intelligence",
-        "issn": "2522-5839",
-        "eissn": "2522-5839",
-        "publisher": "Springer Nature",
-        "url": "https://www.nature.com/natmachintell/",
-        "subject": "Informatika & Kecerdasan Buatan",
-        "notes": "Langganan Resmi UMS 2026",
-        "active": True
-    },
-    {
-        "id": "JRN-002",
-        "title": "The Lancet",
-        "issn": "0140-6736",
-        "eissn": "1474-547X",
-        "publisher": "Elsevier",
-        "url": "https://www.thelancet.com/",
-        "subject": "Kedokteran & Kesehatan",
-        "notes": "Langganan Resmi UMS 2026",
-        "active": True
-    },
-    {
-        "id": "JRN-003",
-        "title": "IEEE Transactions on Education",
-        "issn": "0018-9359",
-        "eissn": "1557-9638",
-        "publisher": "IEEE",
-        "url": "https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=13",
-        "subject": "Teknik & Ilmu Pendidikan",
-        "notes": "Paket Konsorsium Kampus",
-        "active": True
-    },
-    {
-        "id": "JRN-004",
-        "title": "Journal of Islamic Marketing",
-        "issn": "1759-0833",
-        "eissn": "1759-0833",
-        "publisher": "Emerald Insight",
-        "url": "https://www.emerald.com/insight/publication/issn/1759-0833",
-        "subject": "Ekonomi & Bisnis Islam",
-        "notes": "Langganan Mandiri UMS",
-        "active": True
-    },
-    {
-        "id": "JRN-005",
-        "title": "Educational Technology Research and Development",
-        "issn": "1042-1629",
-        "eissn": "1556-6501",
-        "publisher": "Springer",
-        "url": "https://link.springer.com/journal/11423",
-        "subject": "Teknologi Pendidikan & FKIP",
-        "notes": "Langganan Resmi UMS 2026",
-        "active": True
-    }
-]
+
 
 
 # ── SECURITY, ANTI-SSRF & RATE LIMITING HELPERS ──
@@ -330,8 +256,7 @@ def _save_international_config(cfg):
 def _load_subscribed_journals():
     items = _load_json_file(SUBSCRIBED_JOURNALS_FILE, None)
     if items is None or not isinstance(items, list):
-        _save_subscribed_journals(INITIAL_SUBSCRIBED_JOURNALS)
-        return list(INITIAL_SUBSCRIBED_JOURNALS)
+        return []
     return items
 
 
