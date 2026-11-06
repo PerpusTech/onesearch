@@ -1,3 +1,16 @@
+"""
+Gateway & Backend REST API — UMS Library OneSearch (harvest-koha)
+================================================================
+
+Server backend berbasis Flask & Gunicorn yang menangani:
+1. Federated Scientific Search: Penelusuran paralel ke OpenAlex, Crossref, Semantic Scholar,
+   The Lens, Scopus, Springer Nature, dan DOAB.
+2. In-Memory Query Caching: Menggunakan cachetools.TTLCache untuk efisiensi kuota API dan sub-2ms response.
+3. PDF Streaming Proxy: Mengalirkan naskah PDF publik tanpa batasan header X-Frame-Options.
+4. Admin Control Plane: Otentikasi sesi admin, live SSE harvester logs, snapshot backup & restore,
+   manajemen master data DDC & Prodi, serta telemetri analitik kueri pencarian.
+"""
+
 import os
 import sys
 import json
@@ -9,6 +22,8 @@ import csv
 import threading
 import socket
 import ipaddress
+import sqlite3
+import hashlib
 from urllib.parse import urlparse
 import requests
 from datetime import datetime
@@ -51,6 +66,116 @@ PRODI_RULES_FILE = os.path.join(DATA_DIR, 'prodi_rules.json')
 _ddc_lock = threading.Lock()
 _prodi_lock = threading.Lock()
 
+# ── SQLITE FEDERATED ARTICLE CACHE & TELEMETRY ──
+ARTICLE_CACHE_DB = os.path.join(DATA_DIR, 'federated_cache.db')
+_article_cache_lock = threading.Lock()
+
+def get_article_db():
+    conn = sqlite3.connect(ARTICLE_CACHE_DB, timeout=10.0)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+    return conn
+
+def init_article_db():
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with get_article_db() as conn:
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS article_cache (
+                id TEXT PRIMARY KEY,
+                doi TEXT,
+                title TEXT NOT NULL,
+                authors TEXT,
+                publication_name TEXT,
+                year INTEGER,
+                content_type TEXT,
+                source TEXT,
+                abstract TEXT,
+                url TEXT,
+                pdf_url TEXT,
+                is_subscribed INTEGER DEFAULT 0,
+                subscribed_url TEXT,
+                view_count INTEGER DEFAULT 1,
+                first_saved TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_art_doi ON article_cache(doi);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_art_view ON article_cache(view_count DESC);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_art_last_access ON article_cache(last_accessed DESC);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_art_source ON article_cache(source);")
+            conn.commit()
+    except Exception as e:
+        print(f"[SQLITE CACHE] Gagal inisialisasi tabel: {e}")
+
+init_article_db()
+
+def upsert_cached_article(data):
+    if not isinstance(data, dict):
+        return None
+    
+    title = (data.get('title') or data.get('t') or '').strip()
+    if not title:
+        return None
+    
+    doi = (data.get('doi') or '').strip()
+    doi = re.sub(r'^https?://(dx.)?doi.org/', '', doi, flags=re.I).strip()
+    
+    raw_id = (data.get('id') or '').strip()
+    if doi:
+        art_id = doi.lower()
+    elif raw_id and not raw_id.startswith('art_'):
+        art_id = raw_id
+    else:
+        art_id = hashlib.md5(title.lower().encode('utf-8')).hexdigest()
+    
+    authors = data.get('authors') or data.get('a') or ''
+    if isinstance(authors, list):
+        authors = "; ".join(str(a) for a in authors)
+        
+    pub_name = data.get('publicationName') or data.get('pub') or data.get('publication_name') or ''
+    
+    try:
+        year = int(data.get('year') or data.get('yr') or 0)
+    except (ValueError, TypeError):
+        year = 0
+        
+    content_type = data.get('contentType') or data.get('type') or 'Article'
+    source = data.get('source') or 'International Journal'
+    abstract = data.get('abstract') or ''
+    url = data.get('url') or ''
+    pdf_url = data.get('pdfUrl') or data.get('pdf_url') or ''
+    is_subscribed = 1 if data.get('isSubscribed') else 0
+    subscribed_url = data.get('subscribedUrl') or ''
+    
+    with _article_cache_lock:
+        with get_article_db() as conn:
+            conn.execute("""
+            INSERT INTO article_cache (
+                id, doi, title, authors, publication_name, year, content_type,
+                source, abstract, url, pdf_url, is_subscribed, subscribed_url,
+                view_count, first_saved, last_accessed
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            )
+            ON CONFLICT(id) DO UPDATE SET
+                view_count = article_cache.view_count + 1,
+                last_accessed = CURRENT_TIMESTAMP,
+                doi = CASE WHEN length(EXCLUDED.doi) > 0 THEN EXCLUDED.doi ELSE article_cache.doi END,
+                pdf_url = CASE WHEN length(EXCLUDED.pdf_url) > 0 THEN EXCLUDED.pdf_url ELSE article_cache.pdf_url END,
+                abstract = CASE WHEN length(EXCLUDED.abstract) > length(article_cache.abstract) THEN EXCLUDED.abstract ELSE article_cache.abstract END,
+                is_subscribed = MAX(article_cache.is_subscribed, EXCLUDED.is_subscribed),
+                subscribed_url = CASE WHEN length(EXCLUDED.subscribed_url) > 0 THEN EXCLUDED.subscribed_url ELSE article_cache.subscribed_url END;
+            """, (art_id, doi, title, authors, pub_name, year, content_type, source, abstract, url, pdf_url, is_subscribed, subscribed_url))
+            conn.commit()
+            
+            row = conn.execute("SELECT id, doi, title, view_count, last_accessed FROM article_cache WHERE id = ?", (art_id,)).fetchone()
+            if row:
+                return dict(row)
+            return {"id": art_id, "view_count": 1}
+
 DEFAULT_INTERNATIONAL_CONFIG = {
     "enabled": True,
     "sources": {
@@ -62,6 +187,8 @@ DEFAULT_INTERNATIONAL_CONFIG = {
         "crossref": True,
         "emerald": True,
         "intl_ebooks": True,
+        "subscribed_journals": True,
+        "subscribed_ebooks": True,
         "journal": True,
         "sibi": True
     },
@@ -656,9 +783,71 @@ def _fetch_openalex_fallback(query, page, rows, badge_source="OpenAlex", venue_t
     return items, total
 
 
+def _parse_crossref_items(items_raw, source_name="Crossref", id_prefix="cr"):
+    """Parse raw items from Crossref API response into normalized publication dicts."""
+    items = []
+    type_map = {
+        'journal-article': 'Journal Article',
+        'book-chapter': 'Book Chapter',
+        'book': 'eBook',
+        'proceedings-article': 'Conference Proceeding',
+        'dataset': 'Dataset',
+        'monograph': 'Monograph'
+    }
+    for it in items_raw:
+        authors_list = []
+        for a in it.get('author', []):
+            name_parts = [a.get('family', ''), a.get('given', '')]
+            name = ", ".join([p for p in name_parts if p]) or a.get('name', '')
+            if name:
+                authors_list.append(name)
+        authors_str = "; ".join(authors_list) if authors_list else "Unknown"
+
+        titles = it.get('title', [])
+        title_str = clean_title(titles[0] if titles else "Untitled")
+
+        pub_date = it.get('published', {}).get('date-parts', [[]])[0]
+        year = pub_date[0] if len(pub_date) > 0 else 0
+        date_str = "-".join([str(p).zfill(2) for p in pub_date]) if pub_date else str(year or "")
+
+        container = it.get('container-title', [])
+        pub_name = container[0] if container else it.get('publisher', source_name)
+
+        doi = clean_doi(it.get('DOI', ''))
+        doi_url = f"https://doi.org/{doi}" if doi else ""
+        if source_name == "Springer" and doi:
+            item_url = f"https://link.springer.com/doi/{doi}"
+        elif source_name == "Emerald" and doi:
+            item_url = f"https://www.emerald.com/insight/content/doi/{doi}"
+        else:
+            item_url = doi_url or (it.get('URL') or '')
+
+        abstract_clean = clean_html_tags(it.get('abstract', ''))
+        raw_type = it.get('type', 'article')
+        content_type = type_map.get(raw_type, raw_type.replace('-', ' ').title())
+        is_oa = bool(it.get('license')) or any('open' in str(l).lower() for l in it.get('link', []))
+
+        items.append({
+            "id": f"{id_prefix}-{doi or it.get('URL', '')}",
+            "title": title_str,
+            "authors": authors_str,
+            "contentType": content_type,
+            "publicationName": pub_name,
+            "publicationType": source_name if source_name != "Springer" else "Springer Nature",
+            "date": date_str,
+            "year": year,
+            "doi": doi,
+            "url": item_url,
+            "pdfUrl": next((l.get('URL', '') for l in it.get('link', []) if 'pdf' in str(l.get('content-type', '')).lower() or str(l.get('URL', '')).endswith('.pdf')), '') if is_oa else '',
+            "abstract": abstract_clean,
+            "openAccess": is_oa,
+            "source": source_name
+        })
+    return items
+
+
 # ── SINGLE SOURCE FETCHER WITH CIRCUIT BREAKERS & RETRY ──
 def _fetch_single_source(source, query, page, rows):
-    # Normalized cache check for single source
     cache_key = f"src:{source.lower().strip()}:{query.lower().strip()}:{page}:{rows}"
     cached_data = QUERY_CACHE.get(cache_key)
     if cached_data is not None:
@@ -668,7 +857,7 @@ def _fetch_single_source(source, query, page, rows):
     if source == 'springer':
         items = []
         total = 0
-        
+
         if CIRCUIT_BREAKERS["crossref"].can_attempt():
             url = 'https://api.crossref.org/works'
             offset = (page - 1) * rows
@@ -687,63 +876,7 @@ def _fetch_single_source(source, query, page, rows):
                     message = data.get('message', {})
                     total = message.get('total-results', 0)
                     items_raw = message.get('items', [])
-                    
-                    for it in items_raw:
-                        authors_list = []
-                        for a in it.get('author', []):
-                            name_parts = [a.get('family', ''), a.get('given', '')]
-                            name = ", ".join([p for p in name_parts if p])
-                            if not name:
-                                name = a.get('name', '')
-                            if name:
-                                authors_list.append(name)
-                        authors_str = "; ".join(authors_list) if authors_list else "Unknown"
-
-                        titles = it.get('title', [])
-                        title_str = clean_title(titles[0] if titles else "Untitled")
-
-                        pub_date = it.get('published', {}).get('date-parts', [[]])[0]
-                        year = pub_date[0] if len(pub_date) > 0 else 0
-                        date_str = "-".join([str(p).zfill(2) for p in pub_date]) if pub_date else str(year or "")
-
-                        container = it.get('container-title', [])
-                        pub_name = container[0] if container else it.get('publisher', 'Springer')
-
-                        doi = clean_doi(it.get('DOI', ''))
-                        doi_url = f"https://doi.org/{doi}" if doi else ""
-                        springer_url = f"https://link.springer.com/doi/{doi}" if doi else (it.get('URL') or doi_url)
-
-                        abstract_raw = it.get('abstract', '')
-                        abstract_clean = clean_html_tags(abstract_raw)
-
-                        raw_type = it.get('type', 'article')
-                        type_map = {
-                            'journal-article': 'Journal Article',
-                            'book-chapter': 'Chapter ConferencePaper',
-                            'book': 'Book',
-                            'proceedings-article': 'Conference Paper',
-                            'dataset': 'Dataset',
-                            'monograph': 'Monograph'
-                        }
-                        content_type = type_map.get(raw_type, raw_type.replace('-', ' ').title())
-                        is_oa = bool(it.get('license')) or 'open' in str(it.get('type', '')).lower() or any('open' in str(l).lower() for l in it.get('link', []))
-
-                        items.append({
-                            "id": f"sp-{doi or it.get('URL', '')}",
-                            "title": title_str,
-                            "authors": authors_str,
-                            "contentType": content_type,
-                            "publicationName": pub_name,
-                            "publicationType": "Springer Nature",
-                            "date": date_str,
-                            "year": year,
-                            "doi": doi,
-                            "url": springer_url or doi_url or (it.get('URL') or ''),
-                            "pdfUrl": next((l.get('URL', '') for l in it.get('link', []) if 'pdf' in str(l.get('content-type', '')).lower() or str(l.get('URL', '')).endswith('.pdf')), '') if is_oa else '',
-                            "abstract": abstract_clean,
-                            "openAccess": is_oa,
-                            "source": "Springer"
-                        })
+                    items = _parse_crossref_items(items_raw, source_name="Springer", id_prefix="sp")
                 else:
                     CIRCUIT_BREAKERS["crossref"].record_failure()
             except Exception:
@@ -789,59 +922,7 @@ def _fetch_single_source(source, query, page, rows):
                     total = message.get('total-results', 0)
                     items_raw = message.get('items', [])
                     
-                    for it in items_raw:
-                        authors_list = []
-                        for a in it.get('author', []):
-                            name_parts = [a.get('family', ''), a.get('given', '')]
-                            name = ", ".join([p for p in name_parts if p])
-                            if not name:
-                                name = a.get('name', '')
-                            if name:
-                                authors_list.append(name)
-                        authors_str = "; ".join(authors_list) if authors_list else "Unknown"
-
-                        titles = it.get('title', [])
-                        title_str = clean_title(titles[0] if titles else "Untitled")
-
-                        pub_date = it.get('published', {}).get('date-parts', [[]])[0]
-                        year = pub_date[0] if len(pub_date) > 0 else 0
-                        date_str = "-".join([str(p).zfill(2) for p in pub_date]) if pub_date else str(year or "")
-
-                        container = it.get('container-title', [])
-                        pub_name = container[0] if container else it.get('publisher', 'Emerald Insight')
-
-                        doi = clean_doi(it.get('DOI', ''))
-                        doi_url = f"https://doi.org/{doi}" if doi else ""
-                        emerald_url = f"https://www.emerald.com/insight/content/doi/{doi}" if doi else (it.get('URL') or doi_url)
-
-                        abstract_clean = clean_html_tags(it.get('abstract', ''))
-
-                        raw_type = it.get('type', 'article')
-                        type_map = {
-                            'journal-article': 'Journal Article',
-                            'book-chapter': 'Book Chapter',
-                            'book': 'eBook',
-                            'proceedings-article': 'Conference Proceeding'
-                        }
-                        content_type = type_map.get(raw_type, raw_type.replace('-', ' ').title())
-                        is_oa = bool(it.get('license')) or any('open' in str(l).lower() for l in it.get('link', []))
-
-                        items.append({
-                            "id": f"em-{doi or it.get('URL', '')}",
-                            "title": title_str,
-                            "authors": authors_str,
-                            "contentType": content_type,
-                            "publicationName": pub_name,
-                            "publicationType": "Emerald Insight",
-                            "date": date_str,
-                            "year": year,
-                            "doi": doi,
-                            "url": emerald_url or doi_url or (it.get('URL') or ''),
-                            "pdfUrl": next((l.get('URL', '') for l in it.get('link', []) if 'pdf' in str(l.get('content-type', '')).lower() or str(l.get('URL', '')).endswith('.pdf')), '') if is_oa else '',
-                            "abstract": abstract_clean,
-                            "openAccess": is_oa,
-                            "source": "Emerald"
-                        })
+                    items = _parse_crossref_items(items_raw, source_name="Emerald", id_prefix="em")
                 else:
                     CIRCUIT_BREAKERS["crossref"].record_failure()
             except Exception:
@@ -971,51 +1052,7 @@ def _fetch_single_source(source, query, page, rows):
                     total = message.get('total-results', 0)
                     items_raw = message.get('items', [])
                     
-                    for it in items_raw:
-                        authors_list = []
-                        for a in it.get('author', []):
-                            name_parts = [a.get('family', ''), a.get('given', '')]
-                            name = ", ".join([p for p in name_parts if p])
-                            if not name:
-                                name = a.get('name', '')
-                            if name:
-                                authors_list.append(name)
-                        authors_str = "; ".join(authors_list) if authors_list else "Unknown"
-
-                        titles = it.get('title', [])
-                        title_str = clean_title(titles[0] if titles else "Untitled")
-
-                        pub_date = it.get('published', {}).get('date-parts', [[]])[0]
-                        year = pub_date[0] if len(pub_date) > 0 else 0
-                        date_str = "-".join([str(p).zfill(2) for p in pub_date]) if pub_date else str(year or "")
-
-                        container = it.get('container-title', [])
-                        pub_name = container[0] if container else it.get('publisher', 'Crossref Registry')
-
-                        doi = clean_doi(it.get('DOI', ''))
-                        doi_url = f"https://doi.org/{doi}" if doi else (it.get('URL') or '')
-
-                        abstract_clean = clean_html_tags(it.get('abstract', ''))
-                        raw_type = it.get('type', 'article')
-                        content_type = raw_type.replace('-', ' ').title()
-                        is_oa = bool(it.get('license')) or any('open' in str(l).lower() for l in it.get('link', []))
-
-                        items.append({
-                            "id": f"cr-{doi or it.get('URL', '')}",
-                            "title": title_str,
-                            "authors": authors_str,
-                            "contentType": content_type,
-                            "publicationName": pub_name,
-                            "publicationType": "Academic Publisher",
-                            "date": date_str,
-                            "year": year,
-                            "doi": doi,
-                            "url": doi_url,
-                            "pdfUrl": next((l.get('URL', '') for l in it.get('link', []) if 'pdf' in str(l.get('content-type', '')).lower() or str(l.get('URL', '')).endswith('.pdf')), '') if is_oa else '',
-                            "abstract": abstract_clean,
-                            "openAccess": is_oa,
-                            "source": "Crossref"
-                        })
+                    items = _parse_crossref_items(items_raw, source_name="Crossref", id_prefix="cr")
                 else:
                     CIRCUIT_BREAKERS["crossref"].record_failure()
             except Exception:
@@ -1395,6 +1432,11 @@ def pdf_proxy():
 # ── FEDERATED SEARCH ENDPOINT (AGGREGATION + CACHING) ──
 @app.route('/api/federated')
 def federated_search():
+    """
+    Endpoint utama pencarian literatur ilmiah internasional (Federated Search).
+    Mendukung agregasi paralel ke seluruh basis data (source=all) maupun pencarian spesifik per sumber.
+    Menggunakan in-memory TTLCache untuk menyimpan hasil query selama 30 menit.
+    """
     source = request.args.get('source', 'scopus').lower()
     query = request.args.get('q', '').strip()
     page = int(request.args.get('page', 1))
@@ -1623,6 +1665,16 @@ def api_international_config_public():
 @app.route('/api/international/journals')
 def api_international_journals_public():
     """Public A-Z listing of subscribed international journals with search & filter support."""
+    cfg = _load_international_config()
+    if not cfg.get('enabled', True) or not cfg.get('sources', {}).get('subscribed_journals', True):
+        return jsonify({
+            "items": [],
+            "total": 0,
+            "total_all": 0,
+            "disabled": True,
+            "message": "Katalog Jurnal Langganan sedang dinonaktifkan oleh administrator perpustakaan."
+        })
+
     journals = _load_subscribed_journals()
     active_only = [j for j in journals if j.get('active', True)]
 
@@ -2036,6 +2088,16 @@ def admin_template_subscribed_journals():
 @app.route('/api/international/ebooks')
 def api_international_ebooks_public():
     """Public A-Z listing of subscribed international e-books with search & filter support."""
+    cfg = _load_international_config()
+    if not cfg.get('enabled', True) or not cfg.get('sources', {}).get('subscribed_ebooks', True):
+        return jsonify({
+            "items": [],
+            "total": 0,
+            "total_all": 0,
+            "disabled": True,
+            "message": "Katalog E-Book Langganan sedang dinonaktifkan oleh administrator perpustakaan."
+        })
+
     ebooks = _load_subscribed_ebooks()
     active_only = [b for b in ebooks if b.get('active', True)]
 
@@ -3413,6 +3475,98 @@ def _save_prodi_rules_data(data):
         data["updated_at"] = datetime.now().isoformat()
         _save_json_file(PRODI_RULES_FILE, data)
 
+
+
+# ── ENDPOINTS METADATA ARTIKEL INTERNASIONAL (SQLITE CACHE) ──
+@app.route('/api/articles/record-view', methods=['POST'])
+def api_record_article_view():
+    try:
+        payload = request.get_json(silent=True) or {}
+        res = upsert_cached_article(payload)
+        if not res:
+            return jsonify({"ok": False, "error": "Invalid article data"}), 400
+        return jsonify({"ok": True, "data": res})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route('/api/articles/popular', methods=['GET'])
+def api_popular_articles():
+    try:
+        limit = min(max(int(request.args.get('limit', 12)), 1), 50)
+        with _article_cache_lock:
+            with get_article_db() as conn:
+                rows = conn.execute(
+                    "SELECT id, doi, title, authors, publication_name, year, content_type, source, abstract, url, pdf_url, is_subscribed, subscribed_url, view_count, last_accessed FROM article_cache ORDER BY view_count DESC, last_accessed DESC LIMIT ?",
+                    (limit,)
+                ).fetchall()
+                articles = [dict(r) for r in rows]
+        return jsonify({"ok": True, "count": len(articles), "articles": articles})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route('/api/articles/recent', methods=['GET'])
+def api_recent_articles():
+    try:
+        limit = min(max(int(request.args.get('limit', 12)), 1), 50)
+        with _article_cache_lock:
+            with get_article_db() as conn:
+                rows = conn.execute(
+                    "SELECT id, doi, title, authors, publication_name, year, content_type, source, abstract, url, pdf_url, is_subscribed, subscribed_url, view_count, last_accessed FROM article_cache ORDER BY last_accessed DESC LIMIT ?",
+                    (limit,)
+                ).fetchall()
+                articles = [dict(r) for r in rows]
+        return jsonify({"ok": True, "count": len(articles), "articles": articles})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route('/api/articles/lookup', methods=['GET'])
+def api_lookup_article():
+    try:
+        q_id = request.args.get('id', '').strip()
+        doi = request.args.get('doi', '').strip()
+        if doi:
+            doi = re.sub(r'^https?://(dx.)?doi.org/', '', doi, flags=re.I).strip()
+        
+        with _article_cache_lock:
+            with get_article_db() as conn:
+                if doi:
+                    row = conn.execute("SELECT * FROM article_cache WHERE doi = ? OR id = ? LIMIT 1", (doi, doi.lower())).fetchone()
+                elif q_id:
+                    row = conn.execute("SELECT * FROM article_cache WHERE id = ? OR doi = ? LIMIT 1", (q_id, q_id)).fetchone()
+                else:
+                    return jsonify({"ok": False, "error": "Parameter id atau doi diperlukan"}), 400
+                
+                if row:
+                    return jsonify({"ok": True, "found": True, "article": dict(row)})
+                return jsonify({"ok": True, "found": False}), 404
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route('/api/admin/articles/stats', methods=['GET'])
+def admin_articles_stats():
+    if not _check_admin_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        with _article_cache_lock:
+            with get_article_db() as conn:
+                total_articles = conn.execute("SELECT COUNT(*) FROM article_cache").fetchone()[0]
+                total_views = conn.execute("SELECT COALESCE(SUM(view_count), 0) FROM article_cache").fetchone()[0]
+                top_sources_rows = conn.execute(
+                    "SELECT source, COUNT(*) as count, SUM(view_count) as views FROM article_cache GROUP BY source ORDER BY count DESC LIMIT 10"
+                ).fetchall()
+                top_articles_rows = conn.execute(
+                    "SELECT id, doi, title, authors, publication_name, year, source, view_count, last_accessed FROM article_cache ORDER BY view_count DESC LIMIT 15"
+                ).fetchall()
+                
+        return jsonify({
+            "ok": True,
+            "total_articles": total_articles,
+            "total_views": total_views,
+            "top_sources": [dict(r) for r in top_sources_rows],
+            "top_articles": [dict(r) for r in top_articles_rows]
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @app.route('/api/admin/ddc', methods=['GET'])
 def admin_ddc_get():

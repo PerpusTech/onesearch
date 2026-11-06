@@ -575,9 +575,9 @@ const app = {
                 fetch('data/stats.json?t=' + t).then(r => r.json()).catch(() => ({})),
                 fetch('data/ddc_tree.json?t=' + t).then(r => r.json()).catch(() => ({})),
                 fetch('data/prodi_index.json?t=' + t).then(r => r.json()).catch(() => ({})),
-                fetch('/api/international/config').then(r => r.json()).catch(() => ({ enabled: true, sources: {} })),
-                fetch('/api/international/journals').then(r => r.json()).catch(() => ({ items: [] })),
-                fetch('/api/international/ebooks').then(r => r.json()).catch(() => ({ items: [] }))
+                fetch('/api/international/config?t=' + t).then(r => r.json()).catch(() => ({ enabled: true, sources: {} })),
+                fetch('/api/international/journals?t=' + t).then(r => r.json()).catch(() => ({ items: [] })),
+                fetch('/api/international/ebooks?t=' + t).then(r => r.json()).catch(() => ({ items: [] }))
             ]);
 
             this.stats = localStats || {};
@@ -585,6 +585,7 @@ const app = {
             this.prodiIndex = prodiData || {};
             this.intlConfig = intlCfg || { enabled: true, sources: {} };
             const sourcesConfig = (this.intlConfig && this.intlConfig.sources) || {};
+            this.updateSubscriptionShortcutChips();
 
             // Cache subscribed journals & ebooks
             this._ejournalsList = Array.isArray(subJournalsRes) ? subJournalsRes : (subJournalsRes.items || []);
@@ -607,6 +608,12 @@ const app = {
             if (cachedVersion === currentVersion) {
                 txt.textContent = 'Memuat katalog dari penyimpanan lokal...';
                 localBooks = await this.idb.get('books_catalog');
+                // Integrity check: jika data di IndexedDB kurang dari 80% total_books, abaikan cache dan unduh ulang
+                const expectedTotal = this.stats.total_books || 100000;
+                if (!Array.isArray(localBooks) || localBooks.length < expectedTotal * 0.8) {
+                    console.warn(`[IDB] Cache size mismatch (${localBooks ? localBooks.length : 0} vs ${expectedTotal}). Re-fetching fresh catalog...`);
+                    localBooks = null;
+                }
             }
 
             // 3. Jika belum di-cache atau versi data berubah setelah panen, unduh dan simpan ke IndexedDB
@@ -932,12 +939,10 @@ const app = {
         if (ddcArea) ddcArea.style.display = isDdc ? 'block' : 'none';
         if (prodiArea) prodiArea.style.display = isDdc ? 'none' : 'block';
         if (tabDdc) {
-            tabDdc.className = isDdc ? 'btn btn-brand' : 'btn btn-ghost';
-            tabDdc.classList.toggle('active', isDdc);
+            tabDdc.className = isDdc ? 'subtab-btn active' : 'subtab-btn';
         }
         if (tabProdi) {
-            tabProdi.className = !isDdc ? 'btn btn-brand' : 'btn btn-ghost';
-            tabProdi.classList.toggle('active', !isDdc);
+            tabProdi.className = !isDdc ? 'subtab-btn active' : 'subtab-btn';
         }
     },
     showBookmarks() {
@@ -1052,6 +1057,17 @@ const app = {
     renderEJournalDirectory(list) {
         const grid = document.getElementById('ejrn-grid');
         if (!grid) return;
+        if (this.intlConfig && this.intlConfig.sources && this.intlConfig.sources.subscribed_journals === false) {
+            grid.innerHTML = `
+                <div style="grid-column:1/-1; text-align:center; padding:3.5rem 1.5rem; color:var(--muted-foreground); background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);">
+                    <div style="width:48px; height:48px; border-radius:50%; background:hsl(var(--muted)); display:inline-flex; align-items:center; justify-content:center; margin-bottom:1rem; color:hsl(var(--foreground));">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                    </div>
+                    <p style="font-size:1.1rem; font-weight:600; color:var(--foreground); margin-bottom:0.4rem;">Katalog Jurnal Langganan Sedang Dinonaktifkan</p>
+                    <p style="font-size:0.875rem; max-width:500px; margin:0 auto;">Fitur katalog e-Journal langganan resmi saat ini sedang dinonaktifkan sementara oleh administrator perpustakaan.</p>
+                </div>`;
+            return;
+        }
 
         const safeList = Array.isArray(list) ? list : (list && Array.isArray(list.items) ? list.items : []);
 
@@ -1140,9 +1156,17 @@ const app = {
         const isMasterEnabled = !this.intlConfig || this.intlConfig.enabled !== false;
         const sourcesConfig = (this.intlConfig && this.intlConfig.sources) || {};
         const isIntlEbooksActive = isMasterEnabled && (sourcesConfig['intl_ebooks'] !== false);
+        const isSubEbooksActive = isMasterEnabled && (sourcesConfig['subscribed_ebooks'] !== false);
+
+        const btnSub = document.getElementById('ebk-tab-btn-subscribed');
+        if (btnSub) btnSub.style.display = isSubEbooksActive ? 'inline-flex' : 'none';
+
         const btnIntl = document.getElementById('ebk-tab-btn-international');
         if (btnIntl) btnIntl.style.display = isIntlEbooksActive ? 'inline-flex' : 'none';
-        if (!isIntlEbooksActive && this._activeEBookSubTab === 'international') {
+
+        if (!isSubEbooksActive && isIntlEbooksActive && this._activeEBookSubTab === 'subscribed') {
+            this.switchEBookSubTab('international');
+        } else if (!isIntlEbooksActive && isSubEbooksActive && this._activeEBookSubTab === 'international') {
             this.switchEBookSubTab('subscribed');
         }
 
@@ -1462,6 +1486,17 @@ const app = {
     renderEBookDirectory(list) {
         const grid = document.getElementById('ebk-grid');
         if (!grid) return;
+        if (this.intlConfig && this.intlConfig.sources && this.intlConfig.sources.subscribed_ebooks === false) {
+            grid.innerHTML = `
+                <div style="grid-column:1/-1; text-align:center; padding:3.5rem 1.5rem; color:var(--muted-foreground); background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);">
+                    <div style="width:48px; height:48px; border-radius:50%; background:hsl(var(--muted)); display:inline-flex; align-items:center; justify-content:center; margin-bottom:1rem; color:hsl(var(--foreground));">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                    </div>
+                    <p style="font-size:1.1rem; font-weight:600; color:var(--foreground); margin-bottom:0.4rem;">Katalog E-Book Langganan Sedang Dinonaktifkan</p>
+                    <p style="font-size:0.875rem; max-width:500px; margin:0 auto;">Fitur katalog e-Book langganan resmi saat ini sedang dinonaktifkan sementara oleh administrator perpustakaan. Anda dapat menelusuri ratusan ribu buku pada tab E-Book Bebas Akses Internasional.</p>
+                </div>`;
+            return;
+        }
 
         const safeList = Array.isArray(list) ? list : (list && Array.isArray(list.items) ? list.items : []);
 
@@ -2319,58 +2354,480 @@ const app = {
         const subscribedUrl = it.subscribedUrl || '';
 
         return `
-        <div class="fed-item fed-bm-card" style="margin-bottom:1rem; border-left:4px solid ${isSubscribed ? '#d97706' : 'var(--brand)'}; position:relative;">
-            <div class="fed-item-header-row">
-                <div class="fed-item-num-title">
-                    <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" class="fed-title-link" title="Klik untuk membuka modal detail artikel">${this.esc(title)}</a>
+        <article class="fed-item fed-bm-card${isSubscribed ? ' fed-item-subscribed' : ''}" style="margin-bottom:1rem; position:relative;">
+            <div class="fed-item-header">
+                <div class="fed-item-topbar">
+                    <div class="fed-item-badges">
+                        ${isSubscribed ? `<span class="fed-badge-subscribed" title="Jurnal ini dilanggan secara resmi oleh Perpustakaan UMS"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Langganan UMS</span>` : ''}
+                        ${this.getSourceBadgeHtml(src)}
+                        ${this.getOaBadgeHtml(isOa)}
+                        </div>
+                    <button class="fed-star-btn active" data-fed-bm="${this.esc(rawId)}" onclick="app.toggleBookmark(${this.idAttr(rawId)})" title="Hapus dari Koleksi Saya">${this.starSvg(true)}</button>
                 </div>
-                <div class="fed-item-badges">
-                    ${isSubscribed ? `<span class="fed-badge-subscribed" title="Jurnal ini dilanggan secara resmi oleh Perpustakaan UMS"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Langganan UMS</span>` : ''}
-                    ${this.getSourceBadgeHtml(src)}
-                    ${this.getOaBadgeHtml(isOa)}
-                    ${yr ? `<span class="fed-badge-year">${this.esc(String(yr))}</span>` : ''}
-                    <button class="fed-star-btn active" data-fed-bm="${this.esc(rawId)}" onclick="app.toggleBookmark(${this.idAttr(rawId)})" title="Hapus dari Koleksi Saya" style="margin-left:0.5rem">${this.starSvg(true)}</button>
-                </div>
+                <h3 class="fed-item-title">
+                    <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" title="Klik untuk membuka modal detail artikel">${this.esc(title)}</a>
+                </h3>
             </div>
-            <ul class="fed-meta-list" style="margin-bottom:0.75rem">
-                <li><span class="fed-meta-label">Creator :</span> ${this.esc(authors)}</li>
-                <li><span class="fed-meta-label">Publication :</span> ${this.esc(pub)}</li>
-                ${validDoi ? `<li><span class="fed-meta-label">DOI :</span> ${this.esc(validDoi)}</li>` : ''}
-            </ul>
+
+            <div class="fed-authors">${this.esc(authors)}</div>
+
+            <div class="fed-venue-row">
+                <span class="fed-venue-name">${this.esc(pub)}</span>
+                ${yr ? `<span class="meta-dot">·</span><span class="fed-venue-date">${this.esc(String(yr))}</span>` : ''}
+                ${validDoi ? `<span class="meta-dot">·</span><span class="fed-doi">DOI: ${this.esc(validDoi)}</span>` : ''}
+            </div>
+
             <div class="fed-actions-row">
-                <button type="button" class="btn btn-ghost" onclick="app.showArticleDetail(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; font-weight:600; display:inline-flex; align-items:center; gap:0.35rem;" title="Buka modal detail artikel">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    <span>Detail Lengkap</span>
-                </button>
-                ${isSubscribed && subscribedUrl ? `
-                <a href="${this.esc(subscribedUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-subscribed-campus" title="Akses langsung melalui portal langganan institusi UMS">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 10v4"></path><path d="M15 10v4"></path></svg>
-                    <span>Akses Kampus UMS ↗</span>
-                </a>` : ''}
-                <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="font-size:0.75rem; padding:0.32rem 0.75rem">
-                    Buka Dokumen ↗
-                </a>
-                ${hasDirectPdf ? `
-                <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-                    <span>Baca / Unduh PDF</span>
-                </button>` : ''}
-                <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .RIS untuk Mendeley/Zotero">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    <span>.RIS</span>
-                </button>
-                <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .BIB untuk LaTeX/Overleaf">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    <span>BibTeX</span>
-                </button>
-                <button type="button" class="btn btn-ghost" onclick="app.copyArticleCitation(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem">
-                    Salin Sitasi
-                </button>
+                <div class="fed-actions-left">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="app.showArticleDetail(${this.idAttr(rawId)})" title="Buka modal detail artikel">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        <span>Detail Lengkap</span>
+                    </button>
+                    ${isSubscribed && subscribedUrl ? `
+                    <a href="${this.esc(subscribedUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-brand btn-sm" title="Akses langsung melalui portal langganan institusi UMS">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 10v4"></path><path d="M15 10v4"></path></svg>
+                        <span>Akses Kampus UMS ↗</span>
+                    </a>` : ''}
+                    <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand btn-sm">
+                        Buka Dokumen ↗
+                    </a>
+                    ${hasDirectPdf ? `
+                    <button type="button" class="btn btn-outline btn-sm" onclick="app.openPdfViewerById(${this.idAttr(rawId)})">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                        <span>Baca / Unduh PDF</span>
+                    </button>` : ''}
+                </div>
+                <div class="fed-actions-right">
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" title="Unduh file .RIS untuk Mendeley/Zotero">.RIS</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" title="Unduh file .BIB untuk LaTeX/Overleaf">BibTeX</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="app.copyArticleCitation(${this.idAttr(rawId)})">Salin Sitasi</button>
+                </div>
             </div>
-        </div>`;
+        </article>`;
     },
 
     // ──── Modal Detail untuk Artikel Internasional ────
+
+    // ──── Riwayat Baca Lokal (IndexedDB) & Telemetri Institusi (SQLite) ────
+    _bmActiveTab: 'saved',
+
+    formatTimeAgo(dateStr) {
+        if (!dateStr) return '';
+        try {
+            const d = new Date(dateStr);
+            const diffMs = Date.now() - d.getTime();
+            const diffSec = Math.floor(diffMs / 1000);
+            if (diffSec < 60) return 'Baru saja';
+            const diffMin = Math.floor(diffSec / 60);
+            if (diffMin < 60) return diffMin + ' menit lalu';
+            const diffHr = Math.floor(diffMin / 60);
+            if (diffHr < 24) return diffHr + ' jam lalu';
+            const diffDay = Math.floor(diffHr / 24);
+            if (diffDay < 7) return diffDay + ' hari lalu';
+            return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+        } catch (e) {
+            return '';
+        }
+    },
+
+    switchBookmarkTab(tab) {
+        this._bmActiveTab = tab || 'saved';
+        const tabSaved = document.getElementById('tab-btn-saved');
+        const tabRecent = document.getElementById('tab-btn-recent');
+        const tabPopular = document.getElementById('tab-btn-popular');
+
+        if (tabSaved) tabSaved.classList.toggle('active', tab === 'saved');
+        if (tabRecent) tabRecent.classList.toggle('active', tab === 'recent');
+        if (tabPopular) tabPopular.classList.toggle('active', tab === 'popular');
+
+        const secSaved = document.getElementById('section-bm-saved');
+        const secRecent = document.getElementById('section-bm-recent');
+        const secPopular = document.getElementById('section-bm-popular');
+
+        if (secSaved) secSaved.style.display = tab === 'saved' ? 'block' : 'none';
+        if (secRecent) secRecent.style.display = tab === 'recent' ? 'block' : 'none';
+        if (secPopular) secPopular.style.display = tab === 'popular' ? 'block' : 'none';
+
+        if (tab === 'saved') {
+            this.renderBookmarks();
+        } else if (tab === 'recent') {
+            this.renderRecentArticles();
+        } else if (tab === 'popular') {
+            this.renderPopularArticles();
+        }
+        this._updateBmBadge();
+    },
+
+    async recordArticleView(article) {
+        if (!article) return;
+        try {
+            const cleanDoi = this.getCleanDoi ? this.getCleanDoi(article.doi) : (article.doi || '');
+            const rawId = String(article.id || cleanDoi || ('art_' + Date.now()));
+            const title = article.title || article.t || 'Untitled';
+            const authors = article.authors || article.a || '';
+            const pub = article.publicationName || article.pub || '';
+            const yr = article.year || article.yr || '';
+            const type = article.contentType || article.type || 'Article';
+            const src = article.source || 'International Journal';
+            const url = article.url || (cleanDoi ? 'https://doi.org/' + cleanDoi : '');
+            const pdfUrl = article.pdfUrl || article.pdf_url || '';
+            const isSubscribed = Boolean(article.isSubscribed);
+            const subscribedUrl = article.subscribedUrl || '';
+            const abstract = article.abstract || '';
+            const isOa = Boolean(article.openAccess || article.isOpenAccess || article.is_oa || article.openaccess);
+
+            const item = {
+                id: rawId,
+                doi: cleanDoi,
+                title: title,
+                authors: authors,
+                publicationName: pub,
+                year: yr,
+                contentType: type,
+                source: src,
+                url: url,
+                pdfUrl: pdfUrl,
+                isSubscribed: isSubscribed,
+                subscribedUrl: subscribedUrl,
+                abstract: abstract,
+                openAccess: isOa,
+                viewedAt: new Date().toISOString()
+            };
+
+            this.registerArticle(item);
+
+            // 1. Simpan di IndexedDB 'recent_articles'
+            let recent = [];
+            try {
+                if (this.idb) {
+                    const stored = await this.idb.get('recent_articles');
+                    if (Array.isArray(stored)) recent = stored;
+                }
+            } catch (e) {
+                recent = [];
+            }
+
+            recent = recent.filter(r => {
+                if (!r) return false;
+                if (cleanDoi && r.doi && r.doi.toLowerCase() === cleanDoi.toLowerCase()) return false;
+                if (r.id === rawId) return false;
+                if (r.title && r.title.toLowerCase() === title.toLowerCase()) return false;
+                return true;
+            });
+
+            recent.unshift(item);
+            if (recent.length > 50) recent = recent.slice(0, 50);
+
+            if (this.idb) {
+                await this.idb.set('recent_articles', recent);
+            }
+            this._recentArticles = recent;
+            try {
+                localStorage.setItem('bf-recent-articles-preview', JSON.stringify(recent.slice(0, 15)));
+            } catch (e) {}
+
+            const tabRecentCount = document.getElementById('bm-tab-recent-count');
+            if (tabRecentCount) tabRecentCount.textContent = recent.length;
+
+            // 2. Telemetri server-side ke SQLite via Flask proxy (non-blocking)
+            try {
+                fetch('/api/articles/record-view', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(item),
+                    keepalive: true
+                }).then(r => r.json()).then(data => {
+                    if (data && data.ok && data.data && data.data.view_count) {
+                        const count = data.data.view_count;
+                        item.view_count = count;
+                        const badge = document.getElementById('fed-detail-views-badge');
+                        if (badge) {
+                            badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> <span>Dibaca ' + count + ' kali di UMS</span>';
+                            badge.style.display = 'inline-flex';
+                        }
+                    }
+                }).catch(() => {});
+            } catch (e) {}
+        } catch (err) {
+            console.warn('Error recording article view:', err);
+        }
+    },
+
+    async renderRecentArticles() {
+        const grid = document.getElementById('recent-grid');
+        const panel = document.getElementById('recent-panel');
+        if (!grid) return;
+
+        let recent = this._recentArticles;
+        if (!recent || !recent.length) {
+            try {
+                if (this.idb) {
+                    const stored = await this.idb.get('recent_articles');
+                    if (Array.isArray(stored) && stored.length > 0) recent = stored;
+                }
+            } catch (e) {}
+        }
+        if (!recent || !recent.length) {
+            try {
+                const preview = JSON.parse(localStorage.getItem('bf-recent-articles-preview') || '[]');
+                if (Array.isArray(preview) && preview.length > 0) recent = preview;
+            } catch (e) {}
+        }
+        recent = recent || [];
+        this._recentArticles = recent;
+
+        const countText = document.getElementById('recent-count-text');
+        if (countText) countText.textContent = recent.length + ' artikel baru saja dilihat';
+        const tabRecentCount = document.getElementById('bm-tab-recent-count');
+        if (tabRecentCount) tabRecentCount.textContent = recent.length;
+
+        if (recent.length === 0) {
+            if (panel) panel.style.display = 'none';
+            grid.style.display = 'block';
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon-wrap">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div class="empty-state-title">Belum Ada Artikel yang Dilihat</div>
+                    <div class="empty-state-desc">Setiap kali Anda membuka modal detail atau membaca naskah artikel internasional, metadatanya akan otomatis dicatat di sini untuk memudahkan penulisan sitasi tugas akhir Anda.</div>
+                    <div class="empty-state-actions">
+                        <button type="button" class="btn btn-brand" onclick="app.showFederatedDirect('all')">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+                            Cari Artikel Internasional
+                        </button>
+                        <button type="button" class="btn btn-ghost" onclick="app.showHome()">Kembali ke Beranda</button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        if (panel) panel.style.display = 'block';
+        grid.style.display = 'block';
+
+        grid.innerHTML = recent.map(it => {
+            this.registerArticle(it);
+            const rawId = String(it.id);
+            const title = it.title || it.t || 'Untitled';
+            const authors = it.authors || it.a || 'Unknown Author';
+            const pub = it.publicationName || it.pub || '-';
+            const yr = it.year || it.yr || '';
+            const src = it.source || 'International Journal';
+            const isOa = Boolean(it.openAccess || it.isOpenAccess || it.is_oa);
+            const validDoi = this.getCleanDoi ? this.getCleanDoi(it.doi) : (it.doi || '');
+            const linkUrl = it.url || (validDoi ? 'https://doi.org/' + validDoi : '#');
+            const pdfUrl = it.pdfUrl || it.pdf_url || '';
+            const hasDirectPdf = Boolean(pdfUrl && pdfUrl.trim().length > 5 && pdfUrl !== linkUrl);
+            const isSubscribed = Boolean(it.isSubscribed);
+            const subscribedUrl = it.subscribedUrl || '';
+            const isBm = this.bookmarks && (this.bookmarks.has(rawId) || this.bookmarks.has(String(it.id)));
+            const timeAgo = it.viewedAt ? this.formatTimeAgo(it.viewedAt) : '';
+
+            return `
+            <article class="fed-item fed-bm-card${isSubscribed ? ' fed-item-subscribed' : ''}" style="margin-bottom:1rem; position:relative;">
+                <div class="fed-item-header">
+                    <div class="fed-item-topbar">
+                        <div class="fed-item-badges">
+                            ${isSubscribed ? `<span class="fed-badge-subscribed" title="Jurnal ini dilanggan secara resmi oleh Perpustakaan UMS"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Langganan UMS</span>` : ''}
+                            ${this.getSourceBadgeHtml(src)}
+                            ${this.getOaBadgeHtml(isOa)}
+                            ${timeAgo ? `<span class="fed-badge-views" style="font-size:0.75rem;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Dilihat ${this.esc(timeAgo)}</span>` : ''}
+                        </div>
+                        <button class="fed-star-btn ${isBm ? 'active' : ''}" data-fed-bm="${this.esc(rawId)}" onclick="app.toggleBookmark(${this.idAttr(rawId)})" title="${isBm ? 'Tersimpan di Koleksi Saya' : 'Simpan ke Koleksi Saya'}">${this.starSvg(isBm)}</button>
+                    </div>
+                    <h3 class="fed-item-title">
+                        <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" title="Klik untuk membuka modal detail artikel">${this.esc(title)}</a>
+                    </h3>
+                </div>
+
+                <div class="fed-authors">${this.esc(authors)}</div>
+
+                <div class="fed-venue-row">
+                    <span class="fed-venue-name">${this.esc(pub)}</span>
+                    ${yr ? `<span class="meta-dot">·</span><span class="fed-venue-date">${this.esc(String(yr))}</span>` : ''}
+                    ${validDoi ? `<span class="meta-dot">·</span><span class="fed-doi">DOI: ${this.esc(validDoi)}</span>` : ''}
+                </div>
+
+                <div class="fed-actions-row">
+                    <div class="fed-actions-left">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="app.showArticleDetail(${this.idAttr(rawId)})" title="Buka modal detail artikel">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            <span>Detail Lengkap</span>
+                        </button>
+                        ${isSubscribed && subscribedUrl ? `
+                        <a href="${this.esc(subscribedUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-brand btn-sm" title="Akses langsung melalui portal langganan institusi UMS">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 10v4"></path><path d="M15 10v4"></path></svg>
+                            <span>Akses Kampus UMS ↗</span>
+                        </a>` : ''}
+                        <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand btn-sm">
+                            Buka Dokumen ↗
+                        </a>
+                        ${hasDirectPdf ? `
+                        <button type="button" class="btn btn-outline btn-sm" onclick="app.openPdfViewerById(${this.idAttr(rawId)})">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                            <span>Baca / Unduh PDF</span>
+                        </button>` : ''}
+                    </div>
+                    <div class="fed-actions-right">
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" title="Unduh file .RIS untuk Mendeley/Zotero">.RIS</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" title="Unduh file .BIB untuk LaTeX/Overleaf">BibTeX</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="app.copyArticleCitation(${this.idAttr(rawId)})">Salin Sitasi</button>
+                    </div>
+                </div>
+            </article>`;
+        }).join('');
+    },
+
+    async clearRecentArticles() {
+        if (!confirm('Apakah Anda yakin ingin menghapus seluruh riwayat artikel yang baru saja dilihat di perangkat ini?')) return;
+        try {
+            if (this.idb) {
+                await this.idb.set('recent_articles', []);
+            }
+            localStorage.removeItem('bf-recent-articles-preview');
+            this._recentArticles = [];
+            this.toast('Riwayat artikel berhasil dibersihkan');
+            this.renderRecentArticles();
+            this._updateBmBadge();
+        } catch (e) {
+            console.error(e);
+        }
+    },
+
+    async renderPopularArticles(force = false) {
+        const grid = document.getElementById('popular-grid');
+        const panel = document.getElementById('popular-panel');
+        if (!grid) return;
+
+        if (!force && this._cachedPopularArticles && this._cachedPopularArticles.length > 0) {
+            this._renderPopularList(this._cachedPopularArticles);
+            return;
+        }
+
+        grid.style.display = 'block';
+        grid.innerHTML = `
+            <div style="text-align:center; padding:3rem 1rem; color:var(--text-muted, #64748b);">
+                <div class="spinner" style="margin:0 auto 1rem auto; width:32px; height:32px; border-width:3px;"></div>
+                <p>Memuat daftar literatur internasional yang paling sering dibaca di UMS...</p>
+            </div>
+        `;
+
+        try {
+            const res = await fetch('/api/articles/popular?limit=15');
+            const data = await res.json();
+            if (data && data.ok && Array.isArray(data.articles) && data.articles.length > 0) {
+                this._cachedPopularArticles = data.articles;
+                this._renderPopularList(data.articles);
+            } else {
+                if (panel) panel.style.display = 'none';
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon-wrap">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+                        </div>
+                        <div class="empty-state-title">Belum Ada Data Tren Kampus</div>
+                        <div class="empty-state-desc">Belum ada statistik pembacaan artikel internasional yang terakumulasi. Mulai cari artikel dan baca naskah untuk mengagregasi tren literatur UMS.</div>
+                        <div class="empty-state-actions">
+                            <button type="button" class="btn btn-brand" onclick="app.showFederatedDirect('all')">Jelajahi Artikel Internasional</button>
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (e) {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-title">Tidak Dapat Memuat Data Tren Kampus</div>
+                    <div class="empty-state-desc">Server proxy belum dapat dihubungi atau sedang dalam mode offline.</div>
+                </div>
+            `;
+        }
+    },
+
+    _renderPopularList(articles) {
+        const grid = document.getElementById('popular-grid');
+        const panel = document.getElementById('popular-panel');
+        if (!grid) return;
+        if (panel) panel.style.display = 'block';
+        grid.style.display = 'block';
+
+        grid.innerHTML = articles.map((it, idx) => {
+            this.registerArticle(it);
+            const rawId = String(it.id);
+            const title = it.title || it.t || 'Untitled';
+            const authors = it.authors || it.a || 'Unknown Author';
+            const pub = it.publication_name || it.publicationName || it.pub || '-';
+            const yr = it.year || it.yr || '';
+            const src = it.source || 'International Journal';
+            const isOa = Boolean(it.openAccess || it.isOpenAccess || it.is_oa);
+            const validDoi = this.getCleanDoi ? this.getCleanDoi(it.doi) : (it.doi || '');
+            const linkUrl = it.url || (validDoi ? 'https://doi.org/' + validDoi : '#');
+            const pdfUrl = it.pdf_url || it.pdfUrl || '';
+            const hasDirectPdf = Boolean(pdfUrl && pdfUrl.trim().length > 5 && pdfUrl !== linkUrl);
+            const isSubscribed = Boolean(it.is_subscribed || it.isSubscribed);
+            const subscribedUrl = it.subscribed_url || it.subscribedUrl || '';
+            const isBm = this.bookmarks && (this.bookmarks.has(rawId) || this.bookmarks.has(String(it.id)));
+            const viewCount = it.view_count || it.viewCount || 1;
+
+            return `
+            <article class="fed-item fed-bm-card${isSubscribed ? ' fed-item-subscribed' : ''}" style="margin-bottom:1rem; position:relative;">
+                <div class="fed-item-header">
+                    <div class="fed-item-topbar">
+                        <div class="fed-item-badges">
+                            <span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:6px; background:var(--brand-blue, #2563eb); color:#fff; font-size:0.75rem; font-weight:700;">#${idx + 1}</span>
+                            <span class="fed-badge-views" style="background:rgba(234, 88, 12, 0.1); color:#ea580c; border-color:rgba(234, 88, 12, 0.25); font-weight:600;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+                                Dibaca ${viewCount}x di UMS
+                            </span>
+                            ${isSubscribed ? `<span class="fed-badge-subscribed"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Langganan UMS</span>` : ''}
+                            ${this.getSourceBadgeHtml(src)}
+                            ${this.getOaBadgeHtml(isOa)}
+                        </div>
+                        <button class="fed-star-btn ${isBm ? 'active' : ''}" data-fed-bm="${this.esc(rawId)}" onclick="app.toggleBookmark(${this.idAttr(rawId)})" title="${isBm ? 'Tersimpan di Koleksi Saya' : 'Simpan ke Koleksi Saya'}">${this.starSvg(isBm)}</button>
+                    </div>
+                    <h3 class="fed-item-title">
+                        <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" title="Klik untuk membuka modal detail artikel">${this.esc(title)}</a>
+                    </h3>
+                </div>
+
+                <div class="fed-authors">${this.esc(authors)}</div>
+
+                <div class="fed-venue-row">
+                    <span class="fed-venue-name">${this.esc(pub)}</span>
+                    ${yr ? `<span class="meta-dot">·</span><span class="fed-venue-date">${this.esc(String(yr))}</span>` : ''}
+                    ${validDoi ? `<span class="meta-dot">·</span><span class="fed-doi">DOI: ${this.esc(validDoi)}</span>` : ''}
+                </div>
+
+                <div class="fed-actions-row">
+                    <div class="fed-actions-left">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="app.showArticleDetail(${this.idAttr(rawId)})" title="Buka modal detail artikel">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            <span>Detail Lengkap</span>
+                        </button>
+                        ${isSubscribed && subscribedUrl ? `
+                        <a href="${this.esc(subscribedUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-brand btn-sm" title="Akses langsung melalui portal langganan institusi UMS">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 10v4"></path><path d="M15 10v4"></path></svg>
+                            <span>Akses Kampus UMS ↗</span>
+                        </a>` : ''}
+                        <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand btn-sm">
+                            Buka Dokumen ↗
+                        </a>
+                        ${hasDirectPdf ? `
+                        <button type="button" class="btn btn-outline btn-sm" onclick="app.openPdfViewerById(${this.idAttr(rawId)})">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                            <span>Baca / Unduh PDF</span>
+                        </button>` : ''}
+                    </div>
+                    <div class="fed-actions-right">
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" title="Unduh file .RIS untuk Mendeley/Zotero">.RIS</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" title="Unduh file .BIB untuk LaTeX/Overleaf">BibTeX</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="app.copyArticleCitation(${this.idAttr(rawId)})">Salin Sitasi</button>
+                    </div>
+                </div>
+            </article>`;
+        }).join('');
+    },
+
     showArticleDetail(articleId, articleData = null) {
         let article = articleData || this.getArticle(articleId);
         if (!article) {
@@ -2378,6 +2835,7 @@ const app = {
             return;
         }
         this.registerArticle(article);
+        this.recordArticleView(article);
 
         const rawId = String(article.id || articleId);
         const title = article.title || article.t || 'Untitled';
@@ -2424,6 +2882,7 @@ const app = {
                     <span class="fed-badge-type" style="font-size:0.75rem; padding:0.25rem 0.65rem;">${this.esc(type)}</span>
                     ${date ? `<span class="fed-badge-year" style="font-size:0.75rem; padding:0.25rem 0.65rem;">${this.esc(String(date))}</span>` : ''}
                     ${citations > 0 ? `<span style="background:var(--bg-3); color:var(--ink-1); font-size:0.75rem; padding:0.25rem 0.65rem; border-radius:999px; font-weight:600; border:1px solid var(--border); display:inline-flex; align-items:center; gap:0.35rem;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg> ${this.fmt(citations)} Sitasi Global</span>` : ''}
+                    <span id="fed-detail-views-badge" class="fed-badge-views" style="${(article.view_count || article.viewCount) ? '' : 'display:none;'}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> <span>Dibaca ${(article.view_count || article.viewCount || 1)} kali di UMS</span></span>
                 </div>
                 <h2 class="detail-title" style="font-size:1.35rem; line-height:1.45; margin-bottom:0.5rem;">${this.esc(title)}</h2>
                 <p class="detail-author" style="font-size:0.95rem; color:var(--ink-2);">${this.esc(authors)}</p>
@@ -2481,33 +2940,30 @@ const app = {
 
             <!-- Cite & QR Code Panel -->
             <div id="art-cite-panel" class="action-panel" style="display:block; margin-top:1rem; padding:1.25rem; background:var(--bg-2); border-radius:var(--r-md); border:1px solid var(--border);">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1.5rem; flex-wrap:wrap">
-                    <div style="flex:1; min-width:260px">
-                        <h3 style="font-size:1rem; margin-bottom:.85rem; font-weight:700">Format Sitasi Otomatis</h3>
+                <div class="cite-qr-grid">
+                    <div class="cite-col">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                            <h3 style="font-size:1rem; font-weight:700; margin:0;">Format Sitasi Otomatis</h3>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="app.copyArticleCitation(${this.idAttr(rawId)})" style="font-size:0.78rem;">Salin Sitasi</button>
+                        </div>
                         ${this.renderCiteGroups({ a: authors, t: title, yr, pub, doi: validDoi, url: linkUrl })}
-                        <div style="margin-top:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
-                            <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.8rem; padding:0.35rem 0.8rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .RIS untuk Mendeley, Zotero, EndNote">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        <div style="margin-top:0.85rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" title="Unduh file .RIS untuk Mendeley, Zotero, EndNote">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                                 <span>Unduh .RIS (Mendeley/Zotero)</span>
                             </button>
-                            <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" style="font-size:0.8rem; padding:0.35rem 0.8rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .BIB untuk LaTeX/Overleaf">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" title="Unduh file .BIB untuk LaTeX/Overleaf">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                                 <span>Unduh .BIB (LaTeX)</span>
                             </button>
-                            <button type="button" class="btn btn-ghost" onclick="app.copyArticleCitation(${this.idAttr(rawId)})" style="font-size:0.8rem; padding:0.35rem 0.8rem">
-                                Salin Sitasi
-                            </button>
                         </div>
                     </div>
-                                Salin Sitasi
-                            </button>
-                        </div>
-                    </div>
-                    <div style="text-align:center; flex-shrink:0">
-                        <h3 style="font-size:1rem; margin-bottom:.85rem; font-weight:700">QR Code Dokumen</h3>
-                        <div id="qr-art-${this.esc(rawId).replace(/[^a-zA-Z0-9]/g, '_')}" style="padding:10px; background:#fff; border-radius:8px; display:inline-block; border:1px solid var(--border)">
+                    <div class="qr-col">
+                        <h4 style="font-size:0.875rem; margin:0 0 0.65rem 0; font-weight:600; color:var(--ink-2); white-space:nowrap;">QR Code Dokumen</h4>
+                        <div id="qr-art-${this.esc(rawId).replace(/[^a-zA-Z0-9]/g, '_')}" class="qr-box">
                             <!-- QR image renders here -->
                         </div>
+                        <p class="qr-hint">Pindai untuk membuka di smartphone</p>
                     </div>
                 </div>
             </div>
@@ -2683,7 +3139,25 @@ const app = {
         return [...row1, ...row2];
     },
 
+
+    updateSubscriptionShortcutChips() {
+        const isMasterEnabled = !this.intlConfig || this.intlConfig.enabled !== false;
+        const sourcesConfig = (this.intlConfig && this.intlConfig.sources) || {};
+
+        const isJournalsEnabled = isMasterEnabled && (sourcesConfig['subscribed_journals'] !== false);
+        const isEBooksEnabled = isMasterEnabled && (sourcesConfig['subscribed_ebooks'] !== false);
+
+        const chipEjrn = document.getElementById('hero-chip-ejrn');
+        const chipEbk = document.getElementById('hero-chip-ebk');
+        const chipsWrap = document.getElementById('hero-chips-wrap');
+
+        if (chipEjrn) chipEjrn.style.display = isJournalsEnabled ? 'inline-flex' : 'none';
+        if (chipEbk) chipEbk.style.display = isEBooksEnabled ? 'inline-flex' : 'none';
+        if (chipsWrap) chipsWrap.style.display = (isJournalsEnabled || isEBooksEnabled) ? 'flex' : 'none';
+    },
+
     renderFederatedSourcesGrid() {
+        this.updateSubscriptionShortcutChips();
         const container = document.getElementById('fed-source-container');
         if (!container) return;
 
@@ -2899,6 +3373,8 @@ const app = {
 
     findMatchingSubscribedJournals(query) {
         if (!query || !query.trim()) return [];
+        if (this.intlConfig && this.intlConfig.enabled === false) return [];
+        if (this.intlConfig && this.intlConfig.sources && this.intlConfig.sources.subscribed_journals === false) return [];
         const qTrim = query.toLowerCase().trim();
         const qTokens = qTrim.split(/\s+/).filter(t => t.length > 1);
         const journals = Array.isArray(this._ejournalsList) ? this._ejournalsList : [];
@@ -2921,6 +3397,8 @@ const app = {
 
     findMatchingSubscribedEBooks(query) {
         if (!query || !query.trim()) return [];
+        if (this.intlConfig && this.intlConfig.enabled === false) return [];
+        if (this.intlConfig && this.intlConfig.sources && this.intlConfig.sources.subscribed_ebooks === false) return [];
         const qTrim = query.toLowerCase().trim();
         const qTokens = qTrim.split(/\s+/).filter(t => t.length > 1);
         const ebooks = Array.isArray(this._ebooksList) ? this._ebooksList : [];
@@ -2954,28 +3432,47 @@ const app = {
         const modesEl = document.getElementById('fed-subscription-modes');
         if (!modesEl) return;
 
+        const isMasterEnabled = !this.intlConfig || this.intlConfig.enabled !== false;
+        const sourcesConfig = (this.intlConfig && this.intlConfig.sources) || {};
+        const isSubJournalsEnabled = isMasterEnabled && (sourcesConfig['subscribed_journals'] !== false);
+        const isSubEbooksEnabled = isMasterEnabled && (sourcesConfig['subscribed_ebooks'] !== false);
+        const isSubscriptionAllowed = isSubJournalsEnabled || isSubEbooksEnabled;
+
         const rawItems = this._fedRawItems || [];
         const matchedJrn = this._fedMatchedJournals || [];
         const matchedEbk = this._fedMatchedEBooks || [];
-        const subArticles = rawItems.filter(it => Boolean(it.isSubscribed)).length;
-        const subCount = subArticles + matchedJrn.length + matchedEbk.length;
-        const totalCount = rawItems.length;
+        const subArticles = isSubscriptionAllowed ? rawItems.filter(it => Boolean(it.isSubscribed)).length : 0;
+        const matchedSubs = isSubscriptionAllowed ? (matchedJrn.length + matchedEbk.length) : 0;
+        const subCount = subArticles + matchedSubs;
+
+        // Gunakan total riil pencarian dari database global (_fedCurrentTotal), bukan panjang pagination per-halaman (15)
+        const globalTotal = (typeof this._fedCurrentTotal === 'number' && this._fedCurrentTotal > 0) ? this._fedCurrentTotal : rawItems.length;
+        const allTotal = globalTotal + matchedSubs;
+
+        // Jika fitur langganan dinonaktifkan di admin, sembunyikan baris filter mode langganan
+        if (!isSubscriptionAllowed) {
+            modesEl.style.display = 'none';
+            modesEl.innerHTML = '';
+            this._fedSubscriptionMode = 'all';
+            return;
+        }
+
         const curMode = this._fedSubscriptionMode || 'all';
 
         modesEl.style.display = 'flex';
         modesEl.innerHTML = `
             <button type="button" class="fed-mode-pill ${curMode === 'all' ? 'active' : ''}" onclick="app.setFedSubscriptionMode('all')" title="Tampilkan seluruh artikel dan jurnal langganan">
                 <span>Semua Jurnal</span>
-                <span class="fed-mode-count">${totalCount}</span>
+                <span class="fed-mode-count">${this.fmt(allTotal)}</span>
             </button>
             <button type="button" class="fed-mode-pill mode-subscribed ${curMode === 'subscribed' ? 'active' : ''}" onclick="app.setFedSubscriptionMode('subscribed')" title="Tampilkan hanya jurnal dan artikel yang dilanggan resmi oleh UMS">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 <span>Langganan Resmi UMS</span>
-                <span class="fed-mode-count">${subCount}</span>
+                <span class="fed-mode-count">${this.fmt(subCount)}</span>
             </button>
             <button type="button" class="fed-mode-pill ${curMode === 'international' ? 'active' : ''}" onclick="app.setFedSubscriptionMode('international')" title="Tampilkan artikel pangkalan data internasional">
                 <span>Jurnal Internasional Global</span>
-                <span class="fed-mode-count">${totalCount}</span>
+                <span class="fed-mode-count">${this.fmt(globalTotal)}</span>
             </button>
         `;
     },
@@ -3509,62 +4006,71 @@ const app = {
             const subscribedUrl = it.subscribedUrl || '';
 
             return `
-            <div class="fed-item${isSubscribed ? ' fed-item-subscribed' : ''}">
-                <div class="fed-item-header-row">
-                    <div class="fed-item-num-title">
-                        <span class="fed-item-idx">${itemNum}.</span>
-                        <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" class="fed-title-link" title="Klik untuk membuka modal detail artikel, abstrak, dan sitasi">${safeTitle}</a>
-                    </div>
-                    <div class="fed-item-badges">
-                        ${isSubscribed ? `<span class="fed-badge-subscribed" title="Jurnal ini dilanggan secara resmi oleh Perpustakaan UMS"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Langganan UMS</span>` : ''}
-                        ${itemSource ? this.getSourceBadgeHtml(itemSource) : ''}
-                        ${this.getOaBadgeHtml(isOa)}
-                        <span class="fed-badge-type">${safeType}</span>
-                        ${safeDate ? `<span class="fed-badge-year">${safeDate}</span>` : ''}
+            <article class="fed-item${isSubscribed ? ' fed-item-subscribed' : ''}">
+                <div class="fed-item-header">
+                    <div class="fed-item-topbar">
+                        <div class="fed-item-badges">
+                            ${isSubscribed ? `<span class="fed-badge-subscribed" title="Jurnal ini dilanggan secara resmi oleh Perpustakaan UMS"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Langganan UMS</span>` : ''}
+                            ${itemSource ? this.getSourceBadgeHtml(itemSource) : ''}
+                            ${this.getOaBadgeHtml(isOa)}
+                            <span class="fed-badge-type">${safeType}</span>
+                        </div>
                         <button id="fed-bm-star-${this.esc(rawId)}" class="fed-star-btn ${isBm ? 'active' : ''}" data-fed-bm="${this.esc(rawId)}" onclick="event.stopPropagation(); app.toggleBookmark(${this.idAttr(rawId)})" title="${isBm ? 'Hapus dari Koleksi' : 'Simpan ke Koleksi'}">${this.starSvg(isBm)}</button>
                     </div>
+                    <h3 class="fed-item-title">
+                        <span class="fed-item-idx">${itemNum}.</span>
+                        <a href="#" onclick="app.showArticleDetail(${this.idAttr(rawId)}); return false;" title="Klik untuk membuka modal detail artikel, abstrak, dan sitasi">${safeTitle}</a>
+                    </h3>
                 </div>
-                <ul class="fed-meta-list">
-                    <li><span class="fed-meta-label">Creator :</span> ${safeAuthors}</li>
-                    <li><span class="fed-meta-label">Content Type :</span> ${safeType}</li>
-                    <li><span class="fed-meta-label">Publication Name :</span> ${safePub}</li>
-                    <li><span class="fed-meta-label">Publication Type :</span> ${safePubType}${safeDate ? ` | ${safeDate}` : ''}</li>
-                </ul>
+
+                <div class="fed-authors">${safeAuthors}</div>
+
+                <div class="fed-venue-row">
+                    <span class="fed-venue-name">${safePub}</span>
+                    ${safeDate ? `<span class="meta-dot">·</span><span class="fed-venue-date">${safeDate}</span>` : ''}
+                    ${validDoi ? `<span class="meta-dot">·</span><span class="fed-doi">DOI: ${this.esc(validDoi)}</span>` : ''}
+                </div>
+
                 ${abstractText ? `
-                    <div class="fed-item-abstract">
-                        <span class="fed-meta-label">Abstract:</span> ${abstractText}
-                    </div>` : ''}
+                    <p class="fed-item-abstract" title="Klik Detail untuk membaca abstrak lengkap">
+                        ${abstractText}
+                    </p>` : ''}
+
                 <div class="fed-actions-row">
-                    <button type="button" class="btn btn-ghost" onclick="app.showArticleDetail(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; font-weight:600; display:inline-flex; align-items:center; gap:0.35rem;" title="Buka modal detail artikel">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                        <span>Detail & Sitasi</span>
-                    </button>
-                    ${isSubscribed && subscribedUrl ? `
-                    <a href="${this.esc(subscribedUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-subscribed-campus" title="Akses langsung melalui portal langganan institusi UMS">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 10v4"></path><path d="M15 10v4"></path></svg>
-                        <span>Akses Kampus UMS ↗</span>
-                    </a>` : ''}
-                    <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand" style="font-size:0.75rem; padding:0.32rem 0.75rem">
-                        ${validDoi ? 'Buka Dokumen / DOI ↗' : 'Buka Dokumen ↗'}
-                    </a>
-                    ${hasDirectPdf ? `
-                    <button type="button" class="btn btn-emerald" onclick="app.openPdfViewerById(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Baca atau unduh PDF langsung">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-                        <span>Baca / Unduh PDF</span>
-                    </button>` : ''}
-                    <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .RIS untuk Mendeley/Zotero">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        <span>.RIS</span>
-                    </button>
-                    <button type="button" class="btn btn-ghost" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" style="font-size:0.75rem; padding:0.32rem 0.75rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Unduh file .BIB untuk LaTeX/Overleaf">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        <span>BibTeX</span>
-                    </button>
-                    <button type="button" class="btn btn-ghost" onclick="app.copyArticleCitation(${this.idAttr(rawId)})" style="font-size:0.75rem; padding:0.32rem 0.75rem">
-                        Salin Sitasi
-                    </button>
+                    <div class="fed-actions-left">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="app.showArticleDetail(${this.idAttr(rawId)})" title="Buka modal detail artikel">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            <span>Detail & Sitasi</span>
+                        </button>
+                        ${isSubscribed && subscribedUrl ? `
+                        <a href="${this.esc(subscribedUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-brand btn-sm" title="Akses langsung melalui portal langganan institusi UMS">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 10v4"></path><path d="M15 10v4"></path></svg>
+                            <span>Akses Kampus UMS ↗</span>
+                        </a>` : ''}
+                        <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-brand btn-sm">
+                            ${validDoi ? 'Buka Dokumen / DOI ↗' : 'Buka Dokumen ↗'}
+                        </a>
+                        ${hasDirectPdf ? `
+                        <button type="button" class="btn btn-outline btn-sm" onclick="app.openPdfViewerById(${this.idAttr(rawId)})" title="Baca atau unduh PDF langsung">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                            <span>Baca / Unduh PDF</span>
+                        </button>` : ''}
+                    </div>
+                    <div class="fed-actions-right">
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'ris')" title="Unduh file .RIS untuk Mendeley/Zotero">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            <span>.RIS</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="app.downloadCitationById(${this.idAttr(rawId)}, 'bib')" title="Unduh file .BIB untuk LaTeX/Overleaf">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            <span>BibTeX</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="app.copyArticleCitation(${this.idAttr(rawId)})" title="Salin sitasi format teks">
+                            Salin Sitasi
+                        </button>
+                    </div>
                 </div>
-            </div>`;
+            </article>`;
         }).join('');
     },
 
@@ -3994,14 +4500,26 @@ const app = {
         } else {
             // Field-specific search (support quotes stripping and exact phrase matching)
             const qClean = q.replace(/["']/g, '').trim().toLowerCase();
+            const words = qClean.split(/\s+/).filter(w => w.length > 0);
             results = this.books.filter(b => {
                 switch (field) {
-                    case 'title':
-                        return b.t && b.t.toLowerCase().includes(qClean);
-                    case 'author':
-                        return b.a && b.a.toLowerCase().includes(qClean);
-                    case 'subject':
-                        return b.sub && b.sub.some(s => s.toLowerCase().includes(qClean));
+                    case 'title': {
+                        if (!b.t) return false;
+                        const tLower = b.t.toLowerCase();
+                        return tLower.includes(qClean) || (words.length > 0 && words.every(w => tLower.includes(w)));
+                    }
+                    case 'author': {
+                        if (!b.a) return false;
+                        const aLower = b.a.toLowerCase();
+                        return aLower.includes(qClean) || (words.length > 0 && words.every(w => aLower.includes(w)));
+                    }
+                    case 'subject': {
+                        if (!b.sub || !Array.isArray(b.sub)) return false;
+                        return b.sub.some(s => {
+                            const sLower = s.toLowerCase();
+                            return sLower.includes(qClean) || (words.length > 0 && words.every(w => sLower.includes(w)));
+                        });
+                    }
                     case 'ddc':
                         return b.ddc && b.ddc.startsWith(qClean);
                     case 'isbn':
@@ -4012,12 +4530,12 @@ const app = {
             });
             // Sort by relevance to phrase first, then alphabetically
             results.sort((a, b) => {
-                const at = (a.t || '').toLowerCase();
-                const bt = (b.t || '').toLowerCase();
-                const aExact = at.startsWith(qClean) ? 2 : (at.includes(qClean) ? 1 : 0);
-                const bExact = bt.startsWith(qClean) ? 2 : (bt.includes(qClean) ? 1 : 0);
+                const targetA = field === 'author' ? (a.a || '').toLowerCase() : (a.t || '').toLowerCase();
+                const targetB = field === 'author' ? (b.a || '').toLowerCase() : (b.t || '').toLowerCase();
+                const aExact = targetA.startsWith(qClean) ? 2 : (targetA.includes(qClean) ? 1 : 0);
+                const bExact = targetB.startsWith(qClean) ? 2 : (targetB.includes(qClean) ? 1 : 0);
                 if (bExact !== aExact) return bExact - aExact;
-                return at.localeCompare(bt);
+                return (a.t || '').localeCompare(b.t || '');
             });
         }
 
@@ -4055,12 +4573,22 @@ const app = {
         this.activeFilters = { src: new Set(), type: new Set(), author: new Set(), year: new Set(), subject: new Set(), ddcClass: new Set() };
         this.resultsPage = 0;
         this._resultsTitleBase = `"${q}"${fieldLabel}`;
-        document.getElementById('results-title').textContent = `"${q}"${fieldLabel} — ${this.fmt(results.length)} ${this.t('results_found').toLowerCase()}`;
+
+        const resultsBar = document.querySelector('.results-bar');
+        const resultsSidebar = document.getElementById('results-sidebar');
+        if (results.length === 0) {
+            if (resultsBar) resultsBar.style.display = 'none';
+            if (resultsSidebar) resultsSidebar.style.display = 'none';
+        } else {
+            if (resultsBar) resultsBar.style.display = 'flex';
+            if (resultsSidebar) resultsSidebar.style.display = 'block';
+            document.getElementById('results-title').textContent = `"${q}"${fieldLabel} — ${this.fmt(results.length)} ${this.t('results_found').toLowerCase()}`;
+        }
 
         // Show result wrapper & scroll immediately, then show skeleton
         document.getElementById('results-wrap').style.display = 'block';
         document.getElementById('results-wrap').scrollIntoView({ behavior: 'smooth' });
-        this.showSkeleton(Math.min(results.length || 12, 12));
+        this.showSkeleton(results.length > 0 ? Math.min(results.length, 12) : 0);
 
         // Small RAF delay lets browser paint skeleton before heavy DOM work
         requestAnimationFrame(() => {
@@ -4418,6 +4946,7 @@ const app = {
                 parts.push(`<strong>${this.fmt(totalGlobal)}+ literatur ilmiah internasional</strong>`);
                 zeroBannerHtml = `
                     <div class="zero-local-alert">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:hsl(var(--primary)); flex-shrink:0;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                         <div>Koleksi lokal belum tersedia untuk kata kunci ini. Berikut ${parts.join(' dan ')} yang kami temukan secara langsung:</div>
                     </div>
                 `;
@@ -4522,12 +5051,17 @@ const app = {
     renderResults() {
         const grid = document.getElementById('results-grid');
         const moreWrap = document.getElementById('more-wrap');
+        const resultsBar = document.querySelector('.results-bar');
+        const resultsSidebar = document.getElementById('results-sidebar');
         if (!grid) return;
 
         if (this.currentResults.length === 0) {
             if (moreWrap) moreWrap.style.display = 'none';
             if (this.baseResults && this.baseResults.length > 0) {
-                // Filter returned 0 results
+                // Filter returned 0 results from existing base
+                if (resultsBar) resultsBar.style.display = 'flex';
+                if (resultsSidebar) resultsSidebar.style.display = 'block';
+                grid.style.display = 'grid';
                 grid.innerHTML = `
                     <div style="grid-column: 1 / -1;">
                         <div class="empty-state">
@@ -4543,35 +5077,19 @@ const app = {
                     </div>
                 `;
             } else {
-                // Search returned 0 results
-                const curQuery = (document.getElementById('search-input') || {}).value || '';
-                grid.innerHTML = `
-                    <div style="grid-column: 1 / -1;">
-                        <div class="empty-state">
-                            <div class="empty-state-icon-wrap">
-                                ${this.getEmptyStateSvg('search')}
-                            </div>
-                            <div class="empty-state-title">Koleksi Belum Ditemukan</div>
-                            <div class="empty-state-desc">Tidak ditemukan buku atau dokumen di katalog lokal perpustakaan untuk kata kunci <strong>"${this.esc(curQuery)}"</strong>.</div>
-                            <div class="empty-state-actions">
-                                <button type="button" class="btn btn-brand" onclick="app.selectFedSource('openalex')">Cari di Basis Data Internasional →</button>
-                                <button type="button" class="btn btn-ghost" onclick="document.getElementById('search-input').focus(); document.getElementById('search-input').select();">Ubah Kata Kunci</button>
-                            </div>
-                            <div class="empty-state-tips">
-                                <strong>Tips Pencarian:</strong>
-                                <ul>
-                                    <li>Periksa kembali ejaan kata kunci pencarian Anda.</li>
-                                    <li>Gunakan kata yang lebih umum atau sinonim (misal: <em>"pemasaran"</em> daripada kalimat panjang).</li>
-                                    <li>Cari dalam istilah bahasa Inggris untuk menjangkau artikel jurnal internasional.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                // Initial local search returned 0 results
+                // Streamlined: hide the redundant "0 koleksi ditemukan" bar, empty sidebar & giant tips box
+                if (resultsBar) resultsBar.style.display = 'none';
+                if (resultsSidebar) resultsSidebar.style.display = 'none';
+                grid.style.display = 'none';
+                grid.innerHTML = '';
             }
             return;
         }
 
+        if (resultsBar) resultsBar.style.display = 'flex';
+        if (resultsSidebar) resultsSidebar.style.display = 'block';
+        grid.style.display = 'grid';
         const end = (this.resultsPage + 1) * this.perPage;
         const show = this.currentResults.slice(0, end);
         grid.innerHTML = show.map(b => this.bookCard(b)).join('');
@@ -4731,7 +5249,14 @@ const app = {
         });
 
         const titleEl = document.getElementById('results-title');
-        if (titleEl) {
+        const resultsBar = document.querySelector('.results-bar');
+        const resultsSidebar = document.getElementById('results-sidebar');
+        if (this.baseResults.length === 0) {
+            if (resultsBar) resultsBar.style.display = 'none';
+            if (resultsSidebar) resultsSidebar.style.display = 'none';
+        } else if (titleEl) {
+            if (resultsBar) resultsBar.style.display = 'flex';
+            if (resultsSidebar) resultsSidebar.style.display = 'block';
             const baseTitle = this._resultsTitleBase || titleEl.textContent.replace(/\s*—\s*[\d.,\s]+[^\—]*$/, '');
             titleEl.textContent = `${baseTitle} — ${this.fmt(this.currentResults.length)} ${this.t('results_found').toLowerCase()}`;
         }
@@ -5045,25 +5570,28 @@ const app = {
             </div>
             
             <div id="action-panel-${book.id}" class="action-panel" style="display:none; margin-top:1rem; padding:1.25rem; background:var(--bg-2); border-radius:var(--r-md); border:1px solid var(--border);">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1.5rem; flex-wrap:wrap">
-                    <div style="flex:1; min-width:260px">
+                <div class="cite-qr-grid">
+                    <div class="cite-col">
                         <h3 style="font-size:1rem; margin-bottom:.85rem; font-weight:700">${this.t('auto_cite')}</h3>
                         ${this.renderCiteGroups(book)}
-                        <div style="margin-top:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
-                            <button type="button" class="btn btn-ghost" onclick="app.downloadCitation(app.searchEngine.getById('${book.id}') || ${JSON.stringify(book).replace(/"/g, '&quot;')}, 'ris')" style="font-size:0.8rem; padding:0.35rem 0.8rem" title="Unduh file .RIS untuk Mendeley, Zotero, EndNote">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Unduh .RIS (Mendeley/Zotero)
+                        <div style="margin-top:0.85rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="app.downloadCitation(app.searchEngine.getById('${book.id}') || ${JSON.stringify(book).replace(/"/g, '&quot;')}, 'ris')" title="Unduh file .RIS untuk Mendeley, Zotero, EndNote">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                <span>Unduh .RIS (Mendeley/Zotero)</span>
                             </button>
-                            <button type="button" class="btn btn-ghost" onclick="app.downloadCitation(app.searchEngine.getById('${book.id}') || ${JSON.stringify(book).replace(/"/g, '&quot;')}, 'bib')" style="font-size:0.8rem; padding:0.35rem 0.8rem" title="Unduh file .BIB untuk LaTeX/Overleaf">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Unduh .BIB (LaTeX)
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="app.downloadCitation(app.searchEngine.getById('${book.id}') || ${JSON.stringify(book).replace(/"/g, '&quot;')}, 'bib')" title="Unduh file .BIB untuk LaTeX/Overleaf">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                <span>Unduh .BIB (LaTeX)</span>
                             </button>
                         </div>
                     </div>
                     ${this.sourceLink(book) ? `
-                    <div style="text-align:center; flex-shrink:0">
-                        <h3 style="font-size:1rem; margin-bottom:.85rem; font-weight:700">QR Source</h3>
-                        <div id="qr-${book.id}" style="padding:10px; background:#fff; border-radius:8px; display:inline-block; border:1px solid var(--border)">
+                    <div class="qr-col">
+                        <h4 style="font-size:0.875rem; margin:0 0 0.65rem 0; font-weight:600; color:var(--ink-2); white-space:nowrap;">QR Source</h4>
+                        <div id="qr-${book.id}" class="qr-box">
                             <!-- QR goes here -->
                         </div>
+                        <p class="qr-hint">Pindai tautan katalog OPAC</p>
                     </div>` : ''}
                 </div>
             </div>
@@ -5273,11 +5801,31 @@ const app = {
         this.closeBookDetail();
 
         let res = this.books;
-        if (p.title) res = res.filter(b => b.t && b.t.toLowerCase().includes(p.title));
-        if (p.author) res = res.filter(b => b.a && b.a.toLowerCase().includes(p.author));
+        if (p.title) {
+            const tWords = p.title.split(/[\s,]+/).filter(w => w.length > 0);
+            res = res.filter(b => {
+                if (!b.t) return false;
+                const tLower = b.t.toLowerCase();
+                return tLower.includes(p.title) || (tWords.length > 0 && tWords.every(w => tLower.includes(w)));
+            });
+        }
+        if (p.author) {
+            const aWords = p.author.split(/[\s,]+/).filter(w => w.length > 0);
+            res = res.filter(b => {
+                if (!b.a) return false;
+                const aLower = b.a.toLowerCase();
+                return aLower.includes(p.author) || (aWords.length > 0 && aWords.every(w => aLower.includes(w)));
+            });
+        }
         if (p.pub) res = res.filter(b => b.pub && b.pub.toLowerCase().includes(p.pub));
         if (p.year) res = res.filter(b => b.yr == p.year);
-        if (p.sub) res = res.filter(b => b.sub && b.sub.some(s => s.toLowerCase().includes(p.sub)));
+        if (p.sub) {
+            const sWords = p.sub.split(/[\s,]+/).filter(w => w.length > 0);
+            res = res.filter(b => b.sub && b.sub.some(s => {
+                const sLower = s.toLowerCase();
+                return sLower.includes(p.sub) || (sWords.length > 0 && sWords.every(w => sLower.includes(w)));
+            }));
+        }
 
         this.showPage('home');
         document.getElementById('search-input').value = this.t('adv_search');
@@ -5529,12 +6077,6 @@ const app = {
         'FKG': '#f472b6',  // pink
         'FKI': '#38bdf8',  // cyan
         'FKIP': '#fbbf24',  // yellow
-    },
-
-    showProdi() {
-        this.showPage('prodi');
-        this.activeFakultas = null;
-        this.renderProdi();
     },
 
     renderProdi() {

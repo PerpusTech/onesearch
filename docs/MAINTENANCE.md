@@ -1,161 +1,188 @@
-# 🛠️ Panduan Pemeliharaan & Arsitektur Sistem (Maintenance Guide)
-**UMS Library OneSearch — Sistem Temu Balik Informasi Perpustakaan & Repositori Terpadu**
-
-Dokumen ini ditujukan bagi pengembang dan administrator teknis untuk memahami struktur kode, alur kerja data (*data pipeline*), serta prosedur operasional standar (*SOP*) dalam merawat aplikasi UMS OneSearch.
-
----
-
-## 1. Peta Arsitektur Sistem (*High-Level Architecture*)
-
-```
-[Sumber Data Luar / Kampus]
-  ├── Koha Library (OAI-PMH)       ──┐
-  ├── EPrints Repositori (OAI-PMH) ──┼──> [scripts/harvest_oai.py & harvest_all.py]
-  └── OJS Jurnal Ilmiah (OAI-PMH)  ──┘                   │
-                                                         ▼
-                                                output/biblio_*.json
-                                                         │
-                                                         ▼
-                                            [scripts/preprocess.py]
-                                           (Normalisasi DDC, Prodi,
-                                            Pembersihan Field Kosong,
-                                            & Kompresi Gzip Statis)
-                                                         │
-                                                         ▼
-                                           ┌── data/books.json & .gz
-                                           ├── data/ddc_tree.json & .gz
-                                           ├── data/prodi_index.json & .gz
-                                           └── data/stats.json
-                                                         │
-           ┌─────────────────────────────────────────────┴─────────────────────────────┐
-           ▼                                                                           ▼
-[Docker: api_proxy (Flask/Gunicorn)]                                       [Docker: web (Nginx:1.27)]
-  ├── /api/federated (Scopus, OpenAlex, Crossref)                            ├── gzip_static on (Sajikan .gz instan)
-  ├── /api/admin/* (Kelola Jurnal, E-Book, PDF)                              ├── PWA Service Worker (sw.js)
-  └── /api/admin/harvest/* (Trigger & Logs)                                  └── UI SPA (index.html, js/app.js)
-```
+# 🛠️ Panduan Pemeliharaan & Operasional Sistem (Maintenance SOP)
+> **UMS Library OneSearch (harvest-koha)**  
+> Standar Operasional Prosedur (SOP) bagi tim DevOps, Sysadmin, dan Pustakawan IT untuk pemeliharaan rutin, pencadangan data, pemulihan bencana (*disaster recovery*), dan penanganan insiden (*troubleshooting*).
 
 ---
 
-## 2. Direktori & Daftar Peran File
-
-### A. Antarmuka Pengguna & PWA (Frontend)
-| File / Path | Peran & Fungsi Utama |
-| :--- | :--- |
-| **`index.html`** | Halaman utama pencarian katalog (*Single Page Application*). Berisi markup search bar, filter sidebar, kartu hasil, dan modal detail. Mengontrol *asset cache-busting* (`?v=100`). |
-| **`admin.html`** | Dashboard admin untuk memantau status panen (harvest), membaca log berkala, mengelola daftar institusi mitra OAI-PMH, serta mengimpor/mengekspor data Jurnal & E-Book langganan. |
-| **`js/app.js`** | Inti logika aplikasi client-side: state management, event listeners, pemanggilan API pencarian federasi internasional, render modal buku/artikel, serta format sitasi terpadu (`getCitations`, `renderCiteGroups`). |
-| **`js/search.js`** | Mesin pencari teks penuh (*Full-Text Search Engine*) berbasis client-side memori. Membangun *inverted index* untuk judul, pengarang, subjek, dan prefix pohon DDC untuk pencarian secepat kilat tanpa request server. |
-| **`js/recommender.js`** | Mesin rekomendasi koleksi terkait berdasarkan kesamaan kelas DDC, nama pengarang yang sama, dan irisan subjek. |
-| **`sw.js`** | *Service Worker* PWA: Mengatur caching offline aset UI (`onesearch-shell-v100`) dan caching dataset koleksi (`onesearch-data-v100`) dengan strategi *Stale-While-Revalidate*. |
-| **`css/style.css`** | Desain antarmuka visual terpadu: sistem token CSS, tema gelap/terang, badge institusi, grid responsif, dan animasi transisi. |
-
----
-
-### B. Pipeline Pemanenan & Pengolahan Data (`scripts/`)
-| File / Path | Peran & Fungsi Utama |
-| :--- | :--- |
-| **`scripts/harvest_oai.py`** | Engine panen OAI-PMH. Mengunduh data record dari server OAI (Koha, EPrints, OJS) menggunakan verb `ListRecords` dengan dukungan *resumptionToken* dan pemulihan koneksi otomatis (*retry*). |
-| **`scripts/harvest_all.py`** | Skrip orkestrator panen multi-sumber. Mengambil konfigurasi dari `data/institutions.json` dan menjalankan panen serentak untuk semua perpustakaan mitra. |
-| **`scripts/preprocess.py`** | Jantung pemrosesan data: membersihkan string judul/pengarang, normalisasi nomor panggil DDC, pemetaan Program Studi UMS, membuang field kosong, menghasilkan `books.json`, serta otomatis mengompresi arsip `.gz` untuk Nginx. |
-| **`scripts/scheduler.py`** | Worker latar belakang yang menjalankan pembaruan panen inkremental terjadwal (misal tiap jam 02:00 pagi) dan mencatat log status ke `data/scheduler_state.json`. |
-| **`scripts/prodi_rules.py`** | Aturan klasifikasi DDC ke Program Studi dan Fakultas di Universitas Muhammadiyah Surakarta. |
-| **`scripts/ddc_sections.py`** | Kamus pembagian 10 kelas utama, 100 divisi, dan ribuan kelas Dewey Decimal Classification (DDC) bahasa Indonesia & Inggris. |
-| **`scripts/rebuild.py`** | Skrip pemintas untuk memproses ulang data hasil panen mentah di `output/` menjadi dataset siap saji di `data/`. |
+## 📑 Daftar Isi
+1. [Jadwal & Prosedur Pemeliharaan Rutin](#1-jadwal--prosedur-pemeliharaan-rutin)
+2. [SOP Pencadangan & Pemulihan Data (Backup & Restore)](#2-sop-pencadangan--pemulihan-data-backup--restore)
+   - [Pencadangan Otomatis Berjadwal (Cron)](#pencadangan-otomatis-berjadwal-cron)
+   - [Pencadangan Manual via Dashboard Admin](#pencadangan-manual-via-dashboard-admin)
+   - [Prosedur Pemulihan Data (*Disaster Recovery*)](#prosedur-pemulihan-data-disaster-recovery)
+3. [Pembuatan Ulang Indeks & Regenerasi Data (`scripts/rebuild.py`)](#3-pembuatan-ulang-indeks--regenerasi-data-scriptsrebuildpy)
+4. [SOP Penanganan Insiden (*Troubleshooting Guide*)](#4-sop-penanganan-insiden-troubleshooting-guide)
+   - [Kasus A: Harvesting Macet atau Terblokir (`.harvest.lock`)](#kasus-a-harvesting-macet-atau-terblokir-harvestlock)
+   - [Kasus B: Endpoint OAI-PMH Koha Mengembalikan Error 500 / Timeout](#kasus-b-endpoint-oai-pmh-koha-mengembalikan-error-500--timeout)
+   - [Kasus C: Perubahan CSS/JS Tidak Muncul di Peramban Pengguna](#kasus-c-perubahan-cssjs-tidak-muncul-di-peramban-pengguna)
+   - [Kasus D: Hasil Pencarian Internasional Kosong atau Lambat](#kasus-d-hasil-pencarian-internasional-kosong-atau-lambat)
+5. [Monitoring Performa & Kesehatan Container Docker](#5-monitoring-performa--kesehatan-container-docker)
 
 ---
 
-### C. Backend API & Integrasi Luar (`proxy/`)
-| File / Path | Peran & Fungsi Utama |
-| :--- | :--- |
-| **`proxy/app.py`** | Server API Flask: <br>• **Federated Search Engine:** Mengagregasi pencarian artikel ilmiah dari Scopus (Elsevier), OpenAlex, Crossref, ScienceDirect, Semantic Scholar, dan The Lens secara paralel.<br>• **E-Book Internasional (Open Access):** Penelusuran live multi-sumber jutaan buku teks akademik dan monograf dari DOAB, Open Library (Internet Archive), dan OpenAlex Books (`/api/international/ebooks/search`).<br>• **Resilience & Caching:** Menggunakan `TTLCache` in-memory dan `CircuitBreaker` agar jika salah satu API luar down, pencarian tidak macet.<br>• **Admin & Analitik:** Pelacakan tren pencarian anonim & *zero-result*, manajemen jurnal/e-book berbayar, streaming PDF, dan monitoring harvest. |
-| **`proxy/requirements.txt`** | Dependensi Python produksi: `Flask`, `requests`, `python-dotenv`, `gunicorn`. |
-| **`proxy/Dockerfile`** | Image container runtime Python untuk menjalankan gunicorn worker dan background scheduler. |
+## 1. Jadwal & Prosedur Pemeliharaan Rutin
+
+Untuk menjaga keandalan sistem penemuan pustaka, tim IT dianjurkan mengikuti matriks pemeliharaan berikut:
+
+| Frekuensi | Tugas Pemeliharaan | Skrip / Tool | Target & Verifikasi |
+| :--- | :--- | :--- | :--- |
+| **Harian (01:00)** | Panen data inkremental dari Koha UMS | `scripts/harvest_all.py --from <yesterday>` | Memastikan buku baru kemarin masuk ke katalog. |
+| **Mingguan (Ahad)**| Full rebuild & validasi konsistensi DDC | `python scripts/rebuild.py` | Memastikan indeks bebas dari rekaman korup. |
+| **Bulanan** | Arsip snapshot backup master data | `tar -czvf backup_*.tar.gz data/` | Snapshot disimpan ke cold storage eksternal. |
+| **Triwulanan** | Uji masa berlaku SSL & token API federasi | Browser & cURL testing | Sertifikat HTTPS & kuota API Scopus/OpenAlex. |
 
 ---
 
-### D. Infrastruktur & Kontainerisasi (`docker/`)
-| File / Path | Peran & Fungsi Utama |
-| :--- | :--- |
-| **`docker/nginx.conf`** | Konfigurasi server Nginx: Mengaktifkan `gzip_static on` (melayani file `.gz` instan tanpa beban CPU), routing SPA fallback, header keamanan (`nosniff`, `SAMEORIGIN`), dan proxy reverse ke backend Flask (`/api/`). |
-| **`docker-compose.yml`** | Definisi 3 service Docker:<br>1. `web` (Nginx di port 8088)<br>2. `api_proxy` (Gunicorn 16 threads di port 5000)<br>3. `scheduler` (Background Python harvester) |
-| **`Dockerfile`** | Image Nginx Alpine untuk container `web`. |
+## 2. SOP Pencadangan & Pemulihan Data (Backup & Restore)
 
----
+Data bibliografi yang telah dipanen dan dinormalisasi disimpan dalam direktori `data/`. Kehilangan folder ini dapat menyebabkan sistem harus melakukan harvesting ulang selama berjam-jam.
 
-### E. Penyimpanan Data (`data/`)
-*Catatan: Direktori `data/` diabaikan oleh Git via `.gitignore` agar repositori tetap ringan.*
-
-* **`data/books.json` & `.gz`**: Dataset bibliografi lengkap (~136k judul).
-* **`data/ddc_tree.json` & `.gz`**: Struktur pohon Kelas beserta jumlah bukunya.
-* **`data/prodi_index.json` & `.gz`**: Indeks pemetaan ID buku ke kode prodi.
-* **`data/stats.json`**: Ringkasan statistik agregat (total buku, penerbit, tahun tertua/terbaru, sebaran sumber).
-* **`data/subscribed_journals.json`**: Database jurnal internasional resmi yang dilanggan UMS.
-* **`data/subscribed_ebooks.json`**: Database e-book internasional yang dilanggan UMS.
-* **`data/ebooks_pdf/`**: Folder fisik file PDF e-book yang diupload admin perpustakaan.
-* **`data/institutions.json`**: Konfigurasi daftar server OAI-PMH perpustakaan mitra.
-* **`data/search_analytics.json`**: Log agregat pencarian anonim, frekuensi kata kunci populer, dan daftar pencarian tanpa hasil (*zero-result*) untuk evaluasi pengadaan buku perpustakaan.
-
----
-
-## 3. SOP Operasional & Perintah Pemeliharaan Rutin
-
-### 1. Memulai / Merestart Seluruh Sistem (Docker)
+### Pencadangan Otomatis Berjadwal (Cron)
+Buat skrip bash sederhana di server `/opt/scripts/backup_onesearch.sh`:
 ```bash
-# Menjalankan kontainer di latar belakang
-docker compose up -d
+#!/bin/bash
+BACKUP_DIR="/var/backups/onesearch"
+PROJECT_DIR="/var/www/harvest-koha"
+DATE=$(date +%Y%m%d_%H%M%S)
 
-# Memeriksa status kontainer
-docker compose ps
+mkdir -p "$BACKUP_DIR"
+tar -czf "$BACKUP_DIR/onesearch_data_$DATE.tar.gz" -C "$PROJECT_DIR" data/
 
-# Membaca log real-time API Proxy
-docker compose logs -f api_proxy
+# Pertahankan hanya cadangan 14 hari terakhir untuk menghemat disk
+find "$BACKUP_DIR" -name "onesearch_data_*.tar.gz" -mtime +14 -delete
 ```
 
-### 2. Menjalankan Panen Data Manual (On-Demand Harvest)
-Jika ingin mengambil data terbaru dari Koha/EPrints sekarang:
-```bash
-# Masuk ke environment proyek
-python scripts/harvest_all.py --mode incremental --days 7
+### Pencadangan Manual via Dashboard Admin
+1. Buka antarmuka admin di `http://<domain>/admin.html`.
+2. Masuk ke tab **Backup & Snapshot**.
+3. Klik tombol **"Buat Backup Baru Sekarang"**.
+4. Sistem akan membuat arsip `.tar.gz` di folder `backups/` dan menampilkan tombol unduh ke komputer lokal.
 
-# Atau rebuild dataset langsung dari file mentah terbaru:
+### Prosedur Pemulihan Data (*Disaster Recovery*)
+Jika terjadi kegagalan hardware atau korupsi file katalog:
+```bash
+# 1. Hentikan container sementara agar tidak ada penulisan data
+docker-compose down
+
+# 2. Masuk ke direktori proyek
+cd /var/www/harvest-koha
+
+# 3. Pulihkan folder data dari arsip cadangan
+tar -xzf /var/backups/onesearch/onesearch_data_TERBARU.tar.gz
+
+# 4. Bangun ulang file index dan periksa keutuhan
+python scripts/rebuild.py
+
+# 5. Nyalakan kembali container
+docker-compose up -d
+```
+
+---
+
+## 3. Pembuatan Ulang Indeks & Regenerasi Data (`scripts/rebuild.py`)
+
+Gunakan skrip `scripts/rebuild.py` apabila Anda memodifikasi aturan pemetaan DDC (`scripts/ddc_sections.py`), aturan Program Studi (`scripts/prodi_rules.py`), atau jika file `data/books.json` perlu disusun ulang dari raw XML tanpa melakukan koneksi jaringan ulang ke server Koha:
+
+```bash
+# Jalankan pembangunan ulang data
 python scripts/rebuild.py
 ```
-*Catatan: Proses rebuild otomatis membuang string kosong dan membuat file `.gz` yang baru.*
 
-### 3. Merilis Perubahan Frontend ke Browser Pengguna (Cache Invalidation)
-Jika Anda mengubah file `js/app.js` atau `css/style.css`:
-1. Buka [index.html](file:///d:/Code/harvest-koha/index.html), naikkan versi parameter pada tag script:
-   ```html
-   <script src="js/app.js?v=101"></script>
-   ```
-2. Buka [sw.js](file:///d:/Code/harvest-koha/sw.js), naikkan nama cache shell:
-   ```javascript
-   const CACHE_NAME_SHELL = 'onesearch-shell-v101';
-   ```
-3. Commit & push ke Git. Browser pengguna akan otomatis memperbarui cache dalam satu kali reload.
+Skrip ini akan:
+1. Membaca seluruh file XML/JSON mentah di direktori `data/raw/`.
+2. Menjalankan sanitasi teks dan validasi nomor panggil DDC.
+3. Memetakan ulang seluruh judul ke Program Studi.
+4. Menghasilkan file `data/books.json`, file chunking `data/books_chunk_*.json`, serta statistik agregat di `data/stats.json`.
+5. Mengompresi file ke format `.gz` untuk optimasi `gzip_static` Nginx.
 
 ---
 
-## 4. Panduan Troubleshooting Masalah Umum
+## 4. SOP Penanganan Insiden (*Troubleshooting Guide*)
 
-### Q1: Dataset buku tidak muncul di web (loading terus)?
-* **Penyebab:** File `data/books.json` belum di-generate atau permission file terhalang.
-* **Solusi:** Jalankan `python scripts/rebuild.py`. Pastikan file `data/books.json` berukuran > 1 MB. Jika menggunakan docker, jalankan `docker compose restart web`.
-
-### Q2: Pencarian Scopus / Jurnal Internasional menampilkan pesan error?
-* **Penyebab:** Kunci API Scopus kedaluwarsa atau kuota habis, memicu `CircuitBreaker`.
-* **Solusi:** Periksa `.env` dan pastikan `SCOPUS_API_KEY` valid. Cek statistik kesehatan cache & circuit breaker di browser: `http://localhost:8088/api/cache/stats`.
-
-### Q3: Status Harvest di Admin stuck / macet bertuliskan "RUNNING"?
-* **Penyebab:** Proses harvest terhenti tiba-tiba (misal server mati saat panen) sehingga file `data/scheduler_state.json` masih memegang status lock.
-* **Solusi:** Buka menu Admin di web -> Klik tombol **"Reset Lock Scheduler"** atau hapus key `"status": "RUNNING"` di file `data/scheduler_state.json`.
-
-### Q4: Perubahan konfigurasi Nginx (`docker/nginx.conf`) belum terasa?
-* **Solusi:** Cukup reload Nginx tanpa mematikan container:
-  ```bash
-  docker exec ums-onesearch nginx -s reload
-  ```
+### Kasus A: Harvesting Macet atau Terblokir (`.harvest.lock`)
+* **Gejala**: Menjalankan harvest baru menghasilkan pesan *"Proses panen lain sedang aktif"* padahal tidak ada proses yang berjalan di server.
+* **Penyebab**: Server mengalami restart mendadak atau proses Python sebelumnya dimatikan paksa (*SIGKILL*) sehingga file lock tidak sempat dibersihkan.
+* **Solusi**:
+  1. Periksa apakah benar tidak ada proses harvester yang aktif:
+     ```bash
+     ps aux | grep harvest
+     ```
+  2. Jika tidak ada, hapus file lock secara manual:
+     ```bash
+     rm .harvest.lock
+     ```
+     Atau klik tombol **"Buka Paksa Kunci (.harvest.lock)"** pada panel Admin Web.
 
 ---
-*Dokumen ini diperbarui secara berkala sesuai standar arsitektur minimalis & efisien (Ponytail standard).*
+
+### Kasus B: Endpoint OAI-PMH Koha Mengembalikan Error 500 / Timeout
+* **Gejala**: Skrip `harvest_oai.py` berhenti dengan pesan `HTTP Error 500: Internal Server Error` saat meminta batch dengan `resumptionToken`.
+* **Penyebab**: Server Koha kehabisan memori (*out of memory*) atau tabel sesi OAI di MySQL Koha korup saat menyusun batch XML yang terlalu besar.
+* **Solusi**:
+  1. Turunkan ukuran batch rekaman pada konfigurasi harvester atau tambahkan jeda waktu:
+     ```bash
+     python scripts/harvest_oai.py --delay 2.0 --retry 5
+     ```
+  2. Buka database Koha dan periksa tabel `oai_resumption_tokens`. Lakukan `OPTIMIZE TABLE oai_resumption_tokens;` jika diperlukan.
+  3. Lakukan panen inkremental (`--from`) untuk mengurangi jumlah baris data yang ditarik.
+
+---
+
+### Kasus C: Perubahan CSS/JS Tidak Muncul di Peramban Pengguna
+* **Gejala**: Pengembang sudah mengedit `css/style.css` atau `js/app.js`, namun saat web diakses publik, tampilan lama masih terlihat.
+* **Penyebab**: **Service Worker PWA** mencache shell lama secara agresif (*Cache-First strategy*).
+* **Solusi Wajib**:
+  1. Buka file `sw.js` dan naikkan versi string cache:
+     ```javascript
+     const CACHE_NAME_SHELL = 'onesearch-shell-v127'; // Versi dinaikkan
+     ```
+  2. Buka `index.html` dan perbarui query parameter versi pada tag stylesheet dan script:
+     ```html
+     <link rel="stylesheet" href="css/style.css?v=127">
+     <script src="js/app.js?v=127"></script>
+     ```
+  3. Ketika pengguna membuka kembali aplikasi, Service Worker versi baru akan terdeteksi di latar belakang, mengunduh aset baru, dan menggantikan cache lama saat halaman dimuat ulang.
+
+---
+
+### Kasus D: Hasil Pencarian Internasional Kosong atau Lambat
+* **Gejala**: Tab literatur internasional atau rekomendasi jurnal tidak memunculkan hasil dan berputar lama (*loading spinner* tak kunjung selesai).
+* **Penyebab**: Kuota API eksternal (misal Elsevier Scopus atau OpenAlex) melampaui ambang batas harian, atau koneksi keluar (*egress*) server terblokir firewall.
+* **Solusi**:
+  1. Periksa log container backend:
+     ```bash
+     docker-compose logs --tail=100 proxy
+     ```
+  2. Periksa status hit cache:
+     ```bash
+     curl http://localhost:8080/api/cache/stats
+     ```
+  3. Bersihkan memori cache jika data kotor tersimpan:
+     ```bash
+     curl -X POST http://localhost:8080/api/cache/clear
+     ```
+  4. Uji konektivitas keluar server ke API OpenAlex:
+     ```bash
+     curl -I "https://api.openalex.org/works?search=test"
+     ```
+
+---
+
+## 5. Monitoring Performa & Kesehatan Container Docker
+
+Untuk memeriksa konsumsi CPU dan RAM container UMS OneSearch di server produksi:
+
+```bash
+# Memeriksa status kesehatan container
+docker-compose ps
+
+# Memantau penggunaan memori secara real-time
+docker stats harvest-koha-web-1 harvest-koha-proxy-1
+
+# Memeriksa log error Nginx
+docker-compose logs -f web
+```
+
+Rata-rata konsumsi memori normal:
+* Container **Web (Nginx)**: ~15 MB - 30 MB RAM.
+* Container **Proxy (Gunicorn/Flask)**: ~120 MB - 250 MB RAM (termasuk in-memory TTLCache).

@@ -1,19 +1,49 @@
 /**
- * SearchEngine — Full-text search engine for book data
- * Supports searching by title, author, subject and DDC
+ * @fileoverview SearchEngine — In-Memory Inverted Index & Scoring Engine
+ * 
+ * Sistem penelusuran bibliografi berkecepatan tinggi di sisi klien (in-memory client search).
+ * Menggunakan struktur data Map terbalik (inverted index) untuk memetakan token kata ke indeks array buku,
+ * memungkinkan pencarian puluhan ribu koleksi buku dalam waktu < 5 milidetik tanpa request jaringan.
+ * 
+ * Fitur Utama:
+ * 1. Multi-Field Inverted Index: Judul (t), Pengarang (a), Subjek (sub), dan Prefiks Taksonomi DDC (ddc).
+ * 2. Frasa Presisi Bertanda Kutip: "artificial intelligence" dengan bobot prioritas tertinggi.
+ * 3. Operator Boolean: Mendukung klausa AND, OR, dan NOT (atau prefiks minus -istilah).
+ * 4. Pembobotan Hierarki Relevansi:
+ *    - Kecocokan persis judul (Exact title): +160 poin
+ *    - Awalan judul cocok (Title prefix): +120 poin
+ *    - Judul memuat frasa (Title contains): +80 poin
+ *    - Subjek memuat istilah: +45 poin
+ *    - Nama pengarang cocok: +35 poin
+ *    - Nomor DDC cocok: +15 poin
+ * 
+ * @author Tim TI Perpustakaan UMS
+ * @version 2.2.0
  */
 class SearchEngine {
     constructor() {
+        /** @type {Array<Object>} Koleksi master buku bibliografi */
         this.books = [];
-        this.titleIndex = new Map();   // word -> [bookIndex, ...]
+        /** @type {Map<string, Array<number>>} Inverted index token judul -> [index buku, ...] */
+        this.titleIndex = new Map();
+        /** @type {Map<string, Array<number>>} Inverted index token pengarang -> [index buku, ...] */
         this.authorIndex = new Map();
+        /** @type {Map<string, Array<number>>} Inverted index token subjek -> [index buku, ...] */
         this.subjectIndex = new Map();
-        this.ddcIndex = new Map();     // ddc prefix -> [bookIndex, ...]
+        /** @type {Map<string, Array<number>>} Inverted index prefiks DDC -> [index buku, ...] */
+        this.ddcIndex = new Map();
+        /** @type {Map<string, Object>} O(1) Fast lookup ID buku -> objek buku */
+        this.idMap = null;
+        /** @type {boolean} Status kesiapan mesin pencari */
         this.ready = false;
     }
 
     /**
-     * Build search indices from books array
+     * Membangun seluruh inverted index dari array master buku.
+     * Mengindeks kata pada judul, nama pengarang, kata kunci subjek, dan seluruh hirarki prefiks DDC.
+     * 
+     * @param {Array<Object>} books - Array objek bibliografi buku dari data/books.json
+     * @returns {void}
      */
     build(books) {
         this.books = books;

@@ -90,7 +90,14 @@ DEFAULT_INSTITUTIONS = [
 
 
 def get_institutions():
-    """Load institutions dynamically from data/institutions.json or fallback to defaults."""
+    """
+    Memuat daftar konfigurasi endpoint institusi target secara dinamis.
+    Membaca dari file 'data/institutions.json'. Jika file tidak ditemukan atau korup,
+    fungsi akan mengembalikan konfigurasi default (DEFAULT_INSTITUTIONS).
+
+    Returns:
+        list[dict]: Daftar kamus konfigurasi institusi yang memuat ID, URL OAI, dan format.
+    """
     if os.path.exists(INSTITUTIONS_FILE):
         try:
             with open(INSTITUTIONS_FILE, 'r', encoding='utf-8') as f:
@@ -127,7 +134,16 @@ def list_institutions():
 
 
 def harvest_institution(inst, from_date=None):
-    """Harvest satu institusi menggunakan harvest_oai.py."""
+    """
+    Mengeksekusi proses panen OAI-PMH untuk satu institusi menggunakan subprocess harvest_oai.py.
+
+    Args:
+        inst (dict): Konfigurasi target institusi (id, url, source, format, set).
+        from_date (str, optional): Batas tanggal awal format ISO (YYYY-MM-DD) untuk harvesting inkremental.
+
+    Returns:
+        bool: True jika exit code subprocess 0 (berhasil), False jika terjadi kegagalan.
+    """
     inst_id = inst['id']
     url = inst['url']
     source = inst.get('source')
