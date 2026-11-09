@@ -1,6 +1,6 @@
 # 📚 Dokumentasi Sistem UMS OneSearch / BookFinder
 > **Universitas Muhammadiyah Surakarta Library Discovery System**  
-> Terakhir diperbarui: September 2026 | Versi Sistem: v82+
+> Terakhir diperbarui: November 2026 | Versi Sistem: v136+
 
 ---
 
@@ -113,7 +113,10 @@ harvest-koha/
 │   ├── build_sqlite.py     # Pembuatan basis data SQLite untuk audit/analisis
 │   └── audit_ojs.py        # Validasi metadata artikel jurnal lokal OJS
 │
-├── data/                   # Raw data hasil harvest & backup data
+├── data/                   # Raw data hasil harvest & basis data cache
+│   ├── federated_cache.db  # Cache metadata & telemetri baca artikel (SQLite WAL Mode)
+│   ├── international_config.json # Konfigurasi saklar sumber langganan & e-book
+│   └── ...
 ├── output/                 # Hasil build books.json yang siap disajikan ke publik
 ├── docs/                   # Dokumentasi teknis & deployment guide
 └── img/                    # Aset gambar, logo UMS OneSearch
@@ -281,7 +284,14 @@ Jika ingin memantau performa cache atau membersihkannya secara manual:
 | :--- | :---: | :--- | :--- |
 | `/api/federated` | `GET` | `source`, `q`, `page`, `page_size` | Melakukan pencarian artikel jurnal internasional (Scopus, Springer, S2, Lens, OpenAlex, Crossref, All). |
 | `/api/pdf_proxy` | `GET` | `url` | Proxy streaming dokumen PDF Open Access untuk membypass batas X-Frame-Options & CORS. |
-| `/api/cache/stats` | `GET` | - | Mengembalikan metrik jumlah item cache, hit rate, hits, dan misses. |
+| `/api/articles/record-view` | `POST` | Body JSON: `doi`, `title`, `authors`, dll. | Mencatat interaksi baca artikel & sinkronisasi metadata naskah ke basis data SQLite server. |
+| `/api/articles/popular` | `GET` | `limit` (default 10) | Mengambil daftar artikel ilmiah yang paling sering dibaca di lingkungan kampus UMS. |
+| `/api/articles/recent` | `GET` | `limit` (default 10) | Mengambil riwayat pembacaan artikel ilmiah institusional terbaru. |
+| `/api/articles/lookup` | `GET` | `doi`, `url` | Mencari metadata artikel yang sudah tersimpan di cache SQLite server. |
+| `/api/admin/articles/stats` | `GET` | - | Metrik analitik jumlah artikel tersimpan dan total pembacaan institusional. |
+| `/api/international/config` | `GET` / `POST` | Body JSON (POST) | Mengambil dan memperbarui konfigurasi saklar sumber langganan & e-book. |
+| `/api/international/ebooks` | `GET` | `q`, `page`, `page_size` | Agregasi penelusuran multi-sumber e-book internasional (DOAB, OpenAlex, Open Library). |
+| `/api/cache/stats` | `GET` | - | Mengembalikan metrik jumlah in-memory cache, hit rate, hits, dan misses. |
 | `/api/cache/clear` | `POST` | - | Mengosongkan in-memory cache proxy. |
 | `/api/health` | `GET` | - | Health check status server dan konektivitas. |
 

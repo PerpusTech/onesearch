@@ -21,6 +21,13 @@
    - [Desain Token Kontrak Warna (Light & Dark Mode)](#desain-token-kontrak-warna-light--dark-mode)
    - [Kelas Komponen Terstandarisasi](#kelas-komponen-terstandarisasi)
 6. [Resiliensi PWA & Strategi Cache Service Worker](#6-resiliensi-pwa--strategi-cache-service-worker)
+7. [Arsitektur Hybrid Metadata Caching & Riwayat Baca (SQLite & IndexedDB)](#7-arsitektur-hybrid-metadata-caching--riwayat-baca-sqlite--indexeddb)
+   - [Lapisan Server: Institutional Cache & Telemetri Baca (data/federated_cache.db)](#lapisan-server-institutional-cache--telemetri-baca-datafederated_cachedb)
+   - [Lapisan Klien: Offline-First Personal Library (recent_articles)](#lapisan-klien-offline-first-personal-library-recent_articles)
+   - [Isolasi Kontainer DOM Sub-Navigasi Koleksi Saya](#isolasi-kontainer-dom-sub-navigasi-koleksi-saya)
+8. [Penyelarasan Dinamis & Pencocokan Penulis Terbalik](#8-penyelarasan-dinamis--pencocokan-penulis-terbalik)
+   - [Penyelarasan Visibilitas Pintasan Berbasis Konfigurasi (updateSubscriptionShortcutChips)](#penyelarasan-visibilitas-pintasan-berbasis-konfigurasi-updatesubscriptionshortcutchips)
+   - [Pencocokan Multi-Token Nama Penulis Terbalik MARC21 Koha](#pencocokan-multi-token-nama-penulis-terbalik-marc21-koha)
 
 ---
 
@@ -234,3 +241,68 @@ File `sw.js` bertindak sebagai proxy jaringan di sisi klien yang mengimplementas
    - Menyimpan file `data/books.json` dan `data/institutions.json`.
    - Menjamin pengguna selalu dapat mencari buku meskipun server offline, sembari mengunduh pembaruan katalog di latar belakang.
 
+
+---
+
+## 7. Arsitektur Hybrid Metadata Caching & Riwayat Baca (SQLite & IndexedDB)
+
+Untuk memfasilitasi penulisan sitasi tugas akhir mahasiswa dan memantau literatur ilmiah yang paling diminati kampus, sistem menerapkan arsitektur *Hybrid Caching* dua tingkat:
+
+```mermaid
+flowchart TD
+    User([Pengguna Membuka Detail Artikel]) --> AppJS[Frontend: app.js]
+    
+    subgraph "Tingkat 1: Client Storage (Browser)"
+        AppJS -->|1. Simpan Instan| IDB[(IndexedDB: recent_articles)]
+        IDB -->|Akses Cepat Offline| UI_Recent[Tab: Baru Saja Dilihat]
+        AppJS -.->|Sync Preview| LocalStore[(localStorage)]
+    end
+
+    subgraph "Tingkat 2: Institutional Server Storage"
+        AppJS -->|2. Non-blocking Beacon / Fetch| ProxyAPI["POST /api/articles/record-view"]
+        ProxyAPI -->|3. Upsert + Counter View| SQLiteDB[("SQLite: data/federated_cache.db (WAL Mode)")]
+        SQLiteDB -->|Agregasi Tren| ProxyPop["GET /api/articles/popular"]
+        ProxyPop --> UI_Pop[Tab: Sering Dibaca di Kampus]
+        SQLiteDB -->|Statistik Telemetri| AdminPanel[Konsol Admin Analitik]
+    end
+```
+
+### Lapisan Server: Institutional Cache & Telemetri Baca (`data/federated_cache.db`)
+- **Engine**: SQLite3 bawaan standard library Python (zero third-party dependencies).
+- **Mode Konkurensi**: Berjalan dengan `PRAGMA journal_mode=WAL;` dan `PRAGMA synchronous=NORMAL;` sehingga operasi pembacaan dan penulisan dapat berlangsung simultan tanpa mengunci (*table lock*) thread Flask.
+- **Skema & Indeks**:
+  - Kolom utama: `id`, `doi`, `title`, `authors`, `publication_name`, `year`, `content_type`, `source`, `abstract`, `url`, `pdf_url`, `is_subscribed`, `view_count`, `first_saved`, `last_accessed`.
+  - Indeks B-Tree pada: `doi`, `view_count DESC`, `last_accessed DESC`, dan `source` untuk memastikan kueri tren kampus selesai dalam waktu sub-2 milidetik.
+- **Mekanisme Upsert**: Jika naskah yang sama dibaca kembali, record tidak diduplikasi melainkan `view_count` dinaikkan, `last_accessed` diperbarui ke waktu sekarang, dan metadata yang lebih lengkap (seperti abstrak yang lebih panjang) ditimpa secara cerdas.
+
+### Lapisan Klien: Offline-First Personal Library (`recent_articles`)
+- Disimpan langsung di browser pengguna melalui **IndexedDB Store** (`catalog_store` di database `ums_onesearch_v1`) dengan batas maksimal 50 artikel terbaru (*FIFO eviction*).
+- Memungkinkan mahasiswa untuk membuka kembali detail dokumen, menyalin sitasi APA/MLA/Chicago, atau mengunduh file sitasi `.RIS` / `.BIB` meskipun sedang berada di luar jaringan kampus (*offline mode*).
+
+### Isolasi Kontainer DOM Sub-Navigasi Koleksi Saya
+Halaman Koleksi Saya (`#page-bookmarks`) dibagi ke dalam tiga wrapper section terisolasi secara struktural:
+1. `#section-bm-saved`: Menampilkan daftar pustaka yang dibintangi pengguna.
+2. `#section-bm-recent`: Menampilkan riwayat baca artikel internasional lokal dari IndexedDB.
+3. `#section-bm-popular`: Menampilkan literatur terpopuler hasil agregasi kampus dari SQLite server.
+
+Pemisahan ini menggunakan kontainer wrapper independen untuk mencegah benturan styling CSS (*CSS specificity conflict* seperti `display: grid !important`), memastikan hanya satu tab yang aktif dan ditampilkan pada satu waktu secara bersih.
+
+---
+
+## 8. Penyelarasan Dinamis & Pencocokan Penulis Terbalik
+
+### Penyelarasan Visibilitas Pintasan Berbasis Konfigurasi (`updateSubscriptionShortcutChips`)
+Pada antarmuka penelusuran beranda, tombol pintasan:
+- `[★ Jelajahi E-Journal Langganan]` (`#hero-chip-ejrn`)
+- `[📖 Jelajahi E-Book Langganan]` (`#hero-chip-ebk`)
+
+Dikontrol secara reaktif melalui fungsi `updateSubscriptionShortcutChips()`. Jika administrator perpustakaan menonaktifkan saklar langganan di Konsol Admin (`subscribed_journals: false` atau `subscribed_ebooks: false`), tombol terkait otomatis dihilangkan dari tampilan penelusuran beranda, dan baris filter mode langganan di hasil pencarian disembunyikan agar tidak membingungkan pengguna.
+
+### Pencocokan Multi-Token Nama Penulis Terbalik MARC21 Koha
+Katalog perpustakaan standar MARC21 (Tag 100/700) menyimpan nama penulis dalam format terbalik (*inverted name*), contohnya: `LIYE, Tere` atau `SOEKARNO, Ir.`.
+Pencarian standar seringkali gagal ketika pengguna mengetik nama wajar seperti *"tere liye"*.
+
+Sistem mengimplementasikan algoritma **Multi-Token Tokenizer**:
+- Kueri pengguna dipecah menjadi token-token kata (`['tere', 'liye']`).
+- Evaluasi pencarian pengarang mencocokkan apakah *seluruh* token kata pengguna terdapat di dalam kolom pengarang, tanpa mempedulikan urutan kata maupun tanda baca koma.
+- Hasilnya, kueri *"tere liye"* secara tepat dan instan menemukan seluruh karya dengan nama tersimpan *"LIYE, Tere"*.

@@ -7,21 +7,22 @@
 ## 📑 Daftar Isi
 1. [Standar Komunikasi & Format Respons](#1-standar-komunikasi--format-respons)
 2. [Autentikasi & Keamanan Endpoint](#2-autentikasi--keamanan-endpoint)
-3. [API Penelusuran Ilmiah & Jurnal Internasional](#3-api-penelusuran-ilmiah--jurnal-internasional)
+3. [API Metadata Artikel & Telemetri Institusi (SQLite Cache)](#3-api-metadata-artikel--telemetri-institusi-sqlite-cache)
+4. [API Penelusuran Ilmiah & Jurnal Internasional](#4-api-penelusuran-ilmiah--jurnal-internasional)
    - [`GET /api/federated`](#get-apifederated)
    - [`GET /api/scopus`](#get-apiscopus)
    - [`GET /api/topics`](#get-apitopics)
    - [`GET /api/international/journals`](#get-apiinternationaljournals)
    - [`GET /api/international/ebooks`](#get-apiinternationalebooks)
    - [`GET /api/international/ebooks/search`](#get-apiinternationalebookssearch)
-4. [API Streaming Dokumen & PDF Proxy](#4-api-streaming-dokumen--pdf-proxy)
+5. [API Streaming Dokumen & PDF Proxy](#5-api-streaming-dokumen--pdf-proxy)
    - [`GET /api/pdf_proxy`](#get-apipdf_proxy)
    - [`GET /api/ebooks/<ebk_id>/pdf`](#get-apiebooksebk_idpdf)
    - [`GET /api/ebooks/<ebk_id>/pdf/download`](#get-apiebooksebk_idpdfdownload)
-5. [API Manajemen Cache Backend](#5-api-manajemen-cache-backend)
+6. [API Manajemen Cache Backend](#6-api-manajemen-cache-backend)
    - [`GET /api/cache/stats`](#get-apicachestats)
    - [`POST /api/cache/clear`](#post-apicacheclear)
-6. [API Konsol Manajemen Admin](#6-api-konsol-manajemen-admin)
+7. [API Konsol Manajemen Admin](#7-api-konsol-manajemen-admin)
    - [Autentikasi & Sesi Admin](#autentikasi--sesi-admin)
    - [Monitoring & Kontrol Harvester](#monitoring--kontrol-harvester)
    - [Manajemen Backup & Restore](#manajemen-backup--restore)
@@ -56,7 +57,107 @@
 
 ---
 
-## 3. API Penelusuran Ilmiah & Jurnal Internasional
+---
+
+## 3. API Metadata Artikel & Telemetri Institusi (SQLite Cache)
+
+Backend menyediakan lapisan basis data SQLite (`data/federated_cache.db`) berkinerja tinggi (*WAL mode*) untuk mengagregasi metadata naskah ilmiah internasional yang dibaca sivitas akademika UMS, mencatat frekuensi baca, serta mempercepat *lookup* dokumen tanpa memanggil API global berulang kali.
+
+### `POST /api/articles/record-view`
+Merekam metadata artikel yang dibuka oleh pengguna ke database SQLite server secara non-blocking (*upsert*). Jika artikel sudah pernah dibaca sebelumnya, endpoint ini secara otomatis menaikkan nilai counter `view_count` dan memperbarui waktu `last_accessed`.
+
+- **Format Permintaan**: JSON (`Content-Type: application/json`)
+```json
+{
+  "id": "10.1007/s11218-026-10290-2",
+  "doi": "10.1007/s11218-026-10290-2",
+  "title": "Small stories, big impacts on children",
+  "authors": "Uzkul S.",
+  "publicationName": "Social Psychology of Education",
+  "year": 2026,
+  "contentType": "Article",
+  "source": "Scopus",
+  "url": "https://doi.org/10.1007/s11218-026-10290-2",
+  "pdfUrl": "",
+  "isSubscribed": false,
+  "subscribedUrl": "",
+  "abstract": "Abstrak naskah ilmiah..."
+}
+```
+
+- **Contoh Respons Sukses (200 OK)**:
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "10.1007/s11218-026-10290-2",
+    "doi": "10.1007/s11218-026-10290-2",
+    "title": "Small stories, big impacts on children",
+    "view_count": 5,
+    "last_accessed": "2026-11-05 10:45:12"
+  }
+}
+```
+
+---
+
+### `GET /api/articles/popular`
+Mengambil daftar naskah artikel internasional yang paling sering dibaca oleh sivitas akademika UMS, diurutkan berdasarkan `view_count DESC, last_accessed DESC`.
+
+- **Parameter Kueri**:
+  - `limit` *(opsional, default: 12, max: 50)*: Batas jumlah artikel yang diambil.
+- **Contoh Respons (200 OK)**:
+```json
+{
+  "ok": true,
+  "count": 1,
+  "articles": [
+    {
+      "id": "10.1007/s11218-026-10290-2",
+      "doi": "10.1007/s11218-026-10290-2",
+      "title": "Small stories, big impacts on children...",
+      "authors": "Uzkul S.",
+      "publication_name": "Social Psychology of Education",
+      "year": 2026,
+      "source": "Scopus",
+      "view_count": 5,
+      "last_accessed": "2026-11-05 10:45:12"
+    }
+  ]
+}
+```
+
+---
+
+### `GET /api/articles/recent`
+Mengambil daftar naskah artikel internasional yang paling baru diakses di kampus UMS, diurutkan berdasarkan `last_accessed DESC`.
+
+- **Parameter Kueri**:
+  - `limit` *(opsional, default: 12, max: 50)*.
+
+---
+
+### `GET /api/articles/lookup`
+Pencarian instan metadata dokumen langsung dari cache SQLite lokal tanpa memanggil pangkalan data luar. Sangat cepat (< 2ms) untuk mengecek ketersediaan sitasi atau DOI.
+
+- **Parameter Kueri**:
+  - `doi` *(string)*: Kode DOI artikel (contoh: `10.1007/s11218-026-10290-2`).
+  - `id` *(string, opsional)*: Hash ID dokumen.
+- **Respons**: Objek metadata lengkap artikel jika ditemukan, atau status `404 Not Found` jika belum pernah dicache.
+
+---
+
+### `GET /api/admin/articles/stats`
+Endpoint khusus administrator perpustakaan (membutuhkan autentikasi admin) untuk memantau akumulasi naskah ilmiah global yang dikonsumsi kampus.
+
+- **Header / Kueri**: Token `X-Admin-Key` atau cookie sesi admin.
+- **Data yang Dikembalikan**:
+  - `total_articles`: Total judul artikel internasional unik yang tersimpan di SQLite cache.
+  - `total_views`: Total akumulasi aktivitas pembacaan sivitas akademika.
+  - `top_sources`: Sebaran asal basis data indeks (Scopus, Springer, OpenAlex, dll.).
+  - `top_articles`: Top 15 naskah ilmiah yang paling diminati sivitas kampus.
+
+## 4. API Penelusuran Ilmiah & Jurnal Internasional
 
 ### `GET /api/federated`
 Melakukan penelusuran paralel (*broadcasting*) ke berbagai pangkalan data ilmiah dunia (OpenAlex, Crossref, Semantic Scholar, The Lens, DOAB, Scopus, Springer) secara simultan.
@@ -125,7 +226,7 @@ Pencarian teks lengkap pada metadata koleksi buku digital internasional.
 
 ---
 
-## 4. API Streaming Dokumen & PDF Proxy
+## 5. API Streaming Dokumen & PDF Proxy
 
 ### `GET /api/pdf_proxy`
 Menyajikan dokumen PDF dari repositori luar ke dalam modal peramban (*built-in PDF viewer*) dengan menghapus batasan header keamanan `X-Frame-Options` dan `Content-Security-Policy` yang seringkali memblokir rendering di dalam elemen `<iframe>`.
@@ -147,7 +248,7 @@ Mengunduh file PDF secara langsung dengan menyertakan header `Content-Dispositio
 
 ---
 
-## 5. API Manajemen Cache Backend
+## 6. API Manajemen Cache Backend
 
 ### `GET /api/cache/stats`
 Menampilkan metrik performa modul `TTLCache` in-memory backend.
@@ -169,7 +270,7 @@ Mengosongkan seluruh entri cache pencarian di memori server (memerlukan token ad
 
 ---
 
-## 6. API Konsol Manajemen Admin
+## 7. API Konsol Manajemen Admin
 
 ### Autentikasi & Sesi Admin
 * **`POST /api/admin/auth/verify`**:

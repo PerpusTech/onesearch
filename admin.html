@@ -4773,7 +4773,6 @@
 
                 const reasonText = reasonMap[b.reason] || b.reason || 'Cadangan';
                 const recordsCount = (b.records || 0).toLocaleString('id-ID');
-                const downloadUrl = `/api/admin/backups/download?file=${encodeURIComponent(b.filename)}&key=${encodeURIComponent(adminKey)}`;
 
                 return `
                     <tr>
@@ -4794,15 +4793,46 @@
                             <span style="font-size:0.78rem; font-weight:600; color:var(--text-main);">${recordsCount} buku</span>
                         </td>
                         <td style="text-align:right;">
-                            <a href="${downloadUrl}" class="btn btn-xs" title="Unduh arsip ZIP cadangan" download>
+                            <button type="button" class="btn btn-xs" onclick="downloadBackupArchive('${esc(b.filename)}')" title="Unduh arsip ZIP cadangan dengan autentikasi aman">
                                 Unduh
-                            </a>
+                            </button>
                             <button type="button" class="btn btn-destructive btn-xs" onclick="confirmRestoreBackup('${esc(b.filename)}', ${b.records || 0}, '${esc(dateFormatted)}')" title="Pulihkan data katalog dari file ini">
                                 Pulihkan
                             </button>
                         </td>
                     </tr>`;
             }).join('');
+        }
+
+        async function downloadAuthenticatedFile(endpoint, defaultFilename) {
+            const isAuthed = await checkAuth();
+            if (!isAuthed) return;
+            try {
+                showToast(`Mengunduh file ${defaultFilename}...`);
+                const res = await adminFetch(endpoint);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    showToast(err.error || 'Gagal mengunduh file.', true);
+                    return;
+                }
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = defaultFilename;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 200);
+            } catch (err) {
+                showToast(`Kesalahan unduh: ${err.message}`, true);
+            }
+        }
+
+        async function downloadBackupArchive(filename) {
+            return downloadAuthenticatedFile(`/api/admin/backups/download?file=${encodeURIComponent(filename)}`, filename);
         }
 
         async function triggerManualBackup() {
@@ -5771,13 +5801,11 @@
         }
 
         function exportJournalsCsv() {
-            const url = adminKey ? `/api/admin/international/journals/export?key=${encodeURIComponent(adminKey)}` : '/api/admin/international/journals/export';
-            window.open(url, '_blank');
+            downloadAuthenticatedFile('/api/admin/international/journals/export', 'subscribed_journals.csv');
         }
 
         function downloadJournalTemplate() {
-            const url = adminKey ? `/api/admin/international/journals/template?key=${encodeURIComponent(adminKey)}` : '/api/admin/international/journals/template';
-            window.open(url, '_blank');
+            downloadAuthenticatedFile('/api/admin/international/journals/template', 'journals_template.csv');
         }
 
         // ── Subscribed E-Books Management Logic ──
@@ -6029,9 +6057,7 @@
             formData.append('id', ebkId);
 
             const xhr = new XMLHttpRequest();
-            const uploadUrl = adminKey
-                ? `/api/admin/international/ebooks/upload-pdf?key=${encodeURIComponent(adminKey)}`
-                : '/api/admin/international/ebooks/upload-pdf';
+            const uploadUrl = '/api/admin/international/ebooks/upload-pdf';
 
             xhr.open('POST', uploadUrl, true);
             if (adminKey) {
@@ -6340,13 +6366,11 @@
         }
 
         function exportEBooksCsv() {
-            const url = adminKey ? `/api/admin/international/ebooks/export?key=${encodeURIComponent(adminKey)}` : '/api/admin/international/ebooks/export';
-            window.open(url, '_blank');
+            downloadAuthenticatedFile('/api/admin/international/ebooks/export', 'subscribed_ebooks.csv');
         }
 
         function downloadEBookTemplate() {
-            const url = adminKey ? `/api/admin/international/ebooks/template?key=${encodeURIComponent(adminKey)}` : '/api/admin/international/ebooks/template';
-            window.open(url, '_blank');
+            downloadAuthenticatedFile('/api/admin/international/ebooks/template', 'ebooks_template.csv');
         }
 
         // ── Search Analytics Logic ──
@@ -6479,8 +6503,7 @@
         }
 
         function downloadAnalyticsCSV() {
-            const url = adminKey ? `/api/admin/analytics/export?key=${encodeURIComponent(adminKey)}` : '/api/admin/analytics/export';
-            window.open(url, '_blank');
+            downloadAuthenticatedFile('/api/admin/analytics/export', 'search_analytics.csv');
         }
 
         async function resetSearchAnalytics() {

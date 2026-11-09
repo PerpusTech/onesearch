@@ -24,7 +24,8 @@ import socket
 import ipaddress
 import sqlite3
 import hashlib
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
+import collections
 import requests
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -42,14 +43,31 @@ SEMANTIC_SCHOLAR_API_KEY = os.environ.get('SEMANTIC_SCHOLAR_API_KEY', '').strip(
 LENS_API_KEY = os.environ.get('LENS_API_KEY', '').strip('"\'')
 
 
+
+_public_telemetry_attempts = collections.defaultdict(list)
+_public_telemetry_lock = threading.Lock()
+
+def _is_telemetry_rate_limited(client_ip, limit=30, window_secs=60):
+    now = time.time()
+    with _public_telemetry_lock:
+        attempts = [t for t in _public_telemetry_attempts[client_ip] if now - t < window_secs]
+        if len(attempts) >= limit:
+            _public_telemetry_attempts[client_ip] = attempts
+            return True
+        attempts.append(now)
+        _public_telemetry_attempts[client_ip] = attempts
+        return False
+
 # ── HTTP SESSION ──
 HTTP_SESSION = requests.Session()
 
 # ── PATHS & GLOBAL DIRECTORIES ──
 ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'ums-onesearch-secret-key').strip('"\'')
 if ADMIN_SECRET_KEY == 'ums-onesearch-secret-key':
-    print("\n[PERINGATAN KEAMANAN] ADMIN_SECRET_KEY masih menggunakan nilai default!")
+    print("\n[PERINGATAN KEAMANAN KRITIS] ADMIN_SECRET_KEY masih menggunakan nilai default statis!")
     print("Harap setel kata kunci unik di file .env (ADMIN_SECRET_KEY=...) sebelum dipakai di lingkungan produksi.\n")
+    if os.environ.get('FLASK_ENV') == 'production':
+        sys.exit("CRITICAL ERROR: Aplikasi menolak berjalan di mode produksi dengan ADMIN_SECRET_KEY default!")
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 LOGS_DIR = os.path.join(BASE_DIR, 'logs', 'harvest')
@@ -169,6 +187,14 @@ def upsert_cached_article(data):
                 is_subscribed = MAX(article_cache.is_subscribed, EXCLUDED.is_subscribed),
                 subscribed_url = CASE WHEN length(EXCLUDED.subscribed_url) > 0 THEN EXCLUDED.subscribed_url ELSE article_cache.subscribed_url END;
             """, (art_id, doi, title, authors, pub_name, year, content_type, source, abstract, url, pdf_url, is_subscribed, subscribed_url))
+            # Prune table to prevent unbounded disk growth if rows exceed 50,000
+            try:
+                row_count = conn.execute("SELECT COUNT(*) FROM article_cache").fetchone()[0]
+                if row_count > 50000:
+                    conn.execute("DELETE FROM article_cache WHERE id IN (SELECT id FROM article_cache ORDER BY view_count ASC, last_accessed ASC LIMIT 500)")
+            except Exception:
+                pass
+
             conn.commit()
             
             row = conn.execute("SELECT id, doi, title, view_count, last_accessed FROM article_cache WHERE id = ?", (art_id,)).fetchone()
@@ -1405,14 +1431,30 @@ def pdf_proxy():
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'application/pdf,application/octet-stream,*/*'
         }
-        r = HTTP_SESSION.get(raw_url, headers=headers, stream=True, timeout=(6.0, 20.0), allow_redirects=True)
-        if r.status_code != 200:
-            return jsonify({"error": f"Upstream error HTTP {r.status_code}"}), r.status_code
+        current_url = raw_url
+        r = None
+        for _ in range(4):
+            is_safe, reason = _is_safe_public_url(current_url)
+            if not is_safe:
+                return jsonify({"error": f"Permintaan diblokir oleh kebijakan Anti-SSRF: {reason}"}), 403
+            
+            r = HTTP_SESSION.get(current_url, headers=headers, stream=True, timeout=(6.0, 20.0), allow_redirects=False)
+            if r.is_redirect or r.status_code in (301, 302, 303, 307, 308):
+                redirect_target = r.headers.get('Location', '')
+                if not redirect_target:
+                    return jsonify({"error": "Redirect upstream tidak memiliki header Location"}), 400
+                current_url = urljoin(current_url, redirect_target)
+                continue
+            break
+
+        if r is None or r.status_code != 200:
+            status = r.status_code if r else 500
+            return jsonify({"error": f"Upstream error HTTP {status}"}), status
         
         content_type = r.headers.get('Content-Type', '').lower()
         if 'application/pdf' not in content_type and 'octet-stream' not in content_type:
             # Publisher returned an HTML landing / paywall page. Redirect to origin URL.
-            return redirect(raw_url)
+            return redirect(current_url)
             
         def generate():
             for chunk in r.iter_content(chunk_size=16384):
@@ -2457,7 +2499,8 @@ def admin_upload_ebook_pdf():
     if not orig_filename.lower().endswith('.pdf'):
         return jsonify({"error": "Hanya file berekstensi .pdf yang diperbolehkan."}), 400
 
-    ebk_id = str(request.form.get('id', '')).strip().upper()
+    raw_ebk_id = str(request.form.get('id', '')).strip().upper()
+    ebk_id = re.sub(r'[^A-Z0-9_\-]', '', raw_ebk_id)
     if not ebk_id:
         ebk_id = f"EBK-{int(time.time())}"
 
@@ -2465,7 +2508,9 @@ def admin_upload_ebook_pdf():
     stored_filename = f"{ebk_id}_{safe_base}" if not safe_base.startswith(f"{ebk_id}_") else safe_base
 
     os.makedirs(SUBSCRIBED_EBOOKS_PDF_DIR, exist_ok=True)
-    target_path = os.path.join(SUBSCRIBED_EBOOKS_PDF_DIR, stored_filename)
+    target_path = os.path.abspath(os.path.join(SUBSCRIBED_EBOOKS_PDF_DIR, stored_filename))
+    if not target_path.startswith(os.path.abspath(SUBSCRIBED_EBOOKS_PDF_DIR)):
+        return jsonify({"error": "Path traversal terdeteksi pada parameter ID e-book."}), 400
 
     try:
         file.save(target_path)
@@ -3205,6 +3250,10 @@ def admin_test_institution_oai():
     if not url:
         return jsonify({"ok": False, "error": "URL endpoint kosong."}), 400
 
+    is_safe, reason = _is_safe_public_url(url)
+    if not is_safe:
+        return jsonify({"ok": False, "error": f"URL diblokir oleh kebijakan Anti-SSRF: {reason}"}), 400
+
     try:
         test_url = f"{url}?verb=Identify" if '?' not in url else f"{url}&verb=Identify"
         resp = requests.get(test_url, timeout=7, headers={'User-Agent': 'UMSLibraryOneSearchHarvester/1.0'})
@@ -3480,6 +3529,10 @@ def _save_prodi_rules_data(data):
 # ── ENDPOINTS METADATA ARTIKEL INTERNASIONAL (SQLITE CACHE) ──
 @app.route('/api/articles/record-view', methods=['POST'])
 def api_record_article_view():
+    client_ip = request.remote_addr or '127.0.0.1'
+    if _is_telemetry_rate_limited(client_ip, limit=30, window_secs=60):
+        return jsonify({"ok": False, "error": "Terlalu banyak permintaan telemetri. Batas 30 request/menit (Rate Limited)."}), 429
+
     try:
         payload = request.get_json(silent=True) or {}
         res = upsert_cached_article(payload)

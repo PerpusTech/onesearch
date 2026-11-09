@@ -33,6 +33,8 @@ Sistem dibangun dengan prinsip **Zero-Framework Architecture** (Vanilla HTML5, E
 - 📄 **In-Modal Streaming PDF Viewer**: Membaca dokumen naskah dan e-book langsung di dalam modal peramban tanpa terblokir proteksi header `X-Frame-Options` via proxy backend.
 - 🎓 **Penelusuran Berbasis Kurikulum Program Studi**: Mahasiswa dapat menjelajahi literatur terkurasi berdasarkan Program Studi di UMS melalui pemetaan taksonomi DDC terpadu.
 - 📋 **Generator Sitasi Akademik Lengkap**: Pembuatan sitasi instan standar APA, MLA, Chicago, serta ekspor metadata riset ke format `.RIS` (Mendeley, Zotero) dan `.BIB` (BibTeX / LaTeX).
+- 💾 **Hybrid Metadata Caching & Telemetri Institusi**: Penyimpanan metadata naskah ilmiah dua lapis (*two-tier*): offline-first IndexedDB di browser pengguna (tab *Baru Saja Dilihat*) dan server-side SQLite berkecepatan tinggi dengan mode WAL (`data/federated_cache.db`) untuk menganalisis tren baca sivitas akademika (tab *Sering Dibaca di Kampus*).
+- 🔍 **Pencocokan Cerdas Penulis Terbalik (Inverted Author Matching)**: Menemukan secara instan seluruh karya pengarang berformat katalog MARC21 Koha (`LIYE, Tere`) meskipun pengguna mengetik nama natural sehari-hari (`tere liye`) berkat algoritma *Multi-Token Tokenizer*.
 - 📱 **Progressive Web App (PWA)**: Dapat diinstal langsung di layar utama smartphone dan komputer desktop dengan *Service Worker* caching.
 
 ---

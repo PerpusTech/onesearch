@@ -6257,11 +6257,11 @@ const app = {
         const numId = Number(id);
         this.toggleBookmark(isNaN(numId) || String(numId) !== id ? id : numId);
     },
-    // Generate safe ID for onclick (always encode as data attribute index instead of raw string)
+    // Generate safe ID for onclick (always escape single/double quotes and backslashes to prevent attribute and JS injection)
     idAttr(id) {
         if (typeof id === 'string') {
-            // Escape single quotes and backslashes to prevent JS injection in onclick
-            return `'${id.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+            const safe = id.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            return `'${safe}'`;
         }
         return id;
     },
